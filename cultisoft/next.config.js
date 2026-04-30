@@ -2,7 +2,12 @@
 const nextConfig = {
   reactStrictMode: true,
   experimental: {
-    serverComponentsExternalPackages: ["better-sqlite3"],
+    serverComponentsExternalPackages: ["postgres"],
+  },
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "ibkhvopshhlbvjwrmuzm.supabase.co" },
+    ],
   },
 };
 

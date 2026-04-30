@@ -2,11 +2,13 @@
 const nextConfig = {
   reactStrictMode: true,
   experimental: {
-    serverComponentsExternalPackages: ["better-sqlite3"],
+    serverComponentsExternalPackages: ["postgres"],
   },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "cdn.shopify.com" },
+      { protocol: "https", hostname: "ibkhvopshhlbvjwrmuzm.supabase.co" },
+      { protocol: "https", hostname: "api.qrserver.com" },
     ],
   },
 };
