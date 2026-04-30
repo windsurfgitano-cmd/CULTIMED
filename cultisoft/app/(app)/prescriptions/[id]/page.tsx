@@ -30,25 +30,25 @@ interface RxItem {
 
 async function changeStatus(formData: FormData) {
   "use server";
-  const staff = requireStaff();
+  const staff = await requireStaff();
   const id = Number(formData.get("id"));
   const status = String(formData.get("status"));
   if (!id || !["pending", "active", "fulfilled", "rejected", "expired"].includes(status)) return;
-  run(
+  await run(
     `UPDATE prescriptions SET status = ?, verified_by = ?, verified_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
      WHERE id = ?`,
     status, staff.id, id
   );
-  logAudit({ staffId: staff.id, action: `prescription_${status}`, entityType: "prescription", entityId: id });
+  await logAudit({ staffId: staff.id, action: `prescription_${status}`, entityType: "prescription", entityId: id });
   redirect(`/prescriptions/${id}`);
 }
 
-export default function PrescriptionDetailPage({ params }: { params: { id: string } }) {
-  requireStaff();
+export default async function PrescriptionDetailPage({ params }: { params: { id: string } }) {
+  await requireStaff();
   const id = parseInt(params.id, 10);
   if (!id) notFound();
 
-  const r = get<RxFull>(
+  const r = await get<RxFull>(
     `SELECT r.*, p.id as patient_id, p.full_name as patient_name, p.rut as patient_rut,
        p.date_of_birth as patient_dob,
        d.full_name as doctor_name, d.professional_license as doctor_license, d.specialty as doctor_specialty,
@@ -62,7 +62,7 @@ export default function PrescriptionDetailPage({ params }: { params: { id: strin
   );
   if (!r) notFound();
 
-  const items = all<RxItem>(
+  const items = await all<RxItem>(
     `SELECT pi.id, pi.product_id, pi.quantity_prescribed, pi.quantity_dispensed, pi.dosage_instructions,
        pr.name as product_name, pr.sku as product_sku, pr.presentation
      FROM prescription_items pi

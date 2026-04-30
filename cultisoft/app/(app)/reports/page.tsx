@@ -6,7 +6,7 @@ import PageHeader from "@/components/PageHeader";
 
 export const dynamic = "force-dynamic";
 
-interface DailySales { d: string; count: number; total: number; }
+interface DailySales { day: string; count: number; total: number; }
 interface TopProduct { product_name: string; sku: string; total_qty: number; total_revenue: number; }
 interface TopPatient { patient_id: number; patient_name: string; rut: string; total_count: number; total_spent: number; }
 interface CategoryBreakdown { category: string; count: number; total: number; }
@@ -22,30 +22,30 @@ const CATEGORY_LABELS: Record<string, string> = {
   otro: "Otro",
 };
 
-export default function ReportsPage({
+export default async function ReportsPage({
   searchParams,
 }: {
   searchParams: { range?: string };
 }) {
-  requireStaff();
+  await requireStaff();
   const days = Math.min(365, Math.max(7, parseInt(searchParams.range || "30", 10) || 30));
 
-  const dateFilter = `d.dispensed_at >= datetime('now', '-${days} days') AND d.status = 'completed'`;
+  const dateFilter = `d.dispensed_at >= NOW() - (INTERVAL '1 day' * ${days}) AND d.status = 'completed'`;
 
-  const totals = get<{ count: number; total: number; avg: number }>(
+  const totals = await get<{ count: number; total: number; avg: number }>(
     `SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total, COALESCE(AVG(total_amount), 0) as avg
      FROM dispensations d WHERE ${dateFilter}`
   );
 
-  const byDay = all<DailySales>(
-    `SELECT date(d.dispensed_at) as d, COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total
+  const byDay = await all<DailySales>(
+    `SELECT d.dispensed_at::date as day, COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total
      FROM dispensations d
      WHERE ${dateFilter}
-     GROUP BY date(d.dispensed_at)
-     ORDER BY d ASC`
+     GROUP BY d.dispensed_at::date
+     ORDER BY day ASC`
   );
 
-  const topProducts = all<TopProduct>(
+  const topProducts = await all<TopProduct>(
     `SELECT pr.name as product_name, pr.sku, SUM(di.quantity) as total_qty, SUM(di.total_price) as total_revenue
      FROM dispensation_items di
      JOIN dispensations d ON d.id = di.dispensation_id
@@ -56,7 +56,7 @@ export default function ReportsPage({
      LIMIT 10`
   );
 
-  const topPatients = all<TopPatient>(
+  const topPatients = await all<TopPatient>(
     `SELECT p.id as patient_id, p.full_name as patient_name, p.rut,
        COUNT(d.id) as total_count, COALESCE(SUM(d.total_amount), 0) as total_spent
      FROM dispensations d
@@ -67,7 +67,7 @@ export default function ReportsPage({
      LIMIT 10`
   );
 
-  const byCategory = all<CategoryBreakdown>(
+  const byCategory = await all<CategoryBreakdown>(
     `SELECT pr.category, COUNT(DISTINCT d.id) as count, SUM(di.total_price) as total
      FROM dispensation_items di
      JOIN dispensations d ON d.id = di.dispensation_id
@@ -77,7 +77,7 @@ export default function ReportsPage({
      ORDER BY total DESC`
   );
 
-  const byPayment = all<PaymentBreakdown>(
+  const byPayment = await all<PaymentBreakdown>(
     `SELECT COALESCE(payment_method, 'sin_datos') as payment_method,
        COUNT(*) as count, SUM(total_amount) as total
      FROM dispensations d
@@ -86,7 +86,7 @@ export default function ReportsPage({
      ORDER BY total DESC`
   );
 
-  const byStaff = all<StaffBreakdown>(
+  const byStaff = await all<StaffBreakdown>(
     `SELECT s.full_name as staff_name, COUNT(d.id) as count, SUM(d.total_amount) as total
      FROM dispensations d
      JOIN staff s ON s.id = d.dispenser_id
@@ -95,9 +95,9 @@ export default function ReportsPage({
      ORDER BY total DESC`
   );
 
-  const newPatients = get<{ c: number }>(
-    `SELECT COUNT(*) as c FROM patients WHERE created_at >= datetime('now', '-${days} days')`
-  )?.c || 0;
+  const newPatients = (await get<{ c: number }>(
+    `SELECT COUNT(*) as c FROM patients WHERE created_at >= NOW() - (INTERVAL '1 day' * ${days})`
+  ))?.c || 0;
 
   const maxDay = Math.max(1, ...byDay.map((b) => b.total));
   const maxCat = Math.max(1, ...byCategory.map((b) => Number(b.total)));
@@ -145,7 +145,7 @@ export default function ReportsPage({
             {byDay.map((b) => {
               const h = (b.total / maxDay) * 100;
               return (
-                <div key={b.d} className="flex flex-col items-center justify-end h-full group" title={`${b.d}: ${formatCLP(b.total)} (${b.count} disp.)`}>
+                <div key={b.day} className="flex flex-col items-center justify-end h-full group" title={`${b.day}: ${formatCLP(b.total)} (${b.count} disp.)`}>
                   <div
                     className="w-full bg-primary/80 hover:bg-primary rounded-t transition-all"
                     style={{ height: `${Math.max(2, h)}%` }}
@@ -156,8 +156,8 @@ export default function ReportsPage({
           </div>
         )}
         <div className="flex justify-between text-[10px] text-on-surface-variant mt-2 font-mono">
-          <span>{byDay[0]?.d}</span>
-          <span>{byDay[byDay.length - 1]?.d}</span>
+          <span>{byDay[0]?.day}</span>
+          <span>{byDay[byDay.length - 1]?.day}</span>
         </div>
       </div>
 

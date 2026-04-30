@@ -3,8 +3,8 @@ import { requireStaff } from "@/lib/auth";
 import PageHeader from "@/components/PageHeader";
 import PrintButton from "@/components/PrintButton";
 
-export default function ManualPage() {
-  requireStaff();
+export default async function ManualPage() {
+  await requireStaff();
 
   return (
     <article className="max-w-[920px] mx-auto">

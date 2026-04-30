@@ -30,13 +30,13 @@ interface PendingPayout {
 
 async function createPayoutAction(formData: FormData) {
   "use server";
-  const staff = requireStaff();
+  const staff = await requireStaff();
   const ambassadorId = Number(formData.get("ambassador_id"));
   if (!ambassadorId) return;
 
-  const result = createPayoutForAmbassador(ambassadorId, staff.id);
+  const result = await createPayoutForAmbassador(ambassadorId, staff.id);
   if (result) {
-    logAudit({
+    await logAudit({
       staffId: staff.id,
       action: "ambassador_payout_created",
       entityType: "customer_account",
@@ -48,15 +48,15 @@ async function createPayoutAction(formData: FormData) {
   redirect(`/ambassadors?e=below_min`);
 }
 
-export default function AmbassadorsAdminPage({
+export default async function AmbassadorsAdminPage({
   searchParams,
 }: {
   searchParams: { ok?: string; e?: string; total?: string };
 }) {
-  requireStaff();
+  await requireStaff();
 
-  const board = getLeaderboard();
-  const pendingPayouts = all<PendingPayout>(
+  const board = await getLeaderboard();
+  const pendingPayouts = await all<PendingPayout>(
     `SELECT p.id, p.ambassador_account_id, p.period_start, p.period_end, p.total_amount,
        p.status, p.paid_at, p.created_at,
        ca.full_name as ambassador_name, ca.email as ambassador_email
@@ -66,21 +66,21 @@ export default function AmbassadorsAdminPage({
      ORDER BY p.created_at DESC`
   );
 
-  const totals = get<{ pending: number; paid: number; voided: number }>(
+  const totals = (await get<{ pending: number; paid: number; voided: number }>(
     `SELECT
        COALESCE(SUM(CASE WHEN status = 'pending' THEN amount END), 0) as pending,
        COALESCE(SUM(CASE WHEN status = 'paid' THEN amount END), 0) as paid,
        COALESCE(SUM(CASE WHEN status = 'voided' THEN amount END), 0) as voided
      FROM referral_commissions`
-  ) || { pending: 0, paid: 0, voided: 0 };
+  )) || { pending: 0, paid: 0, voided: 0 };
 
-  const conversions = get<{ total: number; converted: number; pending_count: number }>(
+  const conversions = (await get<{ total: number; converted: number; pending_count: number }>(
     `SELECT
        COUNT(*) as total,
        COUNT(CASE WHEN status = 'converted' THEN 1 END) as converted,
        COUNT(CASE WHEN status IN ('pending','active') THEN 1 END) as pending_count
      FROM referral_conversions`
-  ) || { total: 0, converted: 0, pending_count: 0 };
+  )) || { total: 0, converted: 0, pending_count: 0 };
 
   return (
     <>

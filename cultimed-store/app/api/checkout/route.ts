@@ -22,7 +22,7 @@ interface CheckoutPayload {
 }
 
 export async function POST(req: NextRequest) {
-  const customer = requireCustomer();
+  const customer = await requireCustomer();
   if (!canPurchase(customer)) {
     return NextResponse.json({ error: "no_prescription" }, { status: 403 });
   }
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
   }> = [];
 
   for (const it of body.items) {
-    const product = get<{ default_price: number; name: string }>(
+    const product = await get<{ default_price: number; name: string }>(
       `SELECT default_price, name FROM products WHERE id = ? AND is_active = 1`,
       it.productId
     );
@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Programa Embajadores: 5% off al referido en su primera compra (acumulable con descuento por método)
-  const conversion = getActiveConversionForReferred(customer.id);
+  const conversion = await getActiveConversionForReferred(customer.id);
   const eligibleForReferralDiscount = !!(conversion && !conversion.first_order_id);
   const referralDiscount = eligibleForReferralDiscount
     ? Math.round((subtotal * REFERRED_DISCOUNT_BPS) / 10000)
@@ -82,8 +82,8 @@ export async function POST(req: NextRequest) {
   const folio = `CM-${new Date().getFullYear()}-${Date.now().toString(36).toUpperCase()}`;
   let orderId = 0;
 
-  transaction(() => {
-    const r = run(
+  await transaction(async (tx) => {
+    const r = await tx.run(
       `INSERT INTO customer_orders (folio, customer_account_id, status, subtotal, total,
          shipping_method, shipping_address, shipping_city, shipping_region, shipping_phone, notes,
          referral_conversion_id, referral_discount_amount,
@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
     orderId = Number(r.lastInsertRowid);
 
     for (const it of validatedItems) {
-      run(
+      await tx.run(
         `INSERT INTO customer_order_items (order_id, product_id, quantity, unit_price, total_price)
          VALUES (?, ?, ?, ?, ?)`,
         orderId, it.productId, it.qty, it.unitPrice, it.total
@@ -116,7 +116,7 @@ export async function POST(req: NextRequest) {
     if (paymentDiscount > 0) discounts.push(`transferencia 10% (-$${paymentDiscount.toLocaleString("es-CL")})`);
     const discountNote = discounts.length ? ` con descuento ${discounts.join(" + ")}` : "";
 
-    run(
+    await tx.run(
       `INSERT INTO customer_order_events (order_id, event_type, message)
        VALUES (?, 'created', ?)`,
       orderId,
@@ -136,12 +136,14 @@ export async function POST(req: NextRequest) {
         folio,
         total,
         customerEmail: customer.email,
-        itemsDescription: buildItemsDescription(validatedItems),
+        itemsDescription: buildItemsDescription(
+          validatedItems.map((it) => ({ name: it.name, quantity: it.qty }))
+        ),
         publicBaseUrl,
       });
 
       if (pref) {
-        run(
+        await run(
           `UPDATE customer_orders
              SET mp_preference_id = ?, mp_init_point = ?, updated_at = CURRENT_TIMESTAMP
            WHERE id = ?`,

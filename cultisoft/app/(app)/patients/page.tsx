@@ -23,12 +23,12 @@ interface Row {
 
 const PAGE_SIZE = 50;
 
-export default function PatientsPage({
+export default async function PatientsPage({
   searchParams,
 }: {
   searchParams: { q?: string; status?: string; page?: string };
 }) {
-  requireStaff();
+  await requireStaff();
   const q = (searchParams.q || "").trim();
   const status = (searchParams.status || "").trim();
   const page = Math.max(1, parseInt(searchParams.page || "1", 10) || 1);
@@ -45,9 +45,9 @@ export default function PatientsPage({
   }
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
-  const total = get<{ c: number }>(`SELECT COUNT(*) as c FROM patients p ${whereSql}`, ...params)?.c ?? 0;
+  const total = (await get<{ c: number }>(`SELECT COUNT(*) as c FROM patients p ${whereSql}`, ...params))?.c ?? 0;
 
-  const rows = all<Row>(
+  const rows = await all<Row>(
     `SELECT p.id, p.rut, p.full_name, p.email, p.phone, p.date_of_birth,
         p.membership_status, p.membership_started_at,
         (SELECT COUNT(*) FROM dispensations d WHERE d.patient_id = p.id) as total_dispensations

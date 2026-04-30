@@ -50,7 +50,7 @@ function decodeSession(token: string): SessionData | null {
 }
 
 export async function login(email: string, password: string): Promise<StaffUser | null> {
-  const staff = get<StaffUser & { password_hash: string }>(
+  const staff = await get<StaffUser & { password_hash: string }>(
     `SELECT id, email, full_name, role, professional_license, is_active, password_hash
      FROM staff WHERE email = ? AND is_active = 1`,
     email.trim().toLowerCase()
@@ -59,7 +59,7 @@ export async function login(email: string, password: string): Promise<StaffUser 
   const ok = await bcrypt.compare(password, staff.password_hash);
   if (!ok) return null;
 
-  run(`UPDATE staff SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?`, staff.id);
+  await run(`UPDATE staff SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?`, staff.id);
 
   const token = encodeSession({ staffId: staff.id, iat: Date.now() });
   cookies().set(COOKIE_NAME, token, {
@@ -79,13 +79,13 @@ export function logout() {
   cookies().delete(COOKIE_NAME);
 }
 
-export function getCurrentStaff(): StaffUser | null {
+export async function getCurrentStaff(): Promise<StaffUser | null> {
   const token = cookies().get(COOKIE_NAME)?.value;
   if (!token) return null;
   const session = decodeSession(token);
   if (!session) return null;
 
-  const staff = get<StaffUser>(
+  const staff = await get<StaffUser>(
     `SELECT id, email, full_name, role, professional_license, is_active
      FROM staff WHERE id = ? AND is_active = 1`,
     session.staffId
@@ -93,14 +93,14 @@ export function getCurrentStaff(): StaffUser | null {
   return staff || null;
 }
 
-export function requireStaff(): StaffUser {
-  const staff = getCurrentStaff();
+export async function requireStaff(): Promise<StaffUser> {
+  const staff = await getCurrentStaff();
   if (!staff) redirect("/login");
   return staff;
 }
 
-export function requireRole(...roles: StaffRole[]): StaffUser {
-  const staff = requireStaff();
+export async function requireRole(...roles: StaffRole[]): Promise<StaffUser> {
+  const staff = await requireStaff();
   if (!roles.includes(staff.role)) {
     redirect("/dashboard?denied=1");
   }

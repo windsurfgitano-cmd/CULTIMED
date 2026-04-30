@@ -4,6 +4,7 @@ import { requireCustomer } from "@/lib/auth";
 import { get, all, run } from "@/lib/db";
 import { formatCLP, formatDateTime } from "@/lib/format";
 import { saveUploadedFile } from "@/lib/uploads";
+import { resolveStorageUrl } from "@/lib/storage";
 import OrderTimeline from "@/components/OrderTimeline";
 import WhatsAppButton from "@/components/WhatsAppButton";
 
@@ -27,13 +28,13 @@ interface EventRow {
 
 async function uploadProofAction(formData: FormData) {
   "use server";
-  const customer = requireCustomer();
+  const customer = await requireCustomer();
   const orderId = Number(formData.get("order_id"));
   const file = formData.get("proof") as File | null;
   if (!file || file.size === 0) redirect(`/checkout/${orderId}?e=missing`);
   if (file.size > 8 * 1024 * 1024) redirect(`/checkout/${orderId}?e=too_big`);
 
-  const order = get<{ id: number; customer_account_id: number; status: string }>(
+  const order = await get<{ id: number; customer_account_id: number; status: string }>(
     `SELECT id, customer_account_id, status FROM customer_orders WHERE id = ?`,
     orderId
   );
@@ -42,15 +43,15 @@ async function uploadProofAction(formData: FormData) {
     redirect(`/checkout/${orderId}`);
   }
 
-  const url = await saveUploadedFile(file, `proofs/${customer.id}/${orderId}`);
-  run(
+  const url = await saveUploadedFile(file, `payment-proofs/${customer.id}-${orderId}`);
+  await run(
     `UPDATE customer_orders
      SET payment_proof_url = ?, payment_proof_uploaded_at = CURRENT_TIMESTAMP,
          status = 'proof_uploaded', updated_at = CURRENT_TIMESTAMP
      WHERE id = ?`,
     url, orderId
   );
-  run(
+  await run(
     `INSERT INTO customer_order_events (order_id, event_type, message)
      VALUES (?, 'proof_uploaded', 'Comprobante de transferencia recibido')`,
     orderId
@@ -58,25 +59,25 @@ async function uploadProofAction(formData: FormData) {
   redirect(`/checkout/${orderId}?ok=1`);
 }
 
-export default function OrderPaymentPage({ params, searchParams }: { params: { id: string }; searchParams: { e?: string; ok?: string } }) {
-  const customer = requireCustomer();
+export default async function OrderPaymentPage({ params, searchParams }: { params: { id: string }; searchParams: { e?: string; ok?: string } }) {
+  const customer = await requireCustomer();
   const orderId = parseInt(params.id, 10);
   if (!orderId) notFound();
 
-  const order = get<OrderRow & { customer_account_id: number }>(
+  const order = await get<OrderRow & { customer_account_id: number }>(
     `SELECT * FROM customer_orders WHERE id = ?`,
     orderId
   );
   if (!order) notFound();
   if (order.customer_account_id !== customer.id) redirect("/mi-cuenta");
 
-  const items = all<ItemRow>(
+  const items = await all<ItemRow>(
     `SELECT pr.name as product_name, i.quantity, i.unit_price, i.total_price
      FROM customer_order_items i JOIN products pr ON pr.id = i.product_id
      WHERE i.order_id = ?`,
     orderId
   );
-  const events = all<EventRow>(
+  const events = await all<EventRow>(
     `SELECT event_type, message, created_at FROM customer_order_events
      WHERE order_id = ? ORDER BY created_at ASC`,
     orderId
@@ -95,6 +96,7 @@ export default function OrderPaymentPage({ params, searchParams }: { params: { i
   const isProofUploaded = order.status === "proof_uploaded";
   const isConfirmed = ["payment_confirmed", "preparing", "shipped", "delivered"].includes(order.status);
   const isRejected = !!order.payment_rejection_reason;
+  const proofSignedUrl = await resolveStorageUrl(order.payment_proof_url);
 
   return (
     <>
@@ -205,7 +207,7 @@ export default function OrderPaymentPage({ params, searchParams }: { params: { i
                     Lo estamos verificando. Si necesitas reemplazarlo, sube uno nuevo.
                   </p>
                   <a
-                    href={order.payment_proof_url}
+                    href={proofSignedUrl || "#"}
                     target="_blank"
                     rel="noopener"
                     className="text-xs uppercase tracking-widest font-mono text-brass-dim border-b border-brass-dim/40 hover:border-brass-dim pb-0.5"

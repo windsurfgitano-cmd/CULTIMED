@@ -28,42 +28,42 @@ interface Movement {
 
 async function adjust(formData: FormData) {
   "use server";
-  const staff = requireStaff();
+  const staff = await requireStaff();
   const id = Number(formData.get("id"));
   const delta = Number(formData.get("delta"));
   const reason = String(formData.get("reason") || "").trim() || "Ajuste manual";
   if (!id || !Number.isFinite(delta) || delta === 0) redirect(`/inventory/${id}`);
 
-  transaction(() => {
-    const batch = get<{ quantity_current: number }>(`SELECT quantity_current FROM batches WHERE id = ?`, id);
+  await transaction(async (tx) => {
+    const batch = await tx.get<{ quantity_current: number }>(`SELECT quantity_current FROM batches WHERE id = ?`, id);
     if (!batch) return;
     const newQty = batch.quantity_current + delta;
     if (newQty < 0) return;
-    run(
+    await tx.run(
       `UPDATE batches SET quantity_current = ?,
          status = CASE WHEN ? <= 0 THEN 'depleted' ELSE 'available' END
        WHERE id = ?`,
       newQty, newQty, id
     );
-    run(
+    await tx.run(
       `INSERT INTO inventory_movements (batch_id, movement_type, quantity, reference_type, staff_id, reason)
        VALUES (?, ?, ?, 'manual', ?, ?)`,
       id, delta > 0 ? "in" : "adjustment", delta, staff.id, reason
     );
-    logAudit({
-      staffId: staff.id, action: "inventory_adjusted",
-      entityType: "batch", entityId: id, details: { delta, reason },
-    });
+  });
+  await logAudit({
+    staffId: staff.id, action: "inventory_adjusted",
+    entityType: "batch", entityId: id, details: { delta, reason },
   });
   redirect(`/inventory/${id}`);
 }
 
-export default function BatchDetailPage({ params }: { params: { id: string } }) {
-  requireStaff();
+export default async function BatchDetailPage({ params }: { params: { id: string } }) {
+  await requireStaff();
   const id = parseInt(params.id, 10);
   if (!id) notFound();
 
-  const b = get<BatchFull>(
+  const b = await get<BatchFull>(
     `SELECT b.*, pr.sku as product_sku, pr.name as product_name, pr.category, pr.presentation,
        pr.thc_percentage, pr.cbd_percentage, pr.active_ingredient, pr.concentration,
        pr.is_controlled, pr.requires_prescription
@@ -72,7 +72,7 @@ export default function BatchDetailPage({ params }: { params: { id: string } }) 
   );
   if (!b) notFound();
 
-  const movements = all<Movement>(
+  const movements = await all<Movement>(
     `SELECT m.id, m.movement_type, m.quantity, m.reason, m.reference_type, m.reference_id,
        s.full_name as staff_name, m.created_at
      FROM inventory_movements m

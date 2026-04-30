@@ -25,8 +25,8 @@ export interface ReferralConversion {
 }
 
 /** Llamado desde el admin cuando QF aprueba la receta del referido. */
-export function markPrescriptionApproved(referredAccountId: number): void {
-  run(
+export async function markPrescriptionApproved(referredAccountId: number): Promise<void> {
+  await run(
     `UPDATE referral_conversions
      SET prescription_approved_at = CURRENT_TIMESTAMP,
          status = CASE WHEN status = 'pending' THEN 'active' ELSE status END
@@ -36,8 +36,8 @@ export function markPrescriptionApproved(referredAccountId: number): void {
 }
 
 /** Llamado desde el admin al confirmar pago del pedido — calcula comisión 10% o 1% según corresponda. */
-export function recordCommissionForOrder(orderId: number): { type: "first" | "historical" | null; amount: number } {
-  const order = get<{
+export async function recordCommissionForOrder(orderId: number): Promise<{ type: "first" | "historical" | null; amount: number }> {
+  const order = await get<{
     id: number;
     customer_account_id: number;
     subtotal: number;
@@ -58,8 +58,8 @@ export function recordCommissionForOrder(orderId: number): { type: "first" | "hi
 
   const baseAmount = Math.max(0, order.subtotal - (order.referral_discount_amount || 0));
 
-  return transaction(() => {
-    const conv = get<ReferralConversion>(
+  return await transaction(async (tx) => {
+    const conv = await tx.get<ReferralConversion>(
       `SELECT * FROM referral_conversions
        WHERE referred_account_id = ? AND status IN ('active', 'converted')`,
       order.customer_account_id
@@ -68,28 +68,28 @@ export function recordCommissionForOrder(orderId: number): { type: "first" | "hi
 
     if (conv.status === "active" && !conv.first_order_id) {
       const amount = Math.round((baseAmount * FIRST_ORDER_RATE_BPS) / 10000);
-      run(
+      await tx.run(
         `UPDATE referral_conversions
          SET first_order_id = ?,
              first_order_paid_at = CURRENT_TIMESTAMP,
-             expires_at = datetime(CURRENT_TIMESTAMP, '+${RESIDUAL_WINDOW_DAYS} days'),
+             expires_at = CURRENT_TIMESTAMP + (INTERVAL '1 day' * ${RESIDUAL_WINDOW_DAYS}),
              status = 'converted'
          WHERE id = ?`,
         orderId, conv.id
       );
       try {
-        run(
+        await tx.run(
           `INSERT INTO referral_commissions
              (conversion_id, ambassador_account_id, order_id, type, base_amount, rate_bps, amount, status)
            VALUES (?, ?, ?, 'first', ?, ?, ?, 'pending')`,
           conv.id, conv.ambassador_account_id, orderId, baseAmount, FIRST_ORDER_RATE_BPS, amount
         );
       } catch (e) { /* idempotente */ }
-      return { type: "first", amount };
+      return { type: "first" as const, amount };
     }
 
     if (conv.status === "converted" && conv.first_order_id !== orderId) {
-      const stillValid = get<{ valid: number }>(
+      const stillValid = await tx.get<{ valid: number }>(
         `SELECT (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP) AS valid
          FROM referral_conversions WHERE id = ?`, conv.id
       );
@@ -97,14 +97,14 @@ export function recordCommissionForOrder(orderId: number): { type: "first" | "hi
 
       const amount = Math.round((baseAmount * HISTORICAL_RATE_BPS) / 10000);
       try {
-        run(
+        await tx.run(
           `INSERT INTO referral_commissions
              (conversion_id, ambassador_account_id, order_id, type, base_amount, rate_bps, amount, status)
            VALUES (?, ?, ?, 'historical', ?, ?, ?, 'pending')`,
           conv.id, conv.ambassador_account_id, orderId, baseAmount, HISTORICAL_RATE_BPS, amount
         );
       } catch (e) { /* idempotente */ }
-      return { type: "historical", amount };
+      return { type: "historical" as const, amount };
     }
 
     return { type: null, amount: 0 };
@@ -127,8 +127,8 @@ export interface LeaderboardRow {
   has_bank_info: number;
 }
 
-export function getLeaderboard(): LeaderboardRow[] {
-  return all<LeaderboardRow>(
+export async function getLeaderboard(): Promise<LeaderboardRow[]> {
+  return await all<LeaderboardRow>(
     `SELECT
        rc.ambassador_account_id,
        ca.full_name AS ambassador_name,
@@ -146,7 +146,7 @@ export function getLeaderboard(): LeaderboardRow[] {
        (SELECT COALESCE(SUM(amount), 0) FROM referral_commissions
          WHERE ambassador_account_id = rc.ambassador_account_id
            AND status IN ('pending','paid')
-           AND strftime('%Y-%m', generated_at) = strftime('%Y-%m', CURRENT_TIMESTAMP)) AS this_month_commission,
+           AND to_char(generated_at, 'YYYY-MM') = to_char(CURRENT_TIMESTAMP, 'YYYY-MM')) AS this_month_commission,
        (SELECT 1 FROM ambassador_bank_info WHERE ambassador_account_id = rc.ambassador_account_id) AS has_bank_info
      FROM referral_codes rc
      JOIN customer_accounts ca ON ca.id = rc.ambassador_account_id
@@ -155,11 +155,11 @@ export function getLeaderboard(): LeaderboardRow[] {
   );
 }
 
-export function createPayoutForAmbassador(
+export async function createPayoutForAmbassador(
   ambassadorAccountId: number,
   staffId: number
-): { id: number; total: number } | null {
-  const totals = get<{ total: number; min_d: string; max_d: string }>(
+): Promise<{ id: number; total: number } | null> {
+  const totals = await get<{ total: number; min_d: string; max_d: string }>(
     `SELECT COALESCE(SUM(amount), 0) AS total,
        MIN(generated_at) AS min_d, MAX(generated_at) AS max_d
      FROM referral_commissions
@@ -168,15 +168,15 @@ export function createPayoutForAmbassador(
   );
   if (!totals || totals.total < MIN_PAYOUT_AMOUNT) return null;
 
-  return transaction(() => {
-    const r = run(
+  return await transaction(async (tx) => {
+    const r = await tx.run(
       `INSERT INTO referral_payouts
          (ambassador_account_id, period_start, period_end, total_amount, status)
        VALUES (?, ?, ?, ?, 'pending')`,
       ambassadorAccountId, totals.min_d, totals.max_d, totals.total
     );
     const payoutId = Number(r.lastInsertRowid);
-    run(
+    await tx.run(
       `UPDATE referral_commissions
        SET payout_id = ?
        WHERE ambassador_account_id = ? AND status = 'pending'`,
@@ -186,32 +186,32 @@ export function createPayoutForAmbassador(
   });
 }
 
-export function markPayoutPaid(opts: {
+export async function markPayoutPaid(opts: {
   payoutId: number;
   staffId: number;
   bankReference?: string;
   notes?: string;
-}): void {
-  transaction(() => {
-    run(
+}): Promise<void> {
+  await transaction(async (tx) => {
+    await tx.run(
       `UPDATE referral_payouts
        SET status = 'paid', paid_at = CURRENT_TIMESTAMP,
            paid_by = ?, bank_reference = ?, notes = ?
        WHERE id = ?`,
       opts.staffId, opts.bankReference || null, opts.notes || null, opts.payoutId
     );
-    run(
+    await tx.run(
       `UPDATE referral_commissions SET status = 'paid' WHERE payout_id = ?`,
       opts.payoutId
     );
   });
 }
 
-export function cancelConversion(conversionId: number, reason: string): void {
-  transaction(() => {
-    run(`UPDATE referral_conversions SET status = 'cancelled', cancelled_reason = ? WHERE id = ?`,
+export async function cancelConversion(conversionId: number, reason: string): Promise<void> {
+  await transaction(async (tx) => {
+    await tx.run(`UPDATE referral_conversions SET status = 'cancelled', cancelled_reason = ? WHERE id = ?`,
       reason, conversionId);
-    run(`UPDATE referral_commissions SET status = 'voided'
+    await tx.run(`UPDATE referral_commissions SET status = 'voided'
          WHERE conversion_id = ? AND status = 'pending'`, conversionId);
   });
 }

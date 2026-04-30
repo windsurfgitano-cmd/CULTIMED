@@ -38,29 +38,29 @@ interface LowStockBatch {
   expiry_date: string | null;
 }
 
-export default function DashboardPage({
+export default async function DashboardPage({
   searchParams,
 }: {
   searchParams: { denied?: string };
 }) {
-  const staff = requireStaff();
+  const staff = await requireStaff();
 
   const today = new Date();
   const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
   const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
 
   const counts = {
-    patients: get<{ c: number }>(`SELECT COUNT(*) as c FROM patients`)?.c ?? 0,
-    patientsActive: get<{ c: number }>(`SELECT COUNT(*) as c FROM patients WHERE membership_status = 'active'`)?.c ?? 0,
-    newPatientsThisMonth: get<{ c: number }>(`SELECT COUNT(*) as c FROM patients WHERE created_at >= ?`, monthStart)?.c ?? 0,
-    todayDispensations: get<{ c: number }>(`SELECT COUNT(*) as c FROM dispensations WHERE dispensed_at >= ?`, todayStart)?.c ?? 0,
-    todayRevenue: get<{ s: number }>(`SELECT COALESCE(SUM(total_amount), 0) as s FROM dispensations WHERE dispensed_at >= ? AND status = 'completed'`, todayStart)?.s ?? 0,
-    pendingRx: get<{ c: number }>(`SELECT COUNT(*) as c FROM prescriptions WHERE status = 'pending'`)?.c ?? 0,
-    totalLowStock: get<{ c: number }>(`SELECT COUNT(*) as c FROM batches WHERE status = 'available' AND quantity_current > 0 AND quantity_current <= 5`)?.c ?? 0,
-    totalExpiringSoon: get<{ c: number }>(`SELECT COUNT(*) as c FROM batches WHERE status = 'available' AND expiry_date IS NOT NULL AND date(expiry_date) <= date('now', '+60 days')`)?.c ?? 0,
+    patients: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM patients`))?.c ?? 0,
+    patientsActive: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM patients WHERE membership_status = 'active'`))?.c ?? 0,
+    newPatientsThisMonth: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM patients WHERE created_at >= ?`, monthStart))?.c ?? 0,
+    todayDispensations: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM dispensations WHERE dispensed_at >= ?`, todayStart))?.c ?? 0,
+    todayRevenue: (await get<{ s: number }>(`SELECT COALESCE(SUM(total_amount), 0) as s FROM dispensations WHERE dispensed_at >= ? AND status = 'completed'`, todayStart))?.s ?? 0,
+    pendingRx: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM prescriptions WHERE status = 'pending'`))?.c ?? 0,
+    totalLowStock: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM batches WHERE status = 'available' AND quantity_current > 0 AND quantity_current <= 5`))?.c ?? 0,
+    totalExpiringSoon: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM batches WHERE status = 'available' AND expiry_date IS NOT NULL AND date(expiry_date) <= date('now', '+60 days')`))?.c ?? 0,
   } as Counts;
 
-  const recent = all<RecentDispensation>(`
+  const recent = await all<RecentDispensation>(`
     SELECT d.id, d.folio, d.dispensed_at, d.total_amount,
       p.full_name as patient_name, p.rut as patient_rut,
       s.full_name as dispenser_name,
@@ -74,7 +74,7 @@ export default function DashboardPage({
     LIMIT 8
   `);
 
-  const lowStock = all<LowStockBatch>(`
+  const lowStock = await all<LowStockBatch>(`
     SELECT b.id as batch_id, b.batch_number, b.quantity_current, b.expiry_date,
       pr.name as product_name
     FROM batches b
@@ -88,7 +88,7 @@ export default function DashboardPage({
     weekday: "long", day: "numeric", month: "long", year: "numeric",
   });
   const firstName = staff.full_name.split(" ")[0];
-  const demo = isDemoMode();
+  const demo = await isDemoMode();
 
   return (
     <>

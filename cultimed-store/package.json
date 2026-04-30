@@ -14,6 +14,7 @@
     "db:migrate": "node scripts/extend-schema.js && node scripts/extend-schema-referrals.js && node scripts/extend-schema-payments.js"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.105.1",
     "@types/bcryptjs": "^2.4.6",
     "@types/better-sqlite3": "^7.6.11",
     "bcryptjs": "^2.4.3",
@@ -21,6 +22,7 @@
     "clsx": "^2.1.1",
     "mercadopago": "^2.12.0",
     "next": "14.2.21",
+    "postgres": "^3.4.9",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

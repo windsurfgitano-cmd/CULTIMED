@@ -4,8 +4,8 @@ import { requireCustomer, canPurchase } from "@/lib/auth";
 import { isMercadoPagoEnabled } from "@/lib/payments";
 import CheckoutClient from "./CheckoutClient";
 
-export default function CheckoutPage() {
-  const customer = requireCustomer();
+export default async function CheckoutPage() {
+  const customer = await requireCustomer();
   const allowed = canPurchase(customer);
   const mpEnabled = isMercadoPagoEnabled();
 

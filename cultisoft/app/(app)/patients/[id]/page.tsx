@@ -29,33 +29,33 @@ interface PatientDispensation {
 
 async function updateStatus(formData: FormData) {
   "use server";
-  const staff = requireStaff();
+  const staff = await requireStaff();
   const id = Number(formData.get("id"));
   const status = String(formData.get("status"));
   if (!id || !["active", "pending", "suspended"].includes(status)) return;
-  run(
+  await run(
     `UPDATE patients SET membership_status = ?,
        membership_started_at = COALESCE(membership_started_at, CASE WHEN ? = 'active' THEN CURRENT_TIMESTAMP ELSE NULL END),
        updated_at = CURRENT_TIMESTAMP
      WHERE id = ?`,
     status, status, id
   );
-  logAudit({
+  await logAudit({
     staffId: staff.id, action: "patient_status_changed",
     entityType: "patient", entityId: id, details: { newStatus: status },
   });
   redirect(`/patients/${id}`);
 }
 
-export default function PatientDetailPage({ params }: { params: { id: string } }) {
-  requireStaff();
+export default async function PatientDetailPage({ params }: { params: { id: string } }) {
+  await requireStaff();
   const id = parseInt(params.id, 10);
   if (!id) notFound();
 
-  const p = get<Patient>(`SELECT * FROM patients WHERE id = ?`, id);
+  const p = await get<Patient>(`SELECT * FROM patients WHERE id = ?`, id);
   if (!p) notFound();
 
-  const rxs = all<PatientRx>(
+  const rxs = await all<PatientRx>(
     `SELECT r.id, r.folio, r.diagnosis, r.status, r.issue_date, r.expiry_date,
        d.full_name as doctor_name
      FROM prescriptions r
@@ -65,7 +65,7 @@ export default function PatientDetailPage({ params }: { params: { id: string } }
     id
   );
 
-  const dispensations = all<PatientDispensation>(
+  const dispensations = await all<PatientDispensation>(
     `SELECT d.id, d.folio, d.total_amount, d.dispensed_at,
        (SELECT COUNT(*) FROM dispensation_items di WHERE di.dispensation_id = d.id) as product_count
      FROM dispensations d
@@ -75,7 +75,7 @@ export default function PatientDetailPage({ params }: { params: { id: string } }
     id
   );
 
-  const totals = get<{ total: number; count: number }>(
+  const totals = await get<{ total: number; count: number }>(
     `SELECT COALESCE(SUM(total_amount), 0) as total, COUNT(*) as count
      FROM dispensations WHERE patient_id = ? AND status = 'completed'`,
     id

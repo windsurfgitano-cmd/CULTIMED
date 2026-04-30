@@ -5,6 +5,7 @@ import { get, run } from "@/lib/db";
 import { formatDateTime } from "@/lib/format";
 import { logAudit } from "@/lib/audit";
 import { markPrescriptionApproved } from "@/lib/referrals";
+import { resolveStorageUrl } from "@/lib/storage";
 import PageHeader from "@/components/PageHeader";
 
 export const dynamic = "force-dynamic";
@@ -38,13 +39,13 @@ const STATUS_META: Record<string, { label: string; cls: string }> = {
 
 async function reviewAction(formData: FormData) {
   "use server";
-  const staff = requireStaff();
+  const staff = await requireStaff();
   const id = Number(formData.get("id"));
   const decision = String(formData.get("decision"));
   const notes = String(formData.get("notes") || "").trim();
   if (!id || !["aprobada", "rechazada"].includes(decision)) return;
 
-  run(
+  await run(
     `UPDATE customer_accounts
      SET prescription_status = ?,
          prescription_reviewed_by = ?,
@@ -57,10 +58,10 @@ async function reviewAction(formData: FormData) {
 
   // Programa Embajadores: si la receta queda aprobada, activar conversión asociada (si existe).
   if (decision === "aprobada") {
-    markPrescriptionApproved(id);
+    await markPrescriptionApproved(id);
   }
 
-  logAudit({
+  await logAudit({
     staffId: staff.id,
     action: `web_prescription_${decision}`,
     entityType: "customer_account",
@@ -71,12 +72,12 @@ async function reviewAction(formData: FormData) {
   redirect(`/web-prescriptions/${id}`);
 }
 
-export default function WebPrescriptionDetail({ params }: { params: { id: string } }) {
-  requireStaff();
+export default async function WebPrescriptionDetail({ params }: { params: { id: string } }) {
+  await requireStaff();
   const id = parseInt(params.id, 10);
   if (!id) notFound();
 
-  const r = get<WebRxDetail>(
+  const r = await get<WebRxDetail>(
     `SELECT c.*, s.full_name as reviewer_name
      FROM customer_accounts c
      LEFT JOIN staff s ON s.id = c.prescription_reviewed_by
@@ -88,7 +89,8 @@ export default function WebPrescriptionDetail({ params }: { params: { id: string
   const meta = STATUS_META[r.prescription_status] ?? STATUS_META.none;
   const isImage = r.prescription_url && /\.(png|jpe?g|webp|gif)$/i.test(r.prescription_url);
   const isPdf   = r.prescription_url && /\.pdf$/i.test(r.prescription_url);
-  const fullUrl = r.prescription_url ? `${STORE_PUBLIC_BASE}${r.prescription_url}` : null;
+  // resolveStorageUrl: maneja "bucket://path" (Supabase Storage signed URL) o legacy "/uploads/..."
+  const fullUrl = await resolveStorageUrl(r.prescription_url);
 
   return (
     <>
@@ -277,10 +279,10 @@ export default function WebPrescriptionDetail({ params }: { params: { id: string
 
 async function reopenAction(formData: FormData) {
   "use server";
-  const staff = requireStaff();
+  const staff = await requireStaff();
   const id = Number(formData.get("id"));
   if (!id) return;
-  run(
+  await run(
     `UPDATE customer_accounts
      SET prescription_status = 'pending',
          prescription_reviewed_by = NULL,
@@ -290,7 +292,7 @@ async function reopenAction(formData: FormData) {
      WHERE id = ?`,
     id
   );
-  logAudit({
+  await logAudit({
     staffId: staff.id,
     action: "web_prescription_reopened",
     entityType: "customer_account",

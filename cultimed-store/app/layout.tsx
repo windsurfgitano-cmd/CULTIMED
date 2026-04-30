@@ -18,8 +18,8 @@ export const viewport: Viewport = {
   themeColor: "#F4EFE6",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const customer = getCurrentCustomer();
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const customer = await getCurrentCustomer();
   return (
     <html lang="es">
       <head>

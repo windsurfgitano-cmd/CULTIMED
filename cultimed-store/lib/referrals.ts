@@ -69,14 +69,14 @@ export interface AmbassadorBankInfo {
 // ---- Embajador: getter / setter -----------------------------------------
 
 /** Devuelve (o crea) el código de referido del embajador. Solo se permite si su receta está aprobada. */
-export function getOrCreateReferralCode(accountId: number): ReferralCode | null {
-  const acc = get<{ prescription_status: string }>(
+export async function getOrCreateReferralCode(accountId: number): Promise<ReferralCode | null> {
+  const acc = await get<{ prescription_status: string }>(
     `SELECT prescription_status FROM customer_accounts WHERE id = ?`,
     accountId
   );
   if (!acc || acc.prescription_status !== "aprobada") return null;
 
-  const existing = get<ReferralCode>(
+  const existing = await get<ReferralCode>(
     `SELECT * FROM referral_codes WHERE ambassador_account_id = ?`,
     accountId
   );
@@ -85,24 +85,24 @@ export function getOrCreateReferralCode(accountId: number): ReferralCode | null 
   // Generar código único (loop con 5 intentos máx).
   for (let attempt = 0; attempt < 5; attempt++) {
     const code = generateReferralCode();
-    const collision = get<{ id: number }>(`SELECT id FROM referral_codes WHERE code = ?`, code);
+    const collision = await get<{ id: number }>(`SELECT id FROM referral_codes WHERE code = ?`, code);
     if (collision) continue;
-    const r = run(
+    const r = await run(
       `INSERT INTO referral_codes (ambassador_account_id, code) VALUES (?, ?)`,
       accountId, code
     );
-    return get<ReferralCode>(`SELECT * FROM referral_codes WHERE id = ?`, r.lastInsertRowid)!;
+    return (await get<ReferralCode>(`SELECT * FROM referral_codes WHERE id = ?`, r.lastInsertRowid))!;
   }
   return null;
 }
 
 /** Encuentra un código activo por su string. */
-export function findActiveCode(code: string): ReferralCode | null {
+export async function findActiveCode(code: string): Promise<ReferralCode | null> {
   const c = (code || "").toUpperCase().trim();
   if (!c) return null;
-  return get<ReferralCode>(
+  return (await get<ReferralCode>(
     `SELECT * FROM referral_codes WHERE code = ? AND is_active = 1`, c
-  ) || null;
+  )) || null;
 }
 
 // ---- Tracking de conversión ---------------------------------------------
@@ -111,16 +111,16 @@ export function findActiveCode(code: string): ReferralCode | null {
  * Registra la conversión cuando un nuevo paciente se registra usando un código.
  * Anti-fraude: bloquea auto-referral (mismo account ID) y referral cruzado.
  */
-export function attachReferralOnRegister(opts: {
+export async function attachReferralOnRegister(opts: {
   newAccountId: number;
   refCode: string;
-}): ReferralConversion | null {
-  const code = findActiveCode(opts.refCode);
+}): Promise<ReferralConversion | null> {
+  const code = await findActiveCode(opts.refCode);
   if (!code) return null;
   if (code.ambassador_account_id === opts.newAccountId) return null; // self-refer
 
   // ¿Ya existe conversión para este referred_account_id? (Único)
-  const existing = get<ReferralConversion>(
+  const existing = await get<ReferralConversion>(
     `SELECT * FROM referral_conversions WHERE referred_account_id = ?`,
     opts.newAccountId
   );
@@ -128,27 +128,27 @@ export function attachReferralOnRegister(opts: {
 
   // Anti referral cruzado: si el embajador tiene a su vez una conversión
   // donde fue referido por la cuenta nueva, bloquear.
-  const cross = get<{ id: number }>(
+  const cross = await get<{ id: number }>(
     `SELECT id FROM referral_conversions
      WHERE ambassador_account_id = ? AND referred_account_id = ?`,
     opts.newAccountId, code.ambassador_account_id
   );
   if (cross) return null;
 
-  const r = run(
+  const r = await run(
     `INSERT INTO referral_conversions
        (code_id, ambassador_account_id, referred_account_id, status)
      VALUES (?, ?, ?, 'pending')`,
     code.id, code.ambassador_account_id, opts.newAccountId
   );
-  return get<ReferralConversion>(
+  return (await get<ReferralConversion>(
     `SELECT * FROM referral_conversions WHERE id = ?`, r.lastInsertRowid
-  )!;
+  ))!;
 }
 
 /** Llamado cuando QF aprueba la receta del referido. */
-export function markPrescriptionApproved(referredAccountId: number): void {
-  run(
+export async function markPrescriptionApproved(referredAccountId: number): Promise<void> {
+  await run(
     `UPDATE referral_conversions
      SET prescription_approved_at = CURRENT_TIMESTAMP,
          status = CASE WHEN status = 'pending' THEN 'active' ELSE status END
@@ -158,23 +158,23 @@ export function markPrescriptionApproved(referredAccountId: number): void {
 }
 
 /** Devuelve la conversión "activa" del referido (si tiene una y aún no se ejecutó primera compra). */
-export function getActiveConversionForReferred(referredAccountId: number): ReferralConversion | null {
-  return get<ReferralConversion>(
+export async function getActiveConversionForReferred(referredAccountId: number): Promise<ReferralConversion | null> {
+  return (await get<ReferralConversion>(
     `SELECT * FROM referral_conversions
      WHERE referred_account_id = ? AND status IN ('pending', 'active')`,
     referredAccountId
-  ) || null;
+  )) || null;
 }
 
 /** Conversión vigente para cálculo histórico (1%) — sólo si converted y dentro de ventana. */
-export function getResidualConversionForReferred(referredAccountId: number): ReferralConversion | null {
-  return get<ReferralConversion>(
+export async function getResidualConversionForReferred(referredAccountId: number): Promise<ReferralConversion | null> {
+  return (await get<ReferralConversion>(
     `SELECT * FROM referral_conversions
      WHERE referred_account_id = ?
        AND status = 'converted'
        AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)`,
     referredAccountId
-  ) || null;
+  )) || null;
 }
 
 /**
@@ -186,8 +186,8 @@ export function getResidualConversionForReferred(referredAccountId: number): Ref
  *
  * @param orderId el id del customer_order que pasó a payment_confirmed
  */
-export function recordCommissionForOrder(orderId: number): { type: "first" | "historical" | null; amount: number } {
-  const order = get<{
+export async function recordCommissionForOrder(orderId: number): Promise<{ type: "first" | "historical" | null; amount: number }> {
+  const order = await get<{
     id: number;
     customer_account_id: number;
     subtotal: number;
@@ -212,9 +212,9 @@ export function recordCommissionForOrder(orderId: number): { type: "first" | "hi
   // así pagamos comisión sobre lo realmente percibido por Cultimed (consistente).
   const baseAmount = Math.max(0, order.subtotal - (order.referral_discount_amount || 0));
 
-  return transaction(() => {
+  return await transaction(async (tx) => {
     // ¿Es primera compra de un referido?
-    const conv = get<ReferralConversion>(
+    const conv = await tx.get<ReferralConversion>(
       `SELECT * FROM referral_conversions
        WHERE referred_account_id = ? AND status IN ('active', 'converted')`,
       order.customer_account_id
@@ -226,11 +226,11 @@ export function recordCommissionForOrder(orderId: number): { type: "first" | "hi
       const amount = Math.round((baseAmount * FIRST_ORDER_RATE_BPS) / 10000);
 
       // Marcar conversión como converted, fijar expires_at y first_order_*
-      run(
+      await tx.run(
         `UPDATE referral_conversions
          SET first_order_id = ?,
              first_order_paid_at = CURRENT_TIMESTAMP,
-             expires_at = datetime(CURRENT_TIMESTAMP, '+${RESIDUAL_WINDOW_DAYS} days'),
+             expires_at = CURRENT_TIMESTAMP + (INTERVAL '1 day' * ${RESIDUAL_WINDOW_DAYS}),
              status = 'converted'
          WHERE id = ?`,
         orderId, conv.id
@@ -238,7 +238,7 @@ export function recordCommissionForOrder(orderId: number): { type: "first" | "hi
 
       // Insertar comisión first (UNIQUE(order_id,type) protege re-llamadas)
       try {
-        run(
+        await tx.run(
           `INSERT INTO referral_commissions
              (conversion_id, ambassador_account_id, order_id, type, base_amount, rate_bps, amount, status)
            VALUES (?, ?, ?, 'first', ?, ?, ?, 'pending')`,
@@ -247,12 +247,12 @@ export function recordCommissionForOrder(orderId: number): { type: "first" | "hi
       } catch (e) {
         // Ya existía (idempotente)
       }
-      return { type: "first", amount };
+      return { type: "first" as const, amount };
     }
 
     // Caso 2: ya convertido → 1% historical si está vigente y no es el primer pedido
     if (conv.status === "converted" && conv.first_order_id !== orderId) {
-      const stillValid = get<{ valid: number }>(
+      const stillValid = await tx.get<{ valid: number }>(
         `SELECT (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP) AS valid
          FROM referral_conversions WHERE id = ?`, conv.id
       );
@@ -260,7 +260,7 @@ export function recordCommissionForOrder(orderId: number): { type: "first" | "hi
 
       const amount = Math.round((baseAmount * HISTORICAL_RATE_BPS) / 10000);
       try {
-        run(
+        await tx.run(
           `INSERT INTO referral_commissions
              (conversion_id, ambassador_account_id, order_id, type, base_amount, rate_bps, amount, status)
            VALUES (?, ?, ?, 'historical', ?, ?, ?, 'pending')`,
@@ -269,7 +269,7 @@ export function recordCommissionForOrder(orderId: number): { type: "first" | "hi
       } catch (e) {
         // Ya existía (idempotente)
       }
-      return { type: "historical", amount };
+      return { type: "historical" as const, amount };
     }
 
     return { type: null, amount: 0 };
@@ -278,8 +278,8 @@ export function recordCommissionForOrder(orderId: number): { type: "first" | "hi
 
 // ---- Datos bancarios ----------------------------------------------------
 
-export function upsertBankInfo(input: AmbassadorBankInfo): void {
-  run(
+export async function upsertBankInfo(input: AmbassadorBankInfo): Promise<void> {
+  await run(
     `INSERT INTO ambassador_bank_info
        (ambassador_account_id, bank_name, account_type, account_number,
         account_holder_name, account_holder_rut, contact_email, updated_at)
@@ -302,11 +302,11 @@ export function upsertBankInfo(input: AmbassadorBankInfo): void {
   );
 }
 
-export function getBankInfo(accountId: number): AmbassadorBankInfo | null {
-  return get<AmbassadorBankInfo>(
+export async function getBankInfo(accountId: number): Promise<AmbassadorBankInfo | null> {
+  return (await get<AmbassadorBankInfo>(
     `SELECT * FROM ambassador_bank_info WHERE ambassador_account_id = ?`,
     accountId
-  ) || null;
+  )) || null;
 }
 
 // ---- Métricas dashboard embajador ---------------------------------------
@@ -333,12 +333,12 @@ function maskEmail(email: string): string {
   return `${u[0]}***@${d}`;
 }
 
-export function getAmbassadorStats(ambassadorAccountId: number): AmbassadorStats {
-  const code = get<ReferralCode>(
+export async function getAmbassadorStats(ambassadorAccountId: number): Promise<AmbassadorStats> {
+  const code = await get<ReferralCode>(
     `SELECT * FROM referral_codes WHERE ambassador_account_id = ?`, ambassadorAccountId
   );
 
-  const conversions = code ? all<ReferralConversion & { referred_email: string; first_order_total: number | null }>(
+  const conversions = code ? await all<ReferralConversion & { referred_email: string; first_order_total: number | null }>(
     `SELECT rc.*, ca.email as referred_email,
        (SELECT total FROM customer_orders WHERE id = rc.first_order_id) as first_order_total
      FROM referral_conversions rc
@@ -348,25 +348,25 @@ export function getAmbassadorStats(ambassadorAccountId: number): AmbassadorStats
     ambassadorAccountId
   ) : [];
 
-  const pendingAmount = get<{ s: number }>(
+  const pendingAmount = (await get<{ s: number }>(
     `SELECT COALESCE(SUM(amount), 0) AS s FROM referral_commissions
      WHERE ambassador_account_id = ? AND status = 'pending'`, ambassadorAccountId
-  )?.s || 0;
-  const paidAmount = get<{ s: number }>(
+  ))?.s || 0;
+  const paidAmount = (await get<{ s: number }>(
     `SELECT COALESCE(SUM(amount), 0) AS s FROM referral_commissions
      WHERE ambassador_account_id = ? AND status = 'paid'`, ambassadorAccountId
-  )?.s || 0;
-  const voidedAmount = get<{ s: number }>(
+  ))?.s || 0;
+  const voidedAmount = (await get<{ s: number }>(
     `SELECT COALESCE(SUM(amount), 0) AS s FROM referral_commissions
      WHERE ambassador_account_id = ? AND status = 'voided'`, ambassadorAccountId
-  )?.s || 0;
-  const monthCommissionAmount = get<{ s: number }>(
+  ))?.s || 0;
+  const monthCommissionAmount = (await get<{ s: number }>(
     `SELECT COALESCE(SUM(amount), 0) AS s FROM referral_commissions
      WHERE ambassador_account_id = ?
        AND status IN ('pending', 'paid')
-       AND strftime('%Y-%m', generated_at) = strftime('%Y-%m', CURRENT_TIMESTAMP)`,
+       AND to_char(generated_at, 'YYYY-MM') = to_char(CURRENT_TIMESTAMP, 'YYYY-MM')`,
     ambassadorAccountId
-  )?.s || 0;
+  ))?.s || 0;
 
   return {
     totalInvited: conversions.length,
@@ -392,11 +392,11 @@ export function getAmbassadorStats(ambassadorAccountId: number): AmbassadorStats
  * Solo si el total >= MIN_PAYOUT_AMOUNT.
  * Retorna el payout creado o null si no aplica.
  */
-export function createPayoutForAmbassador(
+export async function createPayoutForAmbassador(
   ambassadorAccountId: number,
   staffId: number
-): { id: number; total: number } | null {
-  const totals = get<{ total: number; min_d: string; max_d: string }>(
+): Promise<{ id: number; total: number } | null> {
+  const totals = await get<{ total: number; min_d: string; max_d: string }>(
     `SELECT COALESCE(SUM(amount), 0) AS total,
        MIN(generated_at) AS min_d, MAX(generated_at) AS max_d
      FROM referral_commissions
@@ -405,8 +405,8 @@ export function createPayoutForAmbassador(
   );
   if (!totals || totals.total < MIN_PAYOUT_AMOUNT) return null;
 
-  return transaction(() => {
-    const r = run(
+  return await transaction(async (tx) => {
+    const r = await tx.run(
       `INSERT INTO referral_payouts
          (ambassador_account_id, period_start, period_end, total_amount, status)
        VALUES (?, ?, ?, ?, 'pending')`,
@@ -417,7 +417,7 @@ export function createPayoutForAmbassador(
     );
     const payoutId = Number(r.lastInsertRowid);
 
-    run(
+    await tx.run(
       `UPDATE referral_commissions
        SET payout_id = ?
        WHERE ambassador_account_id = ? AND status = 'pending'`,
@@ -428,14 +428,14 @@ export function createPayoutForAmbassador(
   });
 }
 
-export function markPayoutPaid(opts: {
+export async function markPayoutPaid(opts: {
   payoutId: number;
   staffId: number;
   bankReference?: string;
   notes?: string;
-}): void {
-  transaction(() => {
-    run(
+}): Promise<void> {
+  await transaction(async (tx) => {
+    await tx.run(
       `UPDATE referral_payouts
        SET status = 'paid',
            paid_at = CURRENT_TIMESTAMP,
@@ -445,7 +445,7 @@ export function markPayoutPaid(opts: {
        WHERE id = ?`,
       opts.staffId, opts.bankReference || null, opts.notes || null, opts.payoutId
     );
-    run(
+    await tx.run(
       `UPDATE referral_commissions
        SET status = 'paid'
        WHERE payout_id = ?`,
@@ -470,8 +470,8 @@ export interface LeaderboardRow {
   has_bank_info: number;
 }
 
-export function getLeaderboard(): LeaderboardRow[] {
-  return all<LeaderboardRow>(
+export async function getLeaderboard(): Promise<LeaderboardRow[]> {
+  return await all<LeaderboardRow>(
     `SELECT
        rc.ambassador_account_id,
        ca.full_name AS ambassador_name,
@@ -489,7 +489,7 @@ export function getLeaderboard(): LeaderboardRow[] {
        (SELECT COALESCE(SUM(amount), 0) FROM referral_commissions
          WHERE ambassador_account_id = rc.ambassador_account_id
            AND status IN ('pending','paid')
-           AND strftime('%Y-%m', generated_at) = strftime('%Y-%m', CURRENT_TIMESTAMP)) AS this_month_commission,
+           AND to_char(generated_at, 'YYYY-MM') = to_char(CURRENT_TIMESTAMP, 'YYYY-MM')) AS this_month_commission,
        (SELECT 1 FROM ambassador_bank_info WHERE ambassador_account_id = rc.ambassador_account_id) AS has_bank_info
      FROM referral_codes rc
      JOIN customer_accounts ca ON ca.id = rc.ambassador_account_id
@@ -500,15 +500,15 @@ export function getLeaderboard(): LeaderboardRow[] {
 
 // ---- Anti-fraude / utilidades admin -------------------------------------
 
-export function cancelConversion(conversionId: number, reason: string): void {
-  transaction(() => {
-    run(
+export async function cancelConversion(conversionId: number, reason: string): Promise<void> {
+  await transaction(async (tx) => {
+    await tx.run(
       `UPDATE referral_conversions
        SET status = 'cancelled', cancelled_reason = ?
        WHERE id = ?`,
       reason, conversionId
     );
-    run(
+    await tx.run(
       `UPDATE referral_commissions
        SET status = 'voided'
        WHERE conversion_id = ? AND status = 'pending'`,

@@ -27,7 +27,7 @@ const PUBLIC_BASE = process.env.NEXT_PUBLIC_BASE_URL || "https://dispensariocult
 
 async function saveBankAction(formData: FormData) {
   "use server";
-  const customer = requireCustomer();
+  const customer = await requireCustomer();
   if (customer.prescription_status !== "aprobada") return;
 
   const rutRaw = String(formData.get("account_holder_rut") || "").trim();
@@ -35,7 +35,7 @@ async function saveBankAction(formData: FormData) {
     redirect("/mi-cuenta/embajador?bank_e=rut_invalid");
   }
 
-  upsertBankInfo({
+  await upsertBankInfo({
     ambassador_account_id: customer.id,
     bank_name: String(formData.get("bank_name") || "").trim(),
     account_type: String(formData.get("account_type") || "corriente") as any,
@@ -49,23 +49,23 @@ async function saveBankAction(formData: FormData) {
   redirect("/mi-cuenta/embajador?bank_ok=1");
 }
 
-export default function AmbassadorDashboard({
+export default async function AmbassadorDashboard({
   searchParams,
 }: {
   searchParams: { bank_ok?: string; bank_e?: string };
 }) {
-  const customer = requireCustomer();
+  const customer = await requireCustomer();
 
   // Gate de acceso: solo recetas aprobadas pueden ser embajadores.
   if (customer.prescription_status !== "aprobada") {
     return <NoAccess status={customer.prescription_status} />;
   }
 
-  const code = getOrCreateReferralCode(customer.id);
+  const code = await getOrCreateReferralCode(customer.id);
   if (!code) return <NoAccess status="error" />;
 
-  const stats = getAmbassadorStats(customer.id);
-  const bank = getBankInfo(customer.id);
+  const stats = await getAmbassadorStats(customer.id);
+  const bank = await getBankInfo(customer.id);
   const fullLink = `${PUBLIC_BASE}/r/${code.code}`;
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=420x420&margin=10&data=${encodeURIComponent(fullLink)}`;
   const qrUrlHighRes = `https://api.qrserver.com/v1/create-qr-code/?size=1024x1024&margin=20&data=${encodeURIComponent(fullLink)}`;

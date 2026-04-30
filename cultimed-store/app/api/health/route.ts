@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const r = get<{ ok: number }>(`SELECT 1 AS ok`);
+    const r = await get<{ ok: number }>(`SELECT 1 AS ok`);
     if (!r || r.ok !== 1) {
       return NextResponse.json({ status: "degraded", db: false }, { status: 503 });
     }

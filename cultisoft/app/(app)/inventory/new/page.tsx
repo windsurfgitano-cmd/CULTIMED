@@ -9,7 +9,7 @@ interface ProductOption { id: number; sku: string; name: string; }
 
 async function createBatch(formData: FormData) {
   "use server";
-  const staff = requireStaff();
+  const staff = await requireStaff();
   const productId = Number(formData.get("product_id"));
   const batchNumber = String(formData.get("batch_number") || "").trim();
   const qty = Number(formData.get("quantity"));
@@ -25,19 +25,19 @@ async function createBatch(formData: FormData) {
   }
 
   try {
-    const r = run(
+    const r = await run(
       `INSERT INTO batches (product_id, batch_number, quantity_initial, quantity_current,
          cost_per_unit, price_per_unit, manufacture_date, expiry_date, supplier, status, notes)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'available', ?)`,
       productId, batchNumber, qty, qty, cost || null, price, mfg, exp, supplier, notes
     );
     const id = Number(r.lastInsertRowid);
-    run(
+    await run(
       `INSERT INTO inventory_movements (batch_id, movement_type, quantity, reference_type, staff_id, reason)
        VALUES (?, 'in', ?, 'purchase', ?, ?)`,
       id, qty, staff.id, `Ingreso lote ${batchNumber}${supplier ? ` de ${supplier}` : ""}`
     );
-    logAudit({ staffId: staff.id, action: "batch_created", entityType: "batch", entityId: id, details: { qty, supplier } });
+    await logAudit({ staffId: staff.id, action: "batch_created", entityType: "batch", entityId: id, details: { qty, supplier } });
     redirect(`/inventory/${id}`);
   } catch (e: any) {
     if (String(e).includes("UNIQUE")) redirect("/inventory/new?e=duplicate");
@@ -50,9 +50,9 @@ const ERR: Record<string, string> = {
   duplicate: "Ya existe un lote con ese número para este producto.",
 };
 
-export default function NewBatchPage({ searchParams }: { searchParams: { e?: string; product?: string } }) {
-  requireStaff();
-  const products = all<ProductOption>(`SELECT id, sku, name FROM products WHERE is_active = 1 ORDER BY name`);
+export default async function NewBatchPage({ searchParams }: { searchParams: { e?: string; product?: string } }) {
+  await requireStaff();
+  const products = await all<ProductOption>(`SELECT id, sku, name FROM products WHERE is_active = 1 ORDER BY name`);
   const error = searchParams.e ? ERR[searchParams.e] : null;
   const preselectId = searchParams.product ? Number(searchParams.product) : undefined;
 

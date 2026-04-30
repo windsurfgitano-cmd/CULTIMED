@@ -35,12 +35,12 @@ const STATUS_META: Record<string, { label: string; cls: string }> = {
   rejected:         { label: "Comprobante rechazado", cls: "pill-error" },
 };
 
-export default function WebOrdersPage({
+export default async function WebOrdersPage({
   searchParams,
 }: {
   searchParams: { status?: string };
 }) {
-  requireStaff();
+  await requireStaff();
   const status = searchParams.status || "proof_uploaded";
 
   const where: string[] = [];
@@ -51,7 +51,7 @@ export default function WebOrdersPage({
   }
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
-  const rows = all<OrderRow>(
+  const rows = await all<OrderRow>(
     `SELECT o.id, o.folio, o.status, o.subtotal, o.total,
        o.shipping_method, o.shipping_phone,
        o.payment_proof_url, o.payment_proof_uploaded_at,
@@ -76,9 +76,9 @@ export default function WebOrdersPage({
     ...params
   );
 
-  const counts = all<{ status: string; n: number }>(
+  const counts = (await all<{ status: string; n: number }>(
     `SELECT status, COUNT(*) as n FROM customer_orders GROUP BY status`
-  ).reduce((acc, r) => ({ ...acc, [r.status]: r.n }), {} as Record<string, number>);
+  )).reduce((acc, r) => ({ ...acc, [r.status]: r.n }), {} as Record<string, number>);
 
   const totalAll = Object.values(counts).reduce((a, b) => a + b, 0);
 

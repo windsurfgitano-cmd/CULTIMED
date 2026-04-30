@@ -8,13 +8,13 @@ import PrescriptionUpload from "@/components/PrescriptionUpload";
 
 async function uploadAction(formData: FormData) {
   "use server";
-  const customer = requireCustomer();
+  const customer = await requireCustomer();
   const file = formData.get("prescription") as File | null;
   if (!file || file.size === 0) redirect("/mi-cuenta/recetas?e=missing");
   if (file.size > 8 * 1024 * 1024) redirect("/mi-cuenta/recetas?e=too_big");
 
   const url = await saveUploadedFile(file, `prescriptions/${customer.id}`);
-  run(
+  await run(
     `UPDATE customer_accounts
      SET prescription_url = ?, prescription_status = 'pending',
          prescription_uploaded_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
@@ -29,8 +29,8 @@ const ERR: Record<string, string> = {
   too_big: "El archivo no puede superar 8 MB.",
 };
 
-export default function PrescriptionsPage({ searchParams }: { searchParams: { e?: string; ok?: string } }) {
-  const customer = requireCustomer();
+export default async function PrescriptionsPage({ searchParams }: { searchParams: { e?: string; ok?: string } }) {
+  const customer = await requireCustomer();
   const error = searchParams.e ? ERR[searchParams.e] : null;
   const success = searchParams.ok === "1";
 

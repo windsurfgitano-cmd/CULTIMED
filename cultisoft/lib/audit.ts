@@ -1,13 +1,13 @@
 import { run } from "./db";
 
-export function logAudit(opts: {
+export async function logAudit(opts: {
   staffId?: number | null;
   action: string;
   entityType?: string;
   entityId?: number;
   details?: Record<string, any>;
-}) {
-  run(
+}): Promise<void> {
+  await run(
     `INSERT INTO audit_logs (staff_id, action, entity_type, entity_id, details)
      VALUES (?, ?, ?, ?, ?)`,
     opts.staffId ?? null,

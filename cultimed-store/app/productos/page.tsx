@@ -20,12 +20,12 @@ interface CatalogProduct {
   total_stock: number;
 }
 
-export default function CatalogPage({
+export default async function CatalogPage({
   searchParams,
 }: {
   searchParams: { cat?: string; brand?: string; sort?: string };
 }) {
-  const customer = getCurrentCustomer();
+  const customer = await getCurrentCustomer();
   const showPrice = canPurchase(customer);
 
   const cat = searchParams.cat || "";
@@ -44,7 +44,7 @@ export default function CatalogPage({
   else if (sort === "price-low") order = `p.default_price ASC`;
   else if (sort === "price-high") order = `p.default_price DESC`;
 
-  const products = all<CatalogProduct>(
+  const products = await all<CatalogProduct>(
     `SELECT p.id, p.sku, p.name, p.category, p.presentation, p.default_price,
        p.thc_percentage, p.cbd_percentage, p.vendor, p.is_house_brand, p.description,
        COALESCE((SELECT SUM(quantity_current) FROM batches b WHERE b.product_id = p.id), 0) as total_stock

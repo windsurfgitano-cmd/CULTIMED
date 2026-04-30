@@ -28,10 +28,10 @@ const RX_STATUS: Record<string, { label: string; tone: string }> = {
   expired:   { label: "Receta vencida",          tone: "sangria" },
 };
 
-export default function AccountPage() {
-  const customer = requireCustomer();
+export default async function AccountPage() {
+  const customer = await requireCustomer();
 
-  const orders = all<OrderRow>(
+  const orders = await all<OrderRow>(
     `SELECT o.id, o.folio, o.status, o.total, o.created_at,
        (SELECT COUNT(*) FROM customer_order_items i WHERE i.order_id = o.id) as item_count
      FROM customer_orders o

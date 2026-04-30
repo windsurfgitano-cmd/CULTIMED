@@ -35,7 +35,7 @@ async function registerAction(formData: FormData) {
   // Tracking de referral: si hay cookie con código válido, asociar conversión.
   const refCode = cookies().get(REFERRAL_COOKIE_NAME)?.value;
   if (refCode) {
-    attachReferralOnRegister({ newAccountId: result.id, refCode });
+    await attachReferralOnRegister({ newAccountId: result.id, refCode });
     cookies().delete(REFERRAL_COOKIE_NAME);
   }
 
@@ -49,8 +49,8 @@ const ERR: Record<string, string> = {
   rut_invalid: "RUT inválido. Verifica el dígito verificador.",
 };
 
-export default function RegisterPage({ searchParams }: { searchParams: { e?: string; next?: string; invitado?: string } }) {
-  if (getCurrentCustomer()) redirect(searchParams.next || "/mi-cuenta");
+export default async function RegisterPage({ searchParams }: { searchParams: { e?: string; next?: string; invitado?: string } }) {
+  if (await getCurrentCustomer()) redirect(searchParams.next || "/mi-cuenta");
   const error = searchParams.e ? ERR[searchParams.e] : null;
   const next = searchParams.next || "/mi-cuenta";
 
@@ -58,9 +58,9 @@ export default function RegisterPage({ searchParams }: { searchParams: { e?: str
   const refCode = cookies().get(REFERRAL_COOKIE_NAME)?.value;
   let inviter: { name: string | null } | null = null;
   if (refCode) {
-    const code = findActiveCode(refCode);
+    const code = await findActiveCode(refCode);
     if (code) {
-      const ambassador = get<{ full_name: string | null }>(
+      const ambassador = await get<{ full_name: string | null }>(
         `SELECT full_name FROM customer_accounts WHERE id = ?`,
         code.ambassador_account_id
       );

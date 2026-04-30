@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, no_order: true });
     }
 
-    const order = get<{
+    const order = await get<{
       id: number;
       status: string;
       payment_method: string | null;
@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
     // Idempotencia: si ya está en paid o más adelante, ignoramos.
     if (["paid", "preparing", "ready_for_pickup", "shipped", "delivered"].includes(order.status)) {
       // Solo actualizamos los IDs de MP por trazabilidad si no estaban
-      run(
+      await run(
         `UPDATE customer_orders
            SET mp_payment_id = COALESCE(mp_payment_id, ?),
                mp_status = ?,
@@ -78,8 +78,8 @@ export async function POST(req: NextRequest) {
 
     if (status === "approved") {
       // Pago aprobado: marcamos orden como paid + disparamos hook de comisión.
-      transaction(() => {
-        run(
+      await transaction(async (tx) => {
+        await tx.run(
           `UPDATE customer_orders
              SET status = 'paid',
                  payment_confirmed_at = CURRENT_TIMESTAMP,
@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
            WHERE id = ?`,
           String(dataId), status, orderId
         );
-        run(
+        await tx.run(
           `INSERT INTO customer_order_events (order_id, event_type, message)
            VALUES (?, 'payment_confirmed', ?)`,
           orderId, `Pago confirmado vía MercadoPago · ID ${dataId}`
@@ -98,7 +98,7 @@ export async function POST(req: NextRequest) {
 
       // Hook de comisión embajadores
       try {
-        recordCommissionForOrder(orderId);
+        await recordCommissionForOrder(orderId);
       } catch (e) {
         console.error("recordCommissionForOrder failed in mp-webhook:", e);
       }
@@ -107,13 +107,13 @@ export async function POST(req: NextRequest) {
     }
 
     if (status === "rejected" || status === "cancelled") {
-      run(
+      await run(
         `UPDATE customer_orders
            SET mp_payment_id = ?, mp_status = ?, updated_at = CURRENT_TIMESTAMP
          WHERE id = ?`,
         String(dataId), status, orderId
       );
-      run(
+      await run(
         `INSERT INTO customer_order_events (order_id, event_type, message)
          VALUES (?, 'payment_rejected', ?)`,
         orderId, `Pago rechazado vía MercadoPago (${status}) · ID ${dataId}`
@@ -122,7 +122,7 @@ export async function POST(req: NextRequest) {
     }
 
     // pending u otros: solo guardamos el estado, no transicionamos la orden
-    run(
+    await run(
       `UPDATE customer_orders
          SET mp_payment_id = ?, mp_status = ?, updated_at = CURRENT_TIMESTAMP
        WHERE id = ?`,

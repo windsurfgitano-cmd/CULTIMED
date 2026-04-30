@@ -5,7 +5,7 @@ import { findActiveCode, REFERRAL_COOKIE_NAME, REFERRAL_COOKIE_DAYS } from "@/li
 
 export async function GET(req: NextRequest, { params }: { params: { code: string } }) {
   const code = (params.code || "").toUpperCase().trim();
-  const ref = findActiveCode(code);
+  const ref = await findActiveCode(code);
 
   // Si el código no existe o no está activo, igual redirigimos a home (no exponemos nada).
   const target = new URL(ref ? "/registro" : "/", req.url);

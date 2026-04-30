@@ -27,12 +27,12 @@ const STATUS_META: Record<string, { label: string; cls: string }> = {
   none:      { label: "Sin receta", cls: "pill-neutral" },
 };
 
-export default function WebPrescriptionsPage({
+export default async function WebPrescriptionsPage({
   searchParams,
 }: {
   searchParams: { status?: string };
 }) {
-  requireStaff();
+  await requireStaff();
   const status = searchParams.status || "pending";
 
   const where: string[] = [];
@@ -43,7 +43,7 @@ export default function WebPrescriptionsPage({
   }
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
-  const rows = all<WebRx>(
+  const rows = await all<WebRx>(
     `SELECT c.id, c.email, c.full_name, c.rut, c.phone,
        c.prescription_status, c.prescription_url,
        c.prescription_uploaded_at, c.prescription_reviewed_at,
@@ -62,11 +62,11 @@ export default function WebPrescriptionsPage({
     ...params
   );
 
-  const counts = all<{ status: string; n: number }>(
+  const counts = (await all<{ status: string; n: number }>(
     `SELECT prescription_status as status, COUNT(*) as n
      FROM customer_accounts
      GROUP BY prescription_status`
-  ).reduce((acc, r) => ({ ...acc, [r.status]: r.n }), {} as Record<string, number>);
+  )).reduce((acc, r) => ({ ...acc, [r.status]: r.n }), {} as Record<string, number>);
 
   return (
     <>

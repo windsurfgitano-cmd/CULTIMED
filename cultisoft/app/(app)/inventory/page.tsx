@@ -43,12 +43,12 @@ const CATEGORY_ICONS: Record<string, string> = {
   otro: "category",
 };
 
-export default function InventoryPage({
+export default async function InventoryPage({
   searchParams,
 }: {
   searchParams: { q?: string; filter?: string; category?: string };
 }) {
-  requireStaff();
+  await requireStaff();
   const q = (searchParams.q || "").trim();
   const filter = searchParams.filter || "";
   const category = searchParams.category || "";
@@ -72,7 +72,7 @@ export default function InventoryPage({
   }
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
-  const rows = all<BatchRow>(
+  const rows = await all<BatchRow>(
     `SELECT b.id, b.batch_number, b.product_id, b.quantity_initial, b.quantity_current,
        b.price_per_unit, b.expiry_date, b.supplier, b.status,
        pr.name as product_name, pr.sku as product_sku, pr.category, pr.presentation,
@@ -88,7 +88,7 @@ export default function InventoryPage({
   );
 
   // Summary KPIs
-  const summary = get<{ total_skus: number; total_units: number; total_value: number; low: number; out: number }>(
+  const summary = await get<{ total_skus: number; total_units: number; total_value: number; low: number; out: number }>(
     `SELECT
        COUNT(DISTINCT pr.id) as total_skus,
        COALESCE(SUM(b.quantity_current), 0) as total_units,

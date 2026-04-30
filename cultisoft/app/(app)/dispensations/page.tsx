@@ -18,12 +18,12 @@ interface DispRow {
   product_summary: string | null;
 }
 
-export default function DispensationsPage({
+export default async function DispensationsPage({
   searchParams,
 }: {
   searchParams: { q?: string; status?: string; range?: string };
 }) {
-  requireStaff();
+  await requireStaff();
   const q = (searchParams.q || "").trim();
   const status = searchParams.status || "";
   const range = searchParams.range || "30";
@@ -39,11 +39,11 @@ export default function DispensationsPage({
     params.push(status);
   }
   if (range !== "all") {
-    where.push(`d.dispensed_at >= datetime('now', '-${parseInt(range, 10) || 30} days')`);
+    where.push(`d.dispensed_at >= NOW() - (INTERVAL '1 day' * ${parseInt(range, 10) || 30})`);
   }
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
-  const rows = all<DispRow>(
+  const rows = await all<DispRow>(
     `SELECT d.id, d.folio, d.total_amount, d.payment_method, d.status, d.dispensed_at,
        p.id as patient_id, p.full_name as patient_name, p.rut as patient_rut,
        r.folio as prescription_folio,
@@ -61,7 +61,7 @@ export default function DispensationsPage({
     ...params
   );
 
-  const summary = get<{ count: number; total: number }>(
+  const summary = await get<{ count: number; total: number }>(
     `SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total FROM dispensations d ${whereSql}`,
     ...params
   );

@@ -9,12 +9,12 @@ import { get } from "./db";
  * because the seed bypasses the regular API path. Real-app-created data always
  * generates an audit log entry.
  */
-export function isDemoMode(): boolean {
-  const dispCount = get<{ c: number }>(`SELECT COUNT(*) as c FROM dispensations`)?.c ?? 0;
+export async function isDemoMode(): Promise<boolean> {
+  const dispCount = (await get<{ c: number }>(`SELECT COUNT(*) as c FROM dispensations`))?.c ?? 0;
   if (dispCount === 0) return false; // empty DB or clean seed → not "demo"
-  const auditCount = get<{ c: number }>(
+  const auditCount = (await get<{ c: number }>(
     `SELECT COUNT(*) as c FROM audit_logs WHERE entity_type = 'dispensation'`
-  )?.c ?? 0;
+  ))?.c ?? 0;
   // If we have dispensations but virtually no audit entries → seed-generated
   return auditCount < dispCount * 0.5;
 }

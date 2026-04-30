@@ -2,8 +2,8 @@ import { requireStaff } from "@/lib/auth";
 import Sidebar from "@/components/Sidebar";
 import TopBar from "@/components/TopBar";
 
-export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const staff = requireStaff();
+export default async function AppLayout({ children }: { children: React.ReactNode }) {
+  const staff = await requireStaff();
 
   return (
     <div className="min-h-screen bg-surface">

@@ -30,15 +30,15 @@ const CATEGORY_FULL_LABEL: Record<string, string> = {
   otro: "Producto medicinal",
 };
 
-export default function ProductDetailPage({ params }: { params: { slug: string } }) {
+export default async function ProductDetailPage({ params }: { params: { slug: string } }) {
   const slug = params.slug.toLowerCase();
-  const product = get<ProductFull>(
+  const product = await get<ProductFull>(
     `SELECT * FROM products WHERE LOWER(sku) = ? AND is_active = 1`,
     slug
   );
   if (!product) notFound();
 
-  const batches = all<BatchInfo>(
+  const batches = await all<BatchInfo>(
     `SELECT id, batch_number, quantity_current, manufacture_date, expiry_date, supplier
      FROM batches WHERE product_id = ? AND status = 'available' AND quantity_current > 0
      ORDER BY expiry_date ASC LIMIT 3`,
@@ -46,10 +46,10 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
   );
 
   const totalStock = batches.reduce((s, b) => s + b.quantity_current, 0);
-  const customer = getCurrentCustomer();
+  const customer = await getCurrentCustomer();
   const showPrice = canPurchase(customer);
 
-  const related = all<any>(
+  const related = await all<any>(
     `SELECT id, sku, name, category, presentation, default_price,
        thc_percentage, cbd_percentage, vendor, is_house_brand, description
      FROM products

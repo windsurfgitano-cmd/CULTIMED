@@ -23,10 +23,10 @@ interface PayoutRow {
   commission_count: number;
 }
 
-export default function PayoutsHistoryPage() {
-  requireStaff();
+export default async function PayoutsHistoryPage() {
+  await requireStaff();
 
-  const payouts = all<PayoutRow>(
+  const payouts = await all<PayoutRow>(
     `SELECT p.*, ca.full_name AS ambassador_name, ca.email AS ambassador_email,
        s.full_name AS paid_by_name,
        (SELECT COUNT(*) FROM referral_commissions WHERE payout_id = p.id) AS commission_count

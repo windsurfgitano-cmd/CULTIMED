@@ -18,8 +18,8 @@ const ERR: Record<string, string> = {
   invalid: "Credenciales incorrectas.",
 };
 
-export default function LoginPage({ searchParams }: { searchParams: { e?: string; next?: string } }) {
-  if (getCurrentCustomer()) redirect(searchParams.next || "/mi-cuenta");
+export default async function LoginPage({ searchParams }: { searchParams: { e?: string; next?: string } }) {
+  if (await getCurrentCustomer()) redirect(searchParams.next || "/mi-cuenta");
   const error = searchParams.e ? ERR[searchParams.e] : null;
   const next = searchParams.next || "/mi-cuenta";
 

@@ -11,7 +11,7 @@ interface ProductOption { id: number; sku: string; name: string; requires_prescr
 
 async function createPrescription(formData: FormData) {
   "use server";
-  const staff = requireStaff();
+  const staff = await requireStaff();
   const patientId = Number(formData.get("patient_id"));
   const doctorId = Number(formData.get("doctor_id"));
   const diagnosis = String(formData.get("diagnosis") || "").trim();
@@ -39,8 +39,8 @@ async function createPrescription(formData: FormData) {
   const folioBase = `RX-${new Date().getFullYear()}-${Date.now().toString(36).toUpperCase()}`;
 
   let newId = 0;
-  transaction(() => {
-    const r = run(
+  await transaction(async (tx) => {
+    const r = await tx.run(
       `INSERT INTO prescriptions (folio, patient_id, doctor_id, diagnosis, diagnosis_code,
          issue_date, expiry_date, is_retained, status, verified_by, verified_at, notes)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, CURRENT_TIMESTAMP, ?)`,
@@ -48,14 +48,14 @@ async function createPrescription(formData: FormData) {
     );
     newId = Number(r.lastInsertRowid);
     for (const it of items) {
-      run(
+      await tx.run(
         `INSERT INTO prescription_items (prescription_id, product_id, quantity_prescribed, quantity_dispensed, dosage_instructions)
          VALUES (?, ?, ?, 0, ?)`,
         newId, it.productId, it.qty, it.dosage || null
       );
     }
-    logAudit({ staffId: staff.id, action: "prescription_created", entityType: "prescription", entityId: newId, details: { folio: folioBase, items: items.length } });
   });
+  await logAudit({ staffId: staff.id, action: "prescription_created", entityType: "prescription", entityId: newId, details: { folio: folioBase, items: items.length } });
 
   redirect(`/prescriptions/${newId}`);
 }
@@ -65,11 +65,11 @@ const ERR: Record<string, string> = {
   no_items: "Debes agregar al menos un producto a la receta.",
 };
 
-export default function NewPrescriptionPage({ searchParams }: { searchParams: { e?: string; patient?: string } }) {
-  requireStaff();
-  const patients = all<PatientOption>(`SELECT id, rut, full_name FROM patients ORDER BY full_name LIMIT 500`);
-  const doctors = all<DoctorOption>(`SELECT id, full_name, professional_license FROM doctors WHERE is_active = 1 ORDER BY full_name`);
-  const products = all<ProductOption>(`SELECT id, sku, name, requires_prescription, is_controlled FROM products WHERE is_active = 1 AND requires_prescription = 1 ORDER BY name`);
+export default async function NewPrescriptionPage({ searchParams }: { searchParams: { e?: string; patient?: string } }) {
+  await requireStaff();
+  const patients = await all<PatientOption>(`SELECT id, rut, full_name FROM patients ORDER BY full_name LIMIT 500`);
+  const doctors = await all<DoctorOption>(`SELECT id, full_name, professional_license FROM doctors WHERE is_active = 1 ORDER BY full_name`);
+  const products = await all<ProductOption>(`SELECT id, sku, name, requires_prescription, is_controlled FROM products WHERE is_active = 1 AND requires_prescription = 1 ORDER BY name`);
   const error = searchParams.e ? ERR[searchParams.e] : null;
   const preselectedPatient = searchParams.patient ? Number(searchParams.patient) : undefined;
 

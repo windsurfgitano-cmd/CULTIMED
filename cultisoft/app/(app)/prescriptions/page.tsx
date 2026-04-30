@@ -18,12 +18,12 @@ interface RxRow {
   item_count: number;
 }
 
-export default function PrescriptionsPage({
+export default async function PrescriptionsPage({
   searchParams,
 }: {
   searchParams: { q?: string; status?: string };
 }) {
-  requireStaff();
+  await requireStaff();
   const q = (searchParams.q || "").trim();
   const status = searchParams.status || "";
 
@@ -39,7 +39,7 @@ export default function PrescriptionsPage({
   }
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
-  const rows = all<RxRow>(
+  const rows = await all<RxRow>(
     `SELECT r.id, r.folio, r.status, r.is_retained, r.diagnosis, r.diagnosis_code,
        r.issue_date, r.expiry_date,
        p.id as patient_id, p.full_name as patient_name, p.rut as patient_rut,

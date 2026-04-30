@@ -32,18 +32,18 @@ const PAYMENT_LABELS: Record<string, string> = {
   transferencia: "Transferencia",
 };
 
-export default function DispensationDetailPage({
+export default async function DispensationDetailPage({
   params,
   searchParams,
 }: {
   params: { id: string };
   searchParams: { success?: string };
 }) {
-  requireStaff();
+  await requireStaff();
   const id = parseInt(params.id, 10);
   if (!id) notFound();
 
-  const d = get<DispFull>(
+  const d = await get<DispFull>(
     `SELECT d.*, p.id as patient_id, p.full_name as patient_name, p.rut as patient_rut,
        r.folio as prescription_folio, r.diagnosis as prescription_diagnosis,
        doc.full_name as doctor_name,
@@ -58,7 +58,7 @@ export default function DispensationDetailPage({
   );
   if (!d) notFound();
 
-  const items = all<DispItem>(
+  const items = await all<DispItem>(
     `SELECT di.id, di.quantity, di.price_per_unit, di.total_price, di.batch_id,
        pr.name as product_name, pr.sku as product_sku, pr.presentation, pr.is_controlled,
        b.batch_number

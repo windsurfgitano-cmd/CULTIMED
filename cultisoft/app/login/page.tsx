@@ -9,16 +9,16 @@ async function loginAction(formData: FormData) {
   if (!email || !password) redirect("/login?e=missing");
   const user = await login(email, password);
   if (!user) redirect("/login?e=invalid");
-  logAudit({ staffId: user.id, action: "login", entityType: "staff", entityId: user.id });
+  await logAudit({ staffId: user.id, action: "login", entityType: "staff", entityId: user.id });
   redirect("/dashboard");
 }
 
-export default function LoginPage({
+export default async function LoginPage({
   searchParams,
 }: {
   searchParams: { e?: string };
 }) {
-  if (getCurrentStaff()) redirect("/dashboard");
+  if (await getCurrentStaff()) redirect("/dashboard");
 
   const errorMsg =
     searchParams.e === "invalid"

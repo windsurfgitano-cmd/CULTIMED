@@ -20,8 +20,8 @@ interface FeaturedProduct {
   image_url: string | null;
 }
 
-export default function HomePage() {
-  const featured = all<FeaturedProduct>(
+export default async function HomePage() {
+  const featured = await all<FeaturedProduct>(
     `SELECT p.id, p.sku, p.name, p.category, p.presentation, p.default_price,
        p.thc_percentage, p.cbd_percentage, p.vendor, p.is_house_brand, p.description,
        NULL as image_url,

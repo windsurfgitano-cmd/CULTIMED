@@ -47,13 +47,13 @@ interface ConvDetail {
 
 async function cancelConvAction(formData: FormData) {
   "use server";
-  const staff = requireStaff();
+  const staff = await requireStaff();
   const id = Number(formData.get("conv_id"));
   const ambId = Number(formData.get("amb_id"));
   const reason = String(formData.get("reason") || "Cancelado por administrador").trim();
   if (!id) return;
-  cancelConversion(id, reason);
-  logAudit({
+  await cancelConversion(id, reason);
+  await logAudit({
     staffId: staff.id,
     action: "ambassador_conversion_cancelled",
     entityType: "referral_conversion",
@@ -63,12 +63,12 @@ async function cancelConvAction(formData: FormData) {
   redirect(`/ambassadors/${ambId}`);
 }
 
-export default function AmbassadorDetailPage({ params }: { params: { id: string } }) {
-  requireStaff();
+export default async function AmbassadorDetailPage({ params }: { params: { id: string } }) {
+  await requireStaff();
   const id = parseInt(params.id, 10);
   if (!id) notFound();
 
-  const a = get<AmbassadorDetail>(
+  const a = await get<AmbassadorDetail>(
     `SELECT
        rc.ambassador_account_id, ca.full_name, ca.email, ca.rut, ca.phone, ca.prescription_status,
        rc.code,
@@ -88,7 +88,7 @@ export default function AmbassadorDetailPage({ params }: { params: { id: string 
   );
   if (!a) notFound();
 
-  const conversions = all<ConvDetail>(
+  const conversions = await all<ConvDetail>(
     `SELECT rc.id, rc.referred_account_id, rc.registered_at, rc.prescription_approved_at,
        rc.first_order_id, rc.first_order_paid_at, rc.expires_at, rc.status, rc.cancelled_reason,
        ca.email AS referred_email, ca.full_name AS referred_name,

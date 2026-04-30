@@ -8,7 +8,7 @@ import PageHeader from "@/components/PageHeader";
 
 async function createPatient(formData: FormData) {
   "use server";
-  const staff = requireStaff();
+  const staff = await requireStaff();
 
   const rutRaw = String(formData.get("rut") || "").trim();
   const fullName = String(formData.get("full_name") || "").trim();
@@ -31,7 +31,7 @@ async function createPatient(formData: FormData) {
   const rut = formatRut(cleanRut(rutRaw));
 
   try {
-    const r = run(
+    const r = await run(
       `INSERT INTO patients (rut, full_name, date_of_birth, gender, email, phone, address, city,
         emergency_contact_name, emergency_contact_phone, allergies, chronic_conditions, notes,
         membership_status, membership_started_at)
@@ -40,7 +40,7 @@ async function createPatient(formData: FormData) {
       ecName, ecPhone, allergies, conditions, notes,
       membershipStatus, membershipStatus === "active" ? new Date().toISOString() : null
     );
-    logAudit({
+    await logAudit({
       staffId: staff.id,
       action: "patient_created",
       entityType: "patient",
@@ -63,8 +63,8 @@ const ERR_MSG: Record<string, string> = {
   duplicate: "Ya existe un paciente con ese RUT.",
 };
 
-export default function NewPatientPage({ searchParams }: { searchParams: { e?: string } }) {
-  requireStaff();
+export default async function NewPatientPage({ searchParams }: { searchParams: { e?: string } }) {
+  await requireStaff();
   const error = searchParams.e ? ERR_MSG[searchParams.e] : null;
 
   return (

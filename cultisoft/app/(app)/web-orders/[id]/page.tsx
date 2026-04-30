@@ -5,6 +5,7 @@ import { all, get, run, transaction } from "@/lib/db";
 import { formatCLP, formatDateTime } from "@/lib/format";
 import { logAudit } from "@/lib/audit";
 import { recordCommissionForOrder } from "@/lib/referrals";
+import { resolveStorageUrl } from "@/lib/storage";
 import PageHeader from "@/components/PageHeader";
 
 export const dynamic = "force-dynamic";
@@ -86,14 +87,14 @@ const EVENT_LABEL: Record<string, string> = {
 
 async function transitionAction(formData: FormData) {
   "use server";
-  const staff = requireStaff();
+  const staff = await requireStaff();
   const id = Number(formData.get("id"));
   const action = String(formData.get("action") || "");
   const message = String(formData.get("message") || "").trim();
   const tracking = String(formData.get("tracking") || "").trim();
   if (!id) return;
 
-  const order = get<{ status: string; folio: string }>(
+  const order = await get<{ status: string; folio: string }>(
     `SELECT status, folio FROM customer_orders WHERE id = ?`,
     id
   );
@@ -148,36 +149,36 @@ async function transitionAction(formData: FormData) {
   if (!rule) return;
   if (!rule.from.includes(order.status)) return;
 
-  transaction(() => {
+  await transaction(async (tx) => {
     if (action === "confirm_payment") {
-      run(
+      await tx.run(
         `UPDATE customer_orders
          SET status = ?, payment_confirmed_by = ?, payment_confirmed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
          WHERE id = ?`,
         rule.to, staff.id, id
       );
     } else if (action === "reject_payment") {
-      run(
+      await tx.run(
         `UPDATE customer_orders
          SET status = ?, payment_rejection_reason = ?, updated_at = CURRENT_TIMESTAMP
          WHERE id = ?`,
         rule.to, message || rule.defaultMsg, id
       );
     } else if (action === "mark_shipped" && tracking) {
-      run(
+      await tx.run(
         `UPDATE customer_orders
          SET status = ?, shipping_tracking = ?, updated_at = CURRENT_TIMESTAMP
          WHERE id = ?`,
         rule.to, tracking, id
       );
     } else {
-      run(
+      await tx.run(
         `UPDATE customer_orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
         rule.to, id
       );
     }
 
-    run(
+    await tx.run(
       `INSERT INTO customer_order_events (order_id, event_type, message, staff_id)
        VALUES (?, ?, ?, ?)`,
       id, rule.event, message || rule.defaultMsg, staff.id
@@ -188,9 +189,9 @@ async function transitionAction(formData: FormData) {
   // Idempotente: UNIQUE(order_id, type) evita doble cálculo.
   if (action === "confirm_payment") {
     try {
-      const res = recordCommissionForOrder(id);
+      const res = await recordCommissionForOrder(id);
       if (res.type) {
-        logAudit({
+        await logAudit({
           staffId: staff.id,
           action: `referral_commission_${res.type}`,
           entityType: "customer_order",
@@ -204,7 +205,7 @@ async function transitionAction(formData: FormData) {
     }
   }
 
-  logAudit({
+  await logAudit({
     staffId: staff.id,
     action: `web_order_${action}`,
     entityType: "customer_order",
@@ -215,12 +216,12 @@ async function transitionAction(formData: FormData) {
   redirect(`/web-orders/${id}`);
 }
 
-export default function WebOrderDetail({ params }: { params: { id: string } }) {
-  requireStaff();
+export default async function WebOrderDetail({ params }: { params: { id: string } }) {
+  await requireStaff();
   const id = parseInt(params.id, 10);
   if (!id) notFound();
 
-  const o = get<OrderFull>(
+  const o = await get<OrderFull>(
     `SELECT o.*, c.full_name as customer_name, c.email as customer_email,
        c.rut as customer_rut, c.phone as customer_phone,
        c.prescription_status as customer_account_status,
@@ -233,7 +234,7 @@ export default function WebOrderDetail({ params }: { params: { id: string } }) {
   );
   if (!o) notFound();
 
-  const items = all<OrderItem>(
+  const items = await all<OrderItem>(
     `SELECT i.id, i.quantity, i.unit_price, i.total_price, i.product_id,
        p.name as product_name, p.sku as product_sku, p.presentation
      FROM customer_order_items i
@@ -243,7 +244,7 @@ export default function WebOrderDetail({ params }: { params: { id: string } }) {
     id
   );
 
-  const events = all<OrderEvent>(
+  const events = await all<OrderEvent>(
     `SELECT e.id, e.event_type, e.message, e.created_at, s.full_name as staff_name
      FROM customer_order_events e
      LEFT JOIN staff s ON s.id = e.staff_id
@@ -255,7 +256,8 @@ export default function WebOrderDetail({ params }: { params: { id: string } }) {
   const meta = STATUS_META[o.status] ?? { label: o.status, cls: "pill-neutral" };
   const isImage = o.payment_proof_url && /\.(png|jpe?g|webp|gif)$/i.test(o.payment_proof_url);
   const isPdf = o.payment_proof_url && /\.pdf$/i.test(o.payment_proof_url);
-  const proofFullUrl = o.payment_proof_url ? `${STORE_PUBLIC_BASE}${o.payment_proof_url}` : null;
+  // resolveStorageUrl: maneja "bucket://path" (Supabase Storage signed URL) o legacy "/uploads/..."
+  const proofFullUrl = await resolveStorageUrl(o.payment_proof_url);
   const waMessage = encodeURIComponent(
     `Hola ${o.customer_name}, te escribimos desde Cultimed sobre tu pedido ${o.folio} ($${o.total.toLocaleString("es-CL")}).`
   );

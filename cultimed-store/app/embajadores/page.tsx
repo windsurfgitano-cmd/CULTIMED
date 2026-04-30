@@ -18,8 +18,8 @@ export const metadata = {
     "Invita a otros pacientes a Cultimed con tu enlace único. Gana comisión por cada nueva dispensación.",
 };
 
-export default function AmbassadorsPublicPage() {
-  const c = getCurrentCustomer();
+export default async function AmbassadorsPublicPage() {
+  const c = await getCurrentCustomer();
   const ctaHref = !c
     ? "/registro?next=/mi-cuenta/embajador"
     : c.prescription_status === "aprobada"

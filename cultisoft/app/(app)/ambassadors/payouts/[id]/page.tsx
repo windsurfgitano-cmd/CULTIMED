@@ -44,20 +44,20 @@ interface CommissionRow {
 
 async function markPaidAction(formData: FormData) {
   "use server";
-  const staff = requireStaff();
+  const staff = await requireStaff();
   const id = Number(formData.get("id"));
   const bankReference = String(formData.get("bank_reference") || "").trim();
   const notes = String(formData.get("notes") || "").trim();
   if (!id) return;
 
-  markPayoutPaid({
+  await markPayoutPaid({
     payoutId: id,
     staffId: staff.id,
     bankReference: bankReference || undefined,
     notes: notes || undefined,
   });
 
-  logAudit({
+  await logAudit({
     staffId: staff.id,
     action: "ambassador_payout_paid",
     entityType: "referral_payout",
@@ -68,12 +68,12 @@ async function markPaidAction(formData: FormData) {
   redirect(`/ambassadors/payouts/${id}`);
 }
 
-export default function PayoutDetailPage({ params }: { params: { id: string } }) {
-  requireStaff();
+export default async function PayoutDetailPage({ params }: { params: { id: string } }) {
+  await requireStaff();
   const id = parseInt(params.id, 10);
   if (!id) notFound();
 
-  const p = get<PayoutDetail>(
+  const p = await get<PayoutDetail>(
     `SELECT p.*, ca.full_name AS ambassador_name, ca.email AS ambassador_email,
        s.full_name AS paid_by_name,
        b.bank_name, b.account_type, b.account_number, b.account_holder_name, b.account_holder_rut, b.contact_email
@@ -86,7 +86,7 @@ export default function PayoutDetailPage({ params }: { params: { id: string } })
   );
   if (!p) notFound();
 
-  const commissions = all<CommissionRow>(
+  const commissions = await all<CommissionRow>(
     `SELECT c.id, c.type, c.base_amount, c.amount, c.generated_at,
        o.folio AS order_folio, o.total AS order_total,
        ca.email AS referred_email

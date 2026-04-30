@@ -50,21 +50,21 @@ export async function registerCustomer(input: {
   if (!email || !input.password) return { error: "missing" };
   if (input.password.length < 6) return { error: "weak_password" };
 
-  const existing = get<{ id: number }>(`SELECT id FROM customer_accounts WHERE email = ?`, email);
+  const existing = await get<{ id: number }>(`SELECT id FROM customer_accounts WHERE email = ?`, email);
   if (existing) return { error: "duplicate_email" };
 
   const hash = await bcrypt.hash(input.password, 10);
-  const result = run(
+  const result = await run(
     `INSERT INTO customer_accounts (email, password_hash, full_name, rut, phone, age_gate_accepted_at)
      VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
     email, hash, input.full_name.trim(), input.rut || null, input.phone || null
   );
   setCookie(Number(result.lastInsertRowid));
-  return getCurrentCustomer()!;
+  return (await getCurrentCustomer())!;
 }
 
 export async function loginCustomer(email: string, password: string): Promise<CustomerAccount | null> {
-  const acc = get<CustomerAccount & { password_hash: string }>(
+  const acc = await get<CustomerAccount & { password_hash: string }>(
     `SELECT * FROM customer_accounts WHERE email = ?`,
     email.trim().toLowerCase()
   );
@@ -91,21 +91,21 @@ export function logoutCustomer() {
   cookies().delete(COOKIE_NAME);
 }
 
-export function getCurrentCustomer(): CustomerAccount | null {
+export async function getCurrentCustomer(): Promise<CustomerAccount | null> {
   const t = cookies().get(COOKIE_NAME)?.value;
   if (!t) return null;
   const s = decode(t);
   if (!s) return null;
-  return get<CustomerAccount>(
+  return (await get<CustomerAccount>(
     `SELECT id, email, full_name, rut, phone, patient_id, prescription_status,
        prescription_url, age_gate_accepted_at
      FROM customer_accounts WHERE id = ?`,
     s.id
-  ) || null;
+  )) || null;
 }
 
-export function requireCustomer(): CustomerAccount {
-  const c = getCurrentCustomer();
+export async function requireCustomer(): Promise<CustomerAccount> {
+  const c = await getCurrentCustomer();
   if (!c) redirect("/ingresar?next=" + encodeURIComponent("/mi-cuenta"));
   return c;
 }
