@@ -1,0 +1,163 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { box-sizing: border-box; }
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "kern", "calt", "liga", "ss01";
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    background: #F4EFE6;
+    color: #1B1F1E;
+    font-family: "Manrope", system-ui, sans-serif;
+    font-feature-settings: "ss01", "cv11", "tnum" 0;
+    /* subtle paper grain */
+    background-image:
+      radial-gradient(rgba(27, 31, 30, 0.012) 1px, transparent 0),
+      radial-gradient(rgba(27, 31, 30, 0.008) 1px, transparent 0);
+    background-size: 28px 28px, 17px 17px;
+    background-position: 0 0, 9px 9px;
+  }
+  /* Display headlines use Fraunces with optical size */
+  h1, h2, h3, h4 {
+    font-family: "Fraunces", Georgia, serif;
+    font-feature-settings: "ss01", "ss02", "ss03", "kern";
+    font-variation-settings: "opsz" 144, "SOFT" 50;
+  }
+  /* Old-style figures for body */
+  .nums-old {
+    font-feature-settings: "onum", "tnum";
+  }
+  /* Tabular figures for prices/data */
+  .nums-lining {
+    font-feature-settings: "lnum", "tnum";
+  }
+  ::selection {
+    background: #1F3A2D;
+    color: #F4EFE6;
+  }
+  :focus-visible {
+    outline: 2px solid #A98B5C;
+    outline-offset: 4px;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track { background: #EBE5D9; }
+  ::-webkit-scrollbar-thumb {
+    background: #A98B5C;
+    border: 2px solid #EBE5D9;
+    border-radius: 6px;
+  }
+}
+
+@layer components {
+  /* Editorial primitives */
+  .eyebrow {
+    @apply text-eyebrow uppercase tracking-widest text-ink-muted font-medium;
+    font-feature-settings: "ss01";
+  }
+  .display-italic {
+    font-family: "Fraunces", serif;
+    font-style: italic;
+    font-feature-settings: "ss01", "ss02";
+  }
+  .hairline {
+    @apply h-px w-full bg-rule;
+  }
+  .hairline-thick {
+    @apply h-px w-full bg-ink;
+  }
+  .editorial-numeral {
+    font-family: "Fraunces", serif;
+    font-feature-settings: "onum", "ss01";
+    font-variation-settings: "opsz" 144;
+    font-weight: 300;
+    font-style: italic;
+  }
+  /* Buttons */
+  .btn-brass {
+    @apply inline-flex items-center justify-center gap-2 px-7 py-3 bg-ink text-paper text-sm tracking-editorial font-medium transition-all duration-300 hover:bg-forest;
+    font-family: "Manrope", sans-serif;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 px-7 py-3 border border-ink text-ink text-sm tracking-editorial font-medium transition-all duration-300 hover:bg-ink hover:text-paper;
+  }
+  .btn-link {
+    @apply inline-flex items-center gap-2 text-sm tracking-editorial border-b border-ink/30 pb-0.5 text-ink hover:border-ink transition-colors duration-300;
+  }
+  /* Inputs */
+  .input-editorial {
+    @apply w-full bg-transparent border-0 border-b border-ink/30 px-0 py-3 text-base font-body text-ink placeholder:text-ink-subtle focus:border-ink focus:outline-none transition-colors;
+  }
+  .input-label {
+    @apply block text-eyebrow uppercase tracking-widest text-ink-muted mb-2;
+  }
+  /* Cards */
+  .editorial-card {
+    @apply bg-paper-bright border border-rule transition-all duration-500 ease-editorial;
+  }
+  /* Numerical section markers */
+  .section-marker {
+    font-family: "Fraunces", serif;
+    font-style: italic;
+    font-feature-settings: "onum";
+    font-variation-settings: "opsz" 144;
+    font-weight: 300;
+  }
+  /* Pills */
+  .pill-editorial {
+    @apply inline-flex items-center gap-1.5 px-3 py-1 border border-ink/20 text-[10px] uppercase tracking-widest text-ink font-medium;
+  }
+  .pill-prescription {
+    @apply inline-flex items-center gap-1.5 px-3 py-1 border border-sangria text-[10px] uppercase tracking-widest text-sangria font-medium;
+  }
+  .pill-stock {
+    @apply inline-flex items-center gap-1.5 px-3 py-1 border border-forest text-[10px] uppercase tracking-widest text-forest font-medium;
+  }
+}
+
+@layer utilities {
+  .text-balance { text-wrap: balance; }
+  .text-pretty { text-wrap: pretty; }
+  .grain-overlay::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0.04;
+    mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  }
+}
+
+/* Animations always settle on visible state — `forwards` fill */
+.animate-fade-up,
+.animate-fade-in,
+.animate-rule-grow {
+  animation-fill-mode: forwards !important;
+}
+
+/* If a user prefers reduced motion, skip the entrance animation entirely
+   and show content immediately at its final state */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up,
+  .animate-fade-in {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .animate-rule-grow {
+    animation: none !important;
+    transform: none !important;
+  }
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+  }
+}

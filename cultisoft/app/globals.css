@@ -1,0 +1,178 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { box-sizing: border-box; }
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "kern", "calt", "liga", "ss01";
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    background: #F4EFE6;
+    color: #1B1F1E;
+    font-family: "Manrope", system-ui, sans-serif;
+    font-feature-settings: "ss01", "tnum" 0;
+    /* very subtle paper grain */
+    background-image:
+      radial-gradient(rgba(27, 31, 30, 0.012) 1px, transparent 0),
+      radial-gradient(rgba(27, 31, 30, 0.008) 1px, transparent 0);
+    background-size: 28px 28px, 17px 17px;
+    background-position: 0 0, 9px 9px;
+  }
+  h1, h2, h3, h4 {
+    font-family: "Fraunces", Georgia, serif;
+    font-feature-settings: "ss01", "kern";
+    font-variation-settings: "opsz" 144, "SOFT" 50;
+  }
+  .nums-old { font-feature-settings: "onum", "tnum"; }
+  .nums-lining { font-feature-settings: "lnum", "tnum"; }
+  ::selection { background: #1F3A2D; color: #F4EFE6; }
+  :focus-visible {
+    outline: 2px solid #A98B5C;
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: #EBE5D9; }
+  ::-webkit-scrollbar-thumb {
+    background: #A98B5C;
+    border: 2px solid #EBE5D9;
+    border-radius: 6px;
+  }
+
+  table { width: 100%; }
+}
+
+@layer components {
+  /* ─── Material Symbols (kept for admin-friendly icon set) ─── */
+  .material-symbols-outlined {
+    font-family: "Material Symbols Outlined";
+    font-weight: normal;
+    font-style: normal;
+    font-size: 24px;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    display: inline-block;
+    white-space: nowrap;
+    word-wrap: normal;
+    direction: ltr;
+    -webkit-font-feature-settings: "liga";
+    font-feature-settings: "liga";
+    -webkit-font-smoothing: antialiased;
+    font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+    user-select: none;
+  }
+  .ms-fill {
+    font-variation-settings: "FILL" 1, "wght" 500, "GRAD" 0, "opsz" 24;
+  }
+
+  /* ─── Editorial primitives ─── */
+  .eyebrow {
+    @apply text-eyebrow uppercase tracking-widest text-ink-muted font-medium;
+  }
+  .display-italic {
+    font-family: "Fraunces", serif;
+    font-style: italic;
+  }
+  .hairline { @apply h-px w-full bg-rule; }
+  .hairline-thick { @apply h-px w-full bg-ink; }
+  .editorial-numeral {
+    font-family: "Fraunces", serif;
+    font-feature-settings: "onum", "ss01";
+    font-variation-settings: "opsz" 144;
+    font-weight: 300;
+    font-style: italic;
+  }
+
+  /* ─── Cards (apothecary style — replaces Material clinical-card) ─── */
+  .clinical-card,
+  .editorial-card {
+    @apply bg-paper-bright border border-rule transition-all duration-500;
+  }
+
+  /* ─── Pills (used by StatusBadge) ─── */
+  .pill {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap;
+  }
+  .pill-primary  { @apply bg-paper-dim text-forest border border-forest/30; }
+  .pill-success  { @apply bg-success-container text-forest border border-forest/40; }
+  .pill-warning  { @apply bg-warning-container text-brass-dim border border-brass/40; }
+  .pill-error    { @apply bg-error-container text-sangria border border-sangria/40; }
+  .pill-neutral  { @apply bg-paper-dim text-ink-muted border border-rule; }
+  .pill-tertiary { @apply bg-warning-container text-brass-dim border border-brass/40; }
+
+  /* ─── Inputs (editorial — bottom border instead of full box) ─── */
+  .input-field {
+    @apply w-full bg-paper-bright border-0 border-b border-rule px-0 py-3 text-sm text-ink placeholder:text-ink-subtle/70 focus:border-ink focus:outline-none focus:ring-0 transition-colors;
+  }
+  .input-label {
+    @apply block text-eyebrow uppercase tracking-widest text-ink-muted mb-1.5 font-medium;
+  }
+
+  /* ─── Buttons ─── */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 bg-ink text-paper text-sm tracking-editorial font-semibold rounded-none px-6 py-3 transition-all hover:bg-forest disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 bg-transparent border border-ink text-ink text-sm tracking-editorial font-semibold rounded-none px-6 py-3 transition-all hover:bg-ink hover:text-paper;
+  }
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 bg-sangria text-paper text-sm tracking-editorial font-semibold rounded-none px-6 py-3 transition-all hover:bg-sangria-dim;
+  }
+
+  /* ─── Tables (editorial — hairlines replace Material rows) ─── */
+  .table-clinical {
+    @apply w-full text-left border-collapse;
+  }
+  .table-clinical thead {
+    @apply bg-paper-dim/40;
+  }
+  .table-clinical th {
+    @apply px-4 py-3 text-[11px] font-bold text-ink-muted uppercase tracking-widest sm:px-5;
+    border-bottom: 1px solid #1B1F1E;
+  }
+  .table-clinical tbody tr {
+    @apply border-t border-rule-soft hover:bg-paper-bright transition-colors;
+  }
+  .table-clinical td {
+    @apply px-4 py-3 text-sm text-ink sm:px-5 sm:py-3.5;
+  }
+}
+
+@layer utilities {
+  .text-balance { text-wrap: balance; }
+  .text-pretty { text-wrap: pretty; }
+}
+
+/* Mobile sidebar drawer behavior */
+@media (max-width: 767px) {
+  aside.sidebar-desktop { display: none !important; }
+  .clinical-card.overflow-x-auto,
+  .clinical-card.overflow-hidden { overflow-x: auto !important; }
+  main { padding-top: 56px !important; }
+}
+
+/* Print */
+@media print {
+  aside, .topbar, .btn-primary, .btn-secondary, button, form { display: none !important; }
+  main { margin-left: 0 !important; padding-top: 0 !important; }
+  .clinical-card { box-shadow: none !important; border: 1px solid #C9C2B3 !important; }
+  body { background: white !important; background-image: none !important; }
+  .max-w-\[1400px\] { max-width: 100% !important; }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up, .animate-fade-in {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+  }
+}

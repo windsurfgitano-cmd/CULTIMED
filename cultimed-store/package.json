@@ -1,0 +1,36 @@
+{
+  "name": "cultimed-store",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cultimed — tienda pública de cannabis medicinal (Editorial Apothecary)",
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start -p 3000",
+    "lint": "next lint",
+    "db:extend": "node scripts/extend-schema.js",
+    "db:referrals": "node scripts/extend-schema-referrals.js",
+    "db:payments": "node scripts/extend-schema-payments.js",
+    "db:migrate": "node scripts/extend-schema.js && node scripts/extend-schema-referrals.js && node scripts/extend-schema-payments.js"
+  },
+  "dependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/better-sqlite3": "^7.6.11",
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^11.3.0",
+    "clsx": "^2.1.1",
+    "mercadopago": "^2.12.0",
+    "next": "14.2.21",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.2"
+  }
+}
