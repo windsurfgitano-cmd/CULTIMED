@@ -134,7 +134,7 @@ export default async function NewDispensationPage({
        d.full_name as doctor_name, r.patient_id
      FROM prescriptions r
      JOIN doctors d ON d.id = r.doctor_id
-     WHERE r.status = 'active' AND date(r.expiry_date) >= date('now')
+     WHERE r.status = 'active' AND r.expiry_date >= CURRENT_DATE
      ORDER BY r.created_at DESC`
   );
 

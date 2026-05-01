@@ -18,10 +18,11 @@ const ERR: Record<string, string> = {
   invalid: "Credenciales incorrectas.",
 };
 
-export default async function LoginPage({ searchParams }: { searchParams: { e?: string; next?: string } }) {
+export default async function LoginPage({ searchParams }: { searchParams: { e?: string; next?: string; reset?: string } }) {
   if (await getCurrentCustomer()) redirect(searchParams.next || "/mi-cuenta");
   const error = searchParams.e ? ERR[searchParams.e] : null;
   const next = searchParams.next || "/mi-cuenta";
+  const resetOk = searchParams.reset === "ok";
 
   return (
     <section className="max-w-[1440px] mx-auto px-6 lg:px-12 py-20 lg:py-32 min-h-[80vh]">
@@ -41,6 +42,12 @@ export default async function LoginPage({ searchParams }: { searchParams: { e?: 
         </div>
 
         <div className="col-span-12 lg:col-span-5 lg:col-start-8">
+          {resetOk && (
+            <div className="mb-8 p-5 border-l-2 border-forest bg-forest/5">
+              <p className="eyebrow text-forest mb-1">— Contraseña actualizada</p>
+              <p className="text-sm text-ink">Tu nueva contraseña ya está activa. Ingresa con ella.</p>
+            </div>
+          )}
           {error && (
             <div className="mb-8 p-5 bg-sangria/10 border-l-2 border-sangria">
               <p className="eyebrow text-sangria mb-1">— Error</p>
@@ -61,7 +68,13 @@ export default async function LoginPage({ searchParams }: { searchParams: { e?: 
             <button type="submit" className="btn-brass w-full">Ingresar →</button>
           </form>
 
-          <div className="mt-12 pt-8 border-t border-rule">
+          <div className="mt-6 text-center">
+            <Link href="/recuperar" className="text-sm text-ink-muted hover:text-ink underline-offset-4 hover:underline decoration-ink-muted/40">
+              ¿Olvidaste tu contraseña?
+            </Link>
+          </div>
+
+          <div className="mt-10 pt-8 border-t border-rule">
             <p className="text-sm text-ink-muted">
               ¿Aún no tienes cuenta?{" "}
               <Link href={`/registro?next=${encodeURIComponent(next)}`} className="text-ink underline underline-offset-4 decoration-ink/40 hover:decoration-ink">

@@ -68,7 +68,7 @@ export default async function InventoryPage({
   } else if (filter === "out") {
     where.push(`(b.quantity_current = 0 OR b.status = 'depleted')`);
   } else if (filter === "expiring") {
-    where.push(`b.expiry_date IS NOT NULL AND date(b.expiry_date) <= date('now', '+60 days') AND b.status = 'available'`);
+    where.push(`b.expiry_date IS NOT NULL AND b.expiry_date <= CURRENT_DATE + INTERVAL '60 days' AND b.status = 'available'`);
   }
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
 

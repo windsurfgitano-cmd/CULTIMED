@@ -57,14 +57,14 @@ export default async function DashboardPage({
     todayRevenue: (await get<{ s: number }>(`SELECT COALESCE(SUM(total_amount), 0) as s FROM dispensations WHERE dispensed_at >= ? AND status = 'completed'`, todayStart))?.s ?? 0,
     pendingRx: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM prescriptions WHERE status = 'pending'`))?.c ?? 0,
     totalLowStock: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM batches WHERE status = 'available' AND quantity_current > 0 AND quantity_current <= 5`))?.c ?? 0,
-    totalExpiringSoon: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM batches WHERE status = 'available' AND expiry_date IS NOT NULL AND date(expiry_date) <= date('now', '+60 days')`))?.c ?? 0,
+    totalExpiringSoon: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM batches WHERE status = 'available' AND expiry_date IS NOT NULL AND expiry_date <= CURRENT_DATE + INTERVAL '60 days'`))?.c ?? 0,
   } as Counts;
 
   const recent = await all<RecentDispensation>(`
     SELECT d.id, d.folio, d.dispensed_at, d.total_amount,
       p.full_name as patient_name, p.rut as patient_rut,
       s.full_name as dispenser_name,
-      (SELECT GROUP_CONCAT(pr.name || ' ×' || di.quantity, ', ')
+      (SELECT STRING_AGG(pr.name || ' ×' || di.quantity, ', ')
         FROM dispensation_items di JOIN products pr ON pr.id = di.product_id
         WHERE di.dispensation_id = d.id) as product_summary
     FROM dispensations d

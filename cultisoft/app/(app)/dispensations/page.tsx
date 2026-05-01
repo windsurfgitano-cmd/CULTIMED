@@ -48,7 +48,7 @@ export default async function DispensationsPage({
        p.id as patient_id, p.full_name as patient_name, p.rut as patient_rut,
        r.folio as prescription_folio,
        s.full_name as dispenser_name,
-       (SELECT GROUP_CONCAT(pr.name || ' ×' || di.quantity, ', ')
+       (SELECT STRING_AGG(pr.name || ' ×' || di.quantity, ', ')
          FROM dispensation_items di JOIN products pr ON pr.id = di.product_id
          WHERE di.dispensation_id = d.id) as product_summary
      FROM dispensations d
