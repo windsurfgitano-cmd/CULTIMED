@@ -6,3 +6,6 @@ public/uploads/*
 !public/uploads/.gitkeep
 *.log
 .DS_Store
+
+# PII migration data - en Supabase Storage privado
+data/migration-customers.json
