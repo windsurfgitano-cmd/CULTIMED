@@ -5,6 +5,7 @@ import { getCurrentCustomer, canPurchase } from "@/lib/auth";
 import { formatCLP } from "@/lib/format";
 import ProductCard from "@/components/ProductCard";
 import AddToCartClient from "@/components/AddToCartClient";
+import CatalogGate from "@/components/CatalogGate";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,14 @@ const CATEGORY_FULL_LABEL: Record<string, string> = {
 };
 
 export default async function ProductDetailPage({ params }: { params: { slug: string } }) {
+  const customer = await getCurrentCustomer();
+  // Gating SANNA estricto: receta aprobada o no entras al detalle.
+  if (!customer) return <CatalogGate status="anonymous" />;
+  if (customer.prescription_status !== "aprobada") {
+    const s = customer.prescription_status as "none" | "pending" | "rechazada" | "expired";
+    return <CatalogGate status={s} />;
+  }
+
   const slug = params.slug.toLowerCase();
   const product = await get<ProductFull>(
     `SELECT * FROM products WHERE LOWER(sku) = ? AND is_active = 1`,
@@ -46,7 +55,6 @@ export default async function ProductDetailPage({ params }: { params: { slug: st
   );
 
   const totalStock = batches.reduce((s, b) => s + b.quantity_current, 0);
-  const customer = await getCurrentCustomer();
   const showPrice = canPurchase(customer);
 
   const related = await all<any>(

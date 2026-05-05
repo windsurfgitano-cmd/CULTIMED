@@ -2,6 +2,7 @@ import Link from "next/link";
 import { all } from "@/lib/db";
 import { getCurrentCustomer, canPurchase } from "@/lib/auth";
 import ProductCard from "@/components/ProductCard";
+import CatalogGate from "@/components/CatalogGate";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +27,12 @@ export default async function CatalogPage({
   searchParams: { cat?: string; brand?: string; sort?: string };
 }) {
   const customer = await getCurrentCustomer();
+  // Gating estricto SANNA: solo pacientes con receta aprobada ven el catálogo.
+  if (!customer) return <CatalogGate status="anonymous" />;
+  if (customer.prescription_status !== "aprobada") {
+    const status = customer.prescription_status as "none" | "pending" | "rechazada" | "expired";
+    return <CatalogGate status={status} />;
+  }
   const showPrice = canPurchase(customer);
 
   const cat = searchParams.cat || "";

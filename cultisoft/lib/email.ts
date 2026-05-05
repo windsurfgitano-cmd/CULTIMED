@@ -4,12 +4,15 @@
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const EMAIL_FROM = process.env.EMAIL_FROM || "Cultimed <onboarding@resend.dev>";
+// Reply-To: respuestas humanas van al inbox real, no al alias técnico de envío.
+const EMAIL_REPLY_TO = process.env.EMAIL_REPLY_TO || "contacto@dispensariocultimed.cl";
 
 export interface SendEmailInput {
   to: string;
   subject: string;
   html: string;
   text?: string;
+  replyTo?: string;
 }
 
 export async function sendEmail(input: SendEmailInput): Promise<{ ok: boolean; id?: string; error?: string }> {
@@ -33,6 +36,7 @@ export async function sendEmail(input: SendEmailInput): Promise<{ ok: boolean; i
       body: JSON.stringify({
         from: EMAIL_FROM,
         to: [input.to],
+        reply_to: input.replyTo || EMAIL_REPLY_TO,
         subject: input.subject,
         html: input.html,
         text: input.text,
