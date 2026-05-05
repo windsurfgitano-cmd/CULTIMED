@@ -17,6 +17,14 @@ interface ProductLite {
   slug?: string;
 }
 
+interface VariantLite {
+  id: number;
+  sku: string;
+  presentation: string | null;
+  default_price: number;
+  total_stock: number;
+}
+
 const CATEGORY_LABEL: Record<string, string> = {
   flores: "Flor",
   aceite_cbd: "Aceite",
@@ -30,10 +38,14 @@ export default function ProductCard({
   product: p,
   index = 0,
   showPrice = false,
+  variants,
+  aggregateStock,
 }: {
   product: ProductLite;
   index?: number;
   showPrice?: boolean;
+  variants?: VariantLite[];
+  aggregateStock?: number;
 }) {
   // Strip "(XXg)" suffix from name and treat as separate
   const presentationFromName = p.name.match(/\(([^)]+)\)\s*$/)?.[1];
@@ -42,18 +54,34 @@ export default function ProductCard({
 
   const slug = p.slug || p.sku.toLowerCase();
 
+  // Si hay multiples variantes (ej. 5g/10g/20g), mostramos pills + rango de precio.
+  const hasVariants = variants && variants.length > 1;
+  const minPrice = hasVariants ? variants![0].default_price : p.default_price;
+  const maxPrice = hasVariants ? variants![variants!.length - 1].default_price : p.default_price;
+  const stock = aggregateStock !== undefined ? aggregateStock : null;
+
   return (
     <Link
       href={`/productos/${slug}`}
       className="group block opacity-0 animate-fade-up"
       style={{ animationDelay: `${0.1 + index * 0.08}s` }}
     >
-      {/* Image well — botanical visual */}
+      {/* Image well — apothecary photo if available, fallback to botanical SVG */}
       <div className="relative aspect-[4/5] mb-6 overflow-hidden bg-paper-dim">
-        <BotanicalIllustration
-          category={p.category}
-          accent={p.is_house_brand ? "forest" : "brass"}
-        />
+        {p.image_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={p.image_url}
+            alt={cleanName}
+            className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-editorial group-hover:scale-105"
+            loading="lazy"
+          />
+        ) : (
+          <BotanicalIllustration
+            category={p.category}
+            accent={p.is_house_brand ? "forest" : "brass"}
+          />
+        )}
         {/* Hover hint */}
         <div className="absolute bottom-4 right-4 transition-all duration-500 ease-editorial opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0">
           <span className="text-[10px] tracking-widest uppercase font-mono px-3 py-1.5 bg-paper-bright text-ink">
@@ -65,7 +93,11 @@ export default function ProductCard({
       {/* Meta row */}
       <div className="flex items-baseline justify-between text-[11px] uppercase tracking-widest text-ink-muted mb-2">
         <span className="font-mono">{CATEGORY_LABEL[p.category] || p.category}</span>
-        {presentation && <span className="font-mono">{presentation}</span>}
+        {hasVariants ? (
+          <span className="font-mono">{variants!.length} formatos</span>
+        ) : (
+          presentation && <span className="font-mono">{presentation}</span>
+        )}
       </div>
 
       {/* Name */}
@@ -95,11 +127,29 @@ export default function ProductCard({
         )}
       </div>
 
+      {/* Variant pills (gramajes disponibles) */}
+      {hasVariants && (
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          {variants!.map((v) => (
+            <span
+              key={v.id}
+              className="px-2 py-0.5 text-[10px] uppercase tracking-widest font-mono border border-rule text-ink-muted nums-lining"
+            >
+              {v.presentation || "—"}
+            </span>
+          ))}
+        </div>
+      )}
+
       {/* Price / prescription row */}
       <div className="flex items-baseline justify-between border-t border-rule pt-3">
         {showPrice ? (
           <span className="font-mono text-sm text-ink nums-lining">
-            {formatCLP(p.default_price)}
+            {hasVariants && minPrice !== maxPrice ? (
+              <>desde {formatCLP(minPrice)}</>
+            ) : (
+              formatCLP(p.default_price)
+            )}
           </span>
         ) : (
           <span className="text-[10px] uppercase tracking-widest font-mono text-sangria flex items-center gap-1.5">

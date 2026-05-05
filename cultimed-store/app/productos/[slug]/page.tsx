@@ -2,10 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { all, get } from "@/lib/db";
 import { getCurrentCustomer, canPurchase } from "@/lib/auth";
-import { formatCLP } from "@/lib/format";
 import ProductCard from "@/components/ProductCard";
-import AddToCartClient from "@/components/AddToCartClient";
 import CatalogGate from "@/components/CatalogGate";
+import VariantPicker from "@/components/VariantPicker";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +15,10 @@ interface ProductFull {
   unit: string; requires_prescription: number; is_controlled: number;
   default_price: number; description: string | null; vendor: string | null;
   is_house_brand: number; is_preorder: number;
+  image_url: string | null; strain_key: string | null;
+}
+interface VariantRow {
+  id: number; sku: string; presentation: string | null; default_price: number; total_stock: number;
 }
 interface BatchInfo {
   id: number; batch_number: string; quantity_current: number;
@@ -57,13 +60,27 @@ export default async function ProductDetailPage({ params }: { params: { slug: st
   const totalStock = batches.reduce((s, b) => s + b.quantity_current, 0);
   const showPrice = canPurchase(customer);
 
+  // Hermanas (mismo strain_key) — agrupa variantes de gramaje en una sola publicación.
+  const siblingVariants = product.strain_key
+    ? await all<VariantRow>(
+        `SELECT p.id, p.sku, p.presentation, p.default_price,
+           COALESCE((SELECT SUM(quantity_current) FROM batches b WHERE b.product_id = p.id AND b.status='available'), 0) as total_stock
+         FROM products p
+         WHERE p.strain_key = ? AND p.is_active = 1
+         ORDER BY p.default_price ASC`,
+        product.strain_key
+      )
+    : [{ id: product.id, sku: product.sku, presentation: product.presentation, default_price: product.default_price, total_stock: totalStock }];
+
+  // Relacionadas: misma categoría, distinto strain_key (1 publicación por cepa)
   const related = await all<any>(
-    `SELECT id, sku, name, category, presentation, default_price,
-       thc_percentage, cbd_percentage, vendor, is_house_brand, description
-     FROM products
-     WHERE category = ? AND id != ? AND is_active = 1 AND shopify_status = 'active'
-     ORDER BY RANDOM() LIMIT 3`,
-    product.category, product.id
+    `SELECT DISTINCT ON (p.strain_key) p.id, p.sku, p.name, p.category, p.presentation, p.default_price,
+       p.thc_percentage, p.cbd_percentage, p.vendor, p.is_house_brand, p.description, p.image_url, p.strain_key
+     FROM products p
+     WHERE p.category = ? AND (p.strain_key IS NULL OR p.strain_key != ?) AND p.is_active = 1 AND p.shopify_status = 'active'
+     ORDER BY p.strain_key, p.default_price ASC
+     LIMIT 6`,
+    product.category, product.strain_key || ""
   );
 
   // Parse name parts
@@ -93,7 +110,16 @@ export default async function ProductDetailPage({ params }: { params: { slug: st
           {/* LEFT — Big visual block */}
           <div className="col-span-12 lg:col-span-7">
             <div className="relative aspect-[4/5] lg:aspect-[1/1] bg-paper-dim overflow-hidden">
-              <BotanicalHero category={product.category} accent={product.is_house_brand ? "forest" : "brass"} />
+              {product.image_url ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={product.image_url}
+                  alt={product.name}
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+              ) : (
+                <BotanicalHero category={product.category} accent={product.is_house_brand ? "forest" : "brass"} />
+              )}
               {/* Overlay info */}
               <div className="absolute top-6 left-6 flex flex-col gap-2">
                 {product.is_house_brand === 1 && (
@@ -188,35 +214,12 @@ export default async function ProductDetailPage({ params }: { params: { slug: st
               {/* Purchase / unlock block */}
               <div className="bg-paper-bright border border-rule p-6 lg:p-7">
                 {showPrice ? (
-                  <>
-                    <div className="flex items-baseline justify-between mb-1">
-                      <span className="eyebrow">— Precio</span>
-                      {totalStock > 0 ? (
-                        <span className="pill-stock">En stock · {totalStock} unid.</span>
-                      ) : (
-                        <span className="pill-editorial text-ink-muted">Agotado</span>
-                      )}
-                    </div>
-                    <p className="font-display text-5xl font-light tabular-nums mb-6 nums-lining">
-                      {formatCLP(product.default_price)}
-                    </p>
-                    {totalStock > 0 ? (
-                      <AddToCartClient
-                        product={{
-                          productId: product.id,
-                          sku: product.sku,
-                          name: product.name,
-                          presentation: presentation || null,
-                          unitPrice: product.default_price,
-                        }}
-                        maxStock={totalStock}
-                      />
-                    ) : (
-                      <Link href="/consulta" className="btn-ghost w-full justify-center">
-                        Notifícame cuando vuelva
-                      </Link>
-                    )}
-                  </>
+                  <VariantPicker
+                    productName={cleanName}
+                    category={product.category}
+                    variants={siblingVariants}
+                    initialVariantId={product.id}
+                  />
                 ) : customer ? (
                   <>
                     <p className="eyebrow mb-3">— Validación pendiente</p>

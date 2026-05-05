@@ -18,6 +18,14 @@ interface CatalogProduct {
   vendor: string | null;
   is_house_brand: number;
   description: string | null;
+  image_url: string | null;
+  strain_key: string | null;
+  total_stock: number;
+}
+
+interface CatalogStrain {
+  head: CatalogProduct;
+  variants: Array<{ id: number; sku: string; presentation: string | null; default_price: number; total_stock: number }>;
   total_stock: number;
 }
 
@@ -54,13 +62,39 @@ export default async function CatalogPage({
   const products = await all<CatalogProduct>(
     `SELECT p.id, p.sku, p.name, p.category, p.presentation, p.default_price,
        p.thc_percentage, p.cbd_percentage, p.vendor, p.is_house_brand, p.description,
+       p.image_url, p.strain_key,
        COALESCE((SELECT SUM(quantity_current) FROM batches b WHERE b.product_id = p.id), 0) as total_stock
      FROM products p
      WHERE ${where.join(" AND ")}
      ORDER BY ${order}
-     LIMIT 100`,
+     LIMIT 200`,
     ...params
   );
+
+  // Agrupa por strain_key (1 publicación por cepa). Head = la variante de menor gramaje (precio más bajo).
+  // Si no tiene strain_key (legacy), usa el id como clave única.
+  const groupsMap = new Map<string, CatalogStrain>();
+  for (const p of products) {
+    const key = p.strain_key || `solo-${p.id}`;
+    const existing = groupsMap.get(key);
+    if (!existing) {
+      groupsMap.set(key, {
+        head: p,
+        variants: [{ id: p.id, sku: p.sku, presentation: p.presentation, default_price: p.default_price, total_stock: p.total_stock }],
+        total_stock: p.total_stock,
+      });
+    } else {
+      existing.variants.push({ id: p.id, sku: p.sku, presentation: p.presentation, default_price: p.default_price, total_stock: p.total_stock });
+      existing.total_stock += p.total_stock;
+      // Head = variante con menor precio (default ascendente por gramaje)
+      if (p.default_price < existing.head.default_price) existing.head = p;
+    }
+  }
+  // Ordena variantes dentro de cada grupo por precio ascendente (gramaje creciente)
+  const strains: CatalogStrain[] = Array.from(groupsMap.values()).map((g) => ({
+    ...g,
+    variants: g.variants.sort((a, b) => a.default_price - b.default_price),
+  }));
 
   const buildHref = (overrides: Record<string, string | undefined>) => {
     const sp = new URLSearchParams();
@@ -77,7 +111,7 @@ export default async function CatalogPage({
           <div className="col-span-12 lg:col-span-8">
             <div className="flex items-baseline gap-6 mb-6">
               <span className="editorial-numeral text-2xl text-ink-subtle">— 01</span>
-              <span className="eyebrow">Catálogo · {products.length} productos</span>
+              <span className="eyebrow">Catálogo · {strains.length} {strains.length === 1 ? "publicación" : "publicaciones"}</span>
             </div>
             <h1 className="font-display text-display-2 leading-[1.0] text-balance">
               <span className="font-light">Catálogo</span>{" "}
@@ -125,7 +159,7 @@ export default async function CatalogPage({
 
       {/* Products grid */}
       <section className="max-w-[1440px] mx-auto px-6 lg:px-12 pb-24 lg:pb-40">
-        {products.length === 0 ? (
+        {strains.length === 0 ? (
           <div className="py-32 text-center">
             <p className="font-display text-3xl italic text-ink-muted mb-4">Catálogo en reposo.</p>
             <p className="text-sm text-ink-muted">No hay productos que coincidan con los filtros aplicados.</p>
@@ -133,18 +167,20 @@ export default async function CatalogPage({
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-16 lg:gap-y-24">
-            {products.map((p, i) => (
+            {strains.map((s, i) => (
               <ProductCard
-                key={p.id}
-                product={{ ...p, slug: p.sku.toLowerCase() }}
+                key={s.head.id}
+                product={{ ...s.head, slug: s.head.sku.toLowerCase() }}
                 index={i}
                 showPrice={showPrice}
+                variants={s.variants}
+                aggregateStock={s.total_stock}
               />
             ))}
           </div>
         )}
 
-        {!showPrice && products.length > 0 && (
+        {!showPrice && strains.length > 0 && (
           <div className="mt-20 lg:mt-32">
             <div className="hairline mb-12" />
             <div className="grid grid-cols-12 gap-x-6 gap-y-8">
