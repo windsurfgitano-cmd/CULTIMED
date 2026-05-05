@@ -22,6 +22,13 @@ export function getSql() {
     connect_timeout: 10,
     prepare: false, // Compatible con poolers (Supavisor, PgBouncer transaction mode)
     ssl: process.env.PGSSL === "false" ? undefined : "require",
+    // CRÍTICO: postgres-js por default convierte timestamps a Date objects, lo que rompe
+    // React si pasas un Date como children. Forzamos return raw string ISO.
+    types: {
+      timestamptz: { to: 1184, from: [1184], serialize: (x: any) => x, parse: (x: any) => x },
+      timestamp:   { to: 1114, from: [1114], serialize: (x: any) => x, parse: (x: any) => x },
+      date:        { to: 1082, from: [1082], serialize: (x: any) => x, parse: (x: any) => x },
+    },
   });
   return _sql;
 }
