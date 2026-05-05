@@ -27,9 +27,18 @@ const path = require("node:path");
 const crypto = require("node:crypto");
 const postgres = require("postgres");
 
+// Auto-carga .env.local del proyecto (zero deps).
+try {
+  const envPath = path.resolve(__dirname, "..", ".env.local");
+  fs.readFileSync(envPath, "utf8").split(/\r?\n/).forEach((line) => {
+    const m = line.match(/^([A-Z_][A-Z0-9_]*)=(.*)$/);
+    if (m && !process.env[m[1]]) process.env[m[1]] = m[2];
+  });
+} catch (_e) { /* sin .env.local — usa env del shell */ }
+
 const DATABASE_URL = process.env.DATABASE_URL;
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const PUBLIC_BASE = process.env.NEXT_PUBLIC_BASE_URL || "https://app.dispensariocultimed.cl";
+const PUBLIC_BASE = process.env.NEXT_PUBLIC_BASE_URL || "https://dispensariocultimed.cl";
 const EMAIL_FROM = process.env.EMAIL_FROM || "Cultimed <no-reply@dispensariocultimed.cl>";
 const EMAIL_REPLY_TO = process.env.EMAIL_REPLY_TO || "contacto@dispensariocultimed.cl";
 const HERO_IMAGE = process.env.HERO_IMAGE ||
