@@ -231,7 +231,7 @@ export default async function HomePage() {
                 { n: "04", title: "Laboratorio", body: "COA con cannabinoides, terpenos, contaminantes — independiente." },
                 { n: "05", title: "Envasado", body: "Identificación de lote, etiquetado clínico, hermético." },
                 { n: "06", title: "Dispensación", body: "Receta verificada, paciente identificado, lote asignado." },
-                { n: "07", title: "Despacho", body: "Pickup en farmacia o courier con seguimiento." },
+                { n: "07", title: "Despacho", body: "Courier privado con seguimiento. Retiro en farmacia próximamente." },
               ].map((step, i) => (
                 <li key={step.n} className="grid grid-cols-12 gap-4 items-baseline group">
                   <span className="col-span-2 lg:col-span-1 editorial-numeral text-lg text-ink-subtle group-hover:text-brass transition-colors">

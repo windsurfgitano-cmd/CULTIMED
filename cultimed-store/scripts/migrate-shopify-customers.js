@@ -9,7 +9,7 @@
 //      - prescription_status = 'aprobada' si tag contiene "aprobado", sino 'none'
 //      - password_hash = "" (forzar reset)
 //   4. Crear token de reset 7 días
-//   5. Enviar email migración (template editorial Cultimed)
+//   5. Enviar email migración (template editorial Cultimed apotecario)
 //
 // Modos:
 //   --dry-run         : NO escribe BD ni envía emails. Solo muestra preview.
@@ -32,6 +32,10 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const PUBLIC_BASE = process.env.NEXT_PUBLIC_BASE_URL || "https://app.dispensariocultimed.cl";
 const EMAIL_FROM = process.env.EMAIL_FROM || "Cultimed <no-reply@dispensariocultimed.cl>";
 const EMAIL_REPLY_TO = process.env.EMAIL_REPLY_TO || "contacto@dispensariocultimed.cl";
+const HERO_IMAGE = process.env.HERO_IMAGE ||
+  "https://ibkhvopshhlbvjwrmuzm.supabase.co/storage/v1/object/public/email-assets/apothecary-hero.png";
+const LOGO_IMAGE = process.env.LOGO_IMAGE ||
+  "https://ibkhvopshhlbvjwrmuzm.supabase.co/storage/v1/object/public/email-assets/cultimed-logo-gold.png";
 const CSV_PATH = process.env.CSV_PATH ||
   path.resolve(__dirname, "..", "..", "..", "Downloads", "cutlimeddb", "customers_export.csv");
 
@@ -45,7 +49,7 @@ const ONLY_EMAIL = onlyIdx >= 0 ? args[onlyIdx + 1].toLowerCase() : null;
 
 const TOKEN_TTL_DAYS = 7;
 const SKIP_EMAILS = new Set([
-  "contacto@dispensariocultimed.cl", // cuenta empresa
+  "contacto@dispensariocultimed.cl",
 ]);
 
 if (!DATABASE_URL) {
@@ -59,7 +63,7 @@ if (!DRY_RUN && !RESEND_API_KEY) {
   process.exit(1);
 }
 
-// ---- CSV parser robusto (maneja comillas + comas en valores) ---------------
+// ---- CSV parser robusto ---------------------------------------------------
 
 function parseCsvLine(line) {
   const out = [];
@@ -82,7 +86,6 @@ function parseCsvLine(line) {
 }
 
 function parseCsv(text) {
-  // Shopify CSV usa CRLF, sometimes mixed. Normaliza.
   const lines = text.replace(/\r\n/g, "\n").split("\n").filter(l => l.length > 0);
   const headers = parseCsvLine(lines[0]).map(h => h.trim());
   return lines.slice(1).map(line => {
@@ -91,13 +94,6 @@ function parseCsv(text) {
     headers.forEach((h, i) => row[h] = (cells[i] ?? "").trim());
     return row;
   });
-}
-
-// ---- Normalizers --------------------------------------------------------
-
-function cleanShopifyId(s) {
-  // Shopify exporta id como '8673779155161 (con apostrofe)
-  return (s || "").replace(/^'/, "").trim();
 }
 
 function cleanPhone(s) {
@@ -112,13 +108,10 @@ function fullName(row) {
 }
 
 function rutFromNote(row) {
-  // En el CSV, el campo "Note" muchas veces tiene el RUT
   const note = (row["Note"] || "").trim();
   if (!note) return null;
-  // Limpia formatos típicos: "27.514.215-8", "19515821-5", "21672567-0"
   const m = note.match(/^(\d{1,2}[.,]?\d{3}[.,]?\d{3})[\s-]?([0-9kK])$/);
   if (m) return `${m[1]}-${m[2].toUpperCase()}`.replace(/[.,]/g, "");
-  // Si tiene el formato simple: "19515821-5"
   const m2 = note.match(/^(\d{7,8})-?([0-9kK])$/);
   if (m2) return `${m2[1]}-${m2[2].toUpperCase()}`;
   return null;
@@ -129,63 +122,138 @@ function isApproved(row) {
   return tags.includes("aprobado");
 }
 
-// ---- Email template (editorial Cultimed) -------------------------------
+// ---- Email template editorial apotecario ---------------------------------
 
 function buildEmailHtml(opts) {
   const { firstName, link, isApproved } = opts;
-  const greeting = firstName
-    ? `Hola, ${firstName}.`
-    : "Hola.";
+  const greeting = firstName ? `${firstName.split(" ")[0]},` : "Hola.";
+
+  const heroSubtitle = isApproved
+    ? "Tu cuenta migró. Tu receta sigue activa."
+    : "Una nueva plataforma. Tu acceso, intacto.";
 
   const bodyApproved = `
-    <p>${greeting}</p>
-    <p>Migramos Cultimed a una nueva plataforma. Tu cuenta está creada y tu receta médica anterior sigue reconocida — no necesitas volver a subirla.</p>
-    <p>Para activar tu cuenta sólo necesitas definir una contraseña nueva. El enlace es válido por <strong>7 días</strong> y solo se puede usar una vez.</p>
+    <p style="margin:0 0 16px;">${greeting}</p>
+    <p style="margin:0 0 16px;">Cultimed se mudó a una plataforma propia, hecha a la medida del dispensario. La construimos con un sólo principio: que la dispensación de cannabis medicinal en Chile se sienta como debiera sentirse — clínica, discreta, precisa.</p>
+    <p style="margin:0 0 16px;">Tu cuenta ya viaja con nosotros. <strong>Tu receta médica anterior sigue reconocida</strong> — el químico farmacéutico ya la validó. Solo falta que definas una contraseña nueva para empezar a usarla.</p>
+    <p style="margin:0;color:#7a7066;font-size:14px;font-style:italic;">El enlace es válido por 7 días y solo puede usarse una vez.</p>
   `;
+
   const bodyNew = `
-    <p>${greeting}</p>
-    <p>Migramos Cultimed a una nueva plataforma. Tu cuenta de paciente está creada con el mismo email que tenías en nosotros.</p>
-    <p>Para activar tu acceso necesitas <strong>definir una contraseña</strong> y, después, <strong>cargar tu receta médica vigente</strong> para que nuestro químico farmacéutico la valide. El enlace para definir tu contraseña dura <strong>7 días</strong>.</p>
+    <p style="margin:0 0 16px;">${greeting}</p>
+    <p style="margin:0 0 16px;">Cultimed se mudó a una plataforma propia, hecha a la medida del dispensario. La construimos con un sólo principio: que la dispensación de cannabis medicinal en Chile se sienta como debiera sentirse — clínica, discreta, precisa.</p>
+    <p style="margin:0 0 16px;">Tu cuenta ya viaja con nosotros, pero todavía no estás del todo activado. Necesitas dos cosas: <strong>definir tu contraseña</strong> y <strong>cargar una receta médica vigente</strong> para que nuestro químico farmacéutico la valide.</p>
+    <p style="margin:0;color:#7a7066;font-size:14px;font-style:italic;">El enlace para definir tu contraseña dura 7 días.</p>
   `;
 
-  return `
-<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><title>Migración Cultimed</title></head>
-<body style="margin:0;padding:0;background:#F2EEE6;font-family:Georgia,serif;color:#1a1a1a;">
-<div style="display:none;visibility:hidden;mso-hide:all;font-size:1px;color:#F2EEE6;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">Tu cuenta Cultimed ya está lista en la nueva plataforma. Define tu contraseña.</div>
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#F2EEE6;">
-  <tr><td align="center" style="padding:48px 24px;">
-    <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="max-width:600px;width:100%;background:#FAF6EE;border:1px solid #DCD3C4;">
-      <tr><td style="padding:40px 48px 24px;">
-        <p style="margin:0 0 8px;font-family:Helvetica,Arial,sans-serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#7a7066;">Cultimed · Dispensario</p>
-        <h1 style="margin:16px 0 0;font-size:32px;font-weight:300;line-height:1.1;color:#1a1a1a;">${isApproved ? "Tu cuenta migró." : "Bienvenido a la nueva plataforma."}</h1>
-        <p style="margin:8px 0 0;font-style:italic;font-size:18px;color:#7a7066;">Define tu contraseña para empezar.</p>
-      </td></tr>
-      <tr><td style="padding:0 48px 32px;font-size:16px;line-height:1.6;color:#3a3530;">
-        ${isApproved ? bodyApproved : bodyNew}
-        <div style="margin:32px 0 8px;">
-          <a href="${link}" style="display:inline-block;background:#1a1a1a;color:#F2EEE6;padding:14px 32px;text-decoration:none;font-family:Helvetica,Arial,sans-serif;font-size:13px;letter-spacing:1px;text-transform:uppercase;">Definir mi contraseña</a>
-        </div>
-        <p style="margin:8px 0 0;font-size:12px;color:#7a7066;font-family:monospace;word-break:break-all;">O copia este enlace: ${link}</p>
+  return `<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Migración Cultimed</title></head>
+<body style="margin:0;padding:0;background:#0F1A22;font-family:Georgia,'Times New Roman',serif;color:#1a1a1a;-webkit-font-smoothing:antialiased;">
 
-        ${isApproved ? `
-        <div style="margin-top:24px;padding:16px;background:#FBF7EF;border-left:3px solid #C9A96E;font-size:14px;">
-          <strong style="color:#3a3530;">Tu receta sigue activa.</strong><br>
-          La receta médica que validamos en Shopify la trasladamos. No necesitas volver a subirla.
-        </div>` : `
-        <div style="margin-top:24px;padding:16px;background:#FBF7EF;border-left:3px solid #C9A96E;font-size:14px;">
-          <strong style="color:#3a3530;">Necesitas cargar tu receta.</strong><br>
-          Después de definir tu contraseña, sube una receta médica vigente (PDF, JPG o PNG). Nuestro QF la valida en 24 horas hábiles.
-        </div>`}
+<!-- Preheader hidden -->
+<div style="display:none;visibility:hidden;mso-hide:all;font-size:1px;color:#0F1A22;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">
+  Cultimed migró. Tu cuenta está lista — define tu contraseña en 30 segundos.
+</div>
+
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#0F1A22;">
+  <tr><td align="center" style="padding:48px 16px;">
+
+    <!-- Card container -->
+    <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="max-width:600px;width:100%;background:#F7F1E5;border:1px solid #C9B891;">
+
+      <!-- Hero image -->
+      <tr><td align="center" style="padding:36px 48px 24px;background:#F7F1E5;">
+        <img src="${LOGO_IMAGE}" alt="Cultimed · Cultivando Salud" width="160" style="display:block;width:160px;max-width:60%;height:auto;border:0;margin:0 auto;" />
       </td></tr>
-      <tr><td style="padding:24px 48px 40px;border-top:1px solid #DCD3C4;font-size:11px;line-height:1.6;color:#7a7066;font-family:Helvetica,Arial,sans-serif;">
-        Si no esperabas este mensaje o crees que es un error, escríbenos a contacto@dispensariocultimed.cl
-        <br><br>
-        Cultimed · Asociación de Usuarios de Plantas Medicinales · dispensariocultimed.cl<br>
-        Datos clínicos protegidos bajo Ley 19.628 · Operamos bajo Ley 20.850 y normativa SANNA.
+
+      <tr><td style="padding:0;line-height:0;">
+        <img src="${HERO_IMAGE}" alt="Cultimed · Dispensario de cannabis medicinal" width="600" style="display:block;width:100%;height:auto;border:0;" />
       </td></tr>
+
+      <!-- Hero text overlay area -->
+      <tr><td style="padding:36px 48px 24px;background:#F7F1E5;">
+        <p style="margin:0 0 12px;font-family:'Helvetica Neue',Arial,sans-serif;font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:#8b7d5c;">
+          Cultimed · Dispensario clínico
+        </p>
+        <h1 style="margin:0 0 6px;font-family:Georgia,serif;font-size:36px;font-weight:300;line-height:1.05;color:#1a1a1a;letter-spacing:-0.5px;">
+          ${isApproved ? "Tu cuenta" : "Una nueva"} <em style="font-style:italic;font-weight:400;color:#1a1a1a;">${isApproved ? "migró" : "plataforma"}</em>${isApproved ? "." : "."}
+        </h1>
+        <p style="margin:0;font-family:Georgia,serif;font-size:18px;font-style:italic;color:#5d544a;line-height:1.4;">
+          ${heroSubtitle}
+        </p>
+      </td></tr>
+
+      <!-- Body -->
+      <tr><td style="padding:0 48px 32px;background:#F7F1E5;font-family:Georgia,serif;font-size:16px;line-height:1.65;color:#3a3530;">
+
+        <!-- Hairline divider -->
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-bottom:28px;">
+          <tr><td style="height:1px;background:#C9B891;line-height:1px;font-size:1px;">&nbsp;</td></tr>
+        </table>
+
+        ${isApproved ? bodyApproved : bodyNew}
+
+        <!-- CTA -->
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:36px auto 16px;">
+          <tr><td align="center" style="background:#0F1A22;border:1px solid #0F1A22;">
+            <a href="${link}" style="display:inline-block;padding:18px 44px;font-family:'Helvetica Neue',Arial,sans-serif;font-size:11px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:#F7F1E5;text-decoration:none;">
+              Definir mi contraseña
+            </a>
+          </td></tr>
+        </table>
+
+        <p style="margin:8px 0 0;text-align:center;font-family:'Helvetica Neue',Arial,sans-serif;font-size:11px;color:#8b7d5c;letter-spacing:0.3px;">
+          o copia este enlace en tu navegador<br>
+          <span style="word-break:break-all;color:#5d544a;">${link}</span>
+        </p>
+
+      </td></tr>
+
+      <!-- Notice card -->
+      ${isApproved ? `
+      <tr><td style="padding:0 48px 32px;background:#F7F1E5;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#FBF5E8;border-left:3px solid #B89968;">
+          <tr><td style="padding:18px 22px;font-family:Georgia,serif;font-size:14px;line-height:1.6;color:#3a3530;">
+            <p style="margin:0 0 4px;font-family:'Helvetica Neue',Arial,sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#8b7d5c;">— Tu receta sigue activa</p>
+            La receta médica que validamos en la plataforma anterior se trasladó automáticamente. No necesitas volver a subirla.
+          </td></tr>
+        </table>
+      </td></tr>
+      ` : `
+      <tr><td style="padding:0 48px 32px;background:#F7F1E5;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#FBF5E8;border-left:3px solid #B89968;">
+          <tr><td style="padding:18px 22px;font-family:Georgia,serif;font-size:14px;line-height:1.6;color:#3a3530;">
+            <p style="margin:0 0 4px;font-family:'Helvetica Neue',Arial,sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#8b7d5c;">— Receta requerida</p>
+            Después de definir tu contraseña, sube una receta médica vigente (PDF, JPG o PNG, máx 8 MB). Nuestro químico farmacéutico la valida en menos de 24 horas hábiles.
+          </td></tr>
+        </table>
+      </td></tr>
+      `}
+
+      <!-- Footer -->
+      <tr><td style="padding:28px 48px 36px;background:#F7F1E5;border-top:1px solid #C9B891;font-family:'Helvetica Neue',Arial,sans-serif;font-size:11px;line-height:1.7;color:#8b7d5c;letter-spacing:0.2px;">
+        <p style="margin:0 0 12px;">
+          ¿Dudas o no esperabas este mensaje? Escríbenos a <a href="mailto:contacto@dispensariocultimed.cl" style="color:#5d544a;text-decoration:underline;">contacto@dispensariocultimed.cl</a>
+        </p>
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+          <tr><td style="padding-top:8px;border-top:1px solid #DCD3C4;">
+            <p style="margin:0;font-size:10px;color:#9c8e6e;letter-spacing:0.3px;">
+              <strong style="color:#5d544a;">Cultimed</strong> · Asociación de Usuarios de Plantas Medicinales<br>
+              Operamos bajo Ley 20.850 y normativa SANNA · Datos clínicos protegidos bajo Ley 19.628<br>
+              <a href="https://app.dispensariocultimed.cl" style="color:#8b7d5c;text-decoration:none;">dispensariocultimed.cl</a>
+            </p>
+          </td></tr>
+        </table>
+      </td></tr>
+
     </table>
+    <!-- /Card -->
+
+    <p style="margin:24px 0 0;font-family:'Helvetica Neue',Arial,sans-serif;font-size:10px;color:#5d544a;letter-spacing:0.3px;">
+      Recibiste este correo porque eres paciente registrado en Cultimed.
+    </p>
+
   </td></tr>
 </table>
 </body>
@@ -194,40 +262,44 @@ function buildEmailHtml(opts) {
 
 function buildEmailText(opts) {
   const { firstName, link, isApproved } = opts;
-  const g = firstName ? `Hola, ${firstName}.` : "Hola.";
+  const g = firstName ? `${firstName.split(" ")[0]},` : "Hola.";
   if (isApproved) {
     return `${g}
 
-Migramos Cultimed a una nueva plataforma. Tu cuenta está creada y tu receta médica anterior sigue reconocida — no necesitas volver a subirla.
+Cultimed se mudó a una plataforma propia. Tu cuenta migró con nosotros y tu receta médica anterior sigue reconocida — solo necesitas definir una contraseña nueva.
 
-Para activar tu cuenta solo define una contraseña nueva. El enlace es válido por 7 días.
-
+Definir mi contraseña:
 ${link}
 
-Si no esperabas este mensaje, escríbenos a contacto@dispensariocultimed.cl
+El enlace es válido por 7 días y solo puede usarse una vez.
+
+¿Dudas? contacto@dispensariocultimed.cl
 
 Cultimed · Asociación de Usuarios de Plantas Medicinales
-dispensariocultimed.cl`;
+dispensariocultimed.cl
+Operamos bajo Ley 20.850 y normativa SANNA.`;
   }
   return `${g}
 
-Migramos Cultimed a una nueva plataforma. Tu cuenta está creada con el mismo email que tenías con nosotros.
+Cultimed se mudó a una plataforma propia. Tu cuenta migró con nosotros, pero todavía no está del todo activada. Necesitas:
 
-Para activar tu acceso necesitas definir una contraseña nueva y luego cargar tu receta médica vigente. El enlace para definir tu contraseña dura 7 días.
+1. Definir tu contraseña en este enlace (válido 7 días):
+   ${link}
 
-${link}
+2. Después, cargar una receta médica vigente para que nuestro químico farmacéutico la valide.
 
-Si no esperabas este mensaje, escríbenos a contacto@dispensariocultimed.cl
+¿Dudas? contacto@dispensariocultimed.cl
 
 Cultimed · Asociación de Usuarios de Plantas Medicinales
-dispensariocultimed.cl`;
+dispensariocultimed.cl
+Operamos bajo Ley 20.850 y normativa SANNA.`;
 }
 
 // ---- Resend send -------------------------------------------------------
 
 async function sendResendEmail({ to, subject, html, text }) {
   if (DRY_RUN) {
-    console.log(`  [DRY] would email: ${to} · subject="${subject.slice(0, 60)}"`);
+    console.log(`  [DRY] ${to} · "${subject.slice(0, 60)}"`);
     return { ok: true, id: "dry-run" };
   }
   const res = await fetch("https://api.resend.com/emails", {
@@ -256,6 +328,7 @@ async function main() {
   console.log(`\n▶ Modo: ${DRY_RUN ? "DRY RUN" : "REAL — escribe BD + envía emails"}`);
   console.log(`▶ CSV: ${CSV_PATH}`);
   console.log(`▶ Postgres: ${DATABASE_URL.replace(/:[^:@]+@/, ":****@")}`);
+  console.log(`▶ Hero image: ${HERO_IMAGE}`);
   console.log(`▶ Limit: ${LIMIT === Infinity ? "todos" : LIMIT}`);
   if (ONLY_EMAIL) console.log(`▶ Only: ${ONLY_EMAIL}`);
 
@@ -282,7 +355,6 @@ async function main() {
 
     stats.total++;
 
-    // ¿Existe ya en customer_accounts?
     const exists = await sql`SELECT id FROM customer_accounts WHERE email = ${email}`;
     if (exists.length > 0) {
       console.log(`  ↩ ${email} — ya existe (skip)`);
@@ -300,14 +372,12 @@ async function main() {
       console.log(`  · ${email} · name=${name || "—"} · rut=${rut || "—"} · phone=${phone || "—"} · ${status}`);
     }
 
-    let accountId;
-    let token;
+    let accountId, token;
 
     if (DRY_RUN) {
       accountId = "DRY-" + i;
       token = "dry-token-" + crypto.randomBytes(8).toString("hex");
     } else {
-      // 1. Crear customer_account
       const created = await sql`
         INSERT INTO customer_accounts (email, password_hash, full_name, rut, phone, prescription_status)
         VALUES (${email}, ${""}, ${name}, ${rut}, ${phone || null}, ${status})
@@ -315,7 +385,6 @@ async function main() {
       `;
       accountId = created[0].id;
 
-      // 2. Generar token de reset
       const rawToken = crypto.randomBytes(32).toString("base64url");
       const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
       await sql`
@@ -329,12 +398,11 @@ async function main() {
 
     if (approved) stats.created_approved++; else stats.created_pending++;
 
-    // 3. Enviar email
     const link = `${PUBLIC_BASE}/recuperar/${token}`;
     const firstName = (row["First Name"] || "").trim() || null;
     const subject = approved
-      ? "Migramos a nueva plataforma · Define tu contraseña"
-      : "Bienvenido a la nueva plataforma Cultimed";
+      ? "Tu cuenta migró · Define tu contraseña — Cultimed"
+      : "Bienvenido a la nueva plataforma — Cultimed";
     const html = buildEmailHtml({ firstName, link, isApproved: approved });
     const text = buildEmailText({ firstName, link, isApproved: approved });
 
@@ -347,8 +415,7 @@ async function main() {
       console.error(`  ✗ ${email} · ${status} · email failed: ${send.error}`);
     }
 
-    // Rate limit suave: 50ms entre cada envío para no saturar Resend
-    if (!DRY_RUN) await new Promise(r => setTimeout(r, 50));
+    if (!DRY_RUN) await new Promise(r => setTimeout(r, 100));
   }
 
   console.log("\n========== RESUMEN ==========");

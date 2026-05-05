@@ -33,6 +33,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "empty_cart" }, { status: 400 });
   }
 
+  // Retiro en farmacia deshabilitado: aún no tenemos farmacia física propia.
+  // Forzamos courier en backend incluso si el cliente lo intenta saltar.
+  if (body.shipping_method !== "courier") {
+    return NextResponse.json({ error: "pickup_disabled" }, { status: 400 });
+  }
+
   const paymentMethod: PaymentMethod = body.payment_method === "mercadopago" ? "mercadopago" : "transfer";
   if (paymentMethod === "mercadopago" && !isMercadoPagoEnabled()) {
     return NextResponse.json({ error: "mp_disabled" }, { status: 400 });

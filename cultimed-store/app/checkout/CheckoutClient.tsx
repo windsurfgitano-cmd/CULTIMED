@@ -19,7 +19,8 @@ export default function CheckoutClient({
   const router = useRouter();
   const { items, hydrated, subtotal, clear } = useCart();
   const [submitting, setSubmitting] = useState(false);
-  const [shippingMethod, setShippingMethod] = useState<"pickup" | "courier">("pickup");
+  // Retiro en farmacia deshabilitado por ahora (aún no tenemos farmacia física propia).
+  const [shippingMethod, setShippingMethod] = useState<"pickup" | "courier">("courier");
   const [paymentMethod, setPaymentMethod] = useState<"transfer" | "mercadopago">("transfer");
   const [error, setError] = useState<string | null>(null);
 
@@ -118,18 +119,15 @@ export default function CheckoutClient({
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Option
-                  selected={shippingMethod === "pickup"}
-                  onSelect={() => setShippingMethod("pickup")}
-                  title="Retiro en farmacia"
-                  body="Av. Providencia · Lun–Vie 10–19, Sáb 10–14"
-                  cost="Sin costo"
-                />
-                <Option
                   selected={shippingMethod === "courier"}
                   onSelect={() => setShippingMethod("courier")}
                   title="Despacho a domicilio"
                   body="Courier privado · 24–72h hábiles desde la dispensación"
                   cost="Cotización al confirmar"
+                />
+                <DisabledOption
+                  title="Retiro en farmacia"
+                  body="Estamos habilitando nuestra farmacia física. Por ahora todos los pedidos se entregan por courier privado."
                 />
               </div>
             </div>
@@ -161,7 +159,7 @@ export default function CheckoutClient({
             {/* Phone */}
             <div>
               <p className="eyebrow mb-4 flex items-baseline gap-3">
-                <span className="editorial-numeral text-base text-ink-subtle">— {shippingMethod === "courier" ? "C" : "B"}</span>
+                <span className="editorial-numeral text-base text-ink-subtle">— C</span>
                 <span>Teléfono · WhatsApp</span>
               </p>
               <input
@@ -180,7 +178,7 @@ export default function CheckoutClient({
             {/* PAYMENT METHOD */}
             <div>
               <p className="eyebrow mb-4 flex items-baseline gap-3">
-                <span className="editorial-numeral text-base text-ink-subtle">— {shippingMethod === "courier" ? "D" : "C"}</span>
+                <span className="editorial-numeral text-base text-ink-subtle">— D</span>
                 <span>Método de pago</span>
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
