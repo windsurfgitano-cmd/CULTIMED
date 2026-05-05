@@ -90,9 +90,17 @@ export default async function AmbassadorsAdminPage({
         title="Embajadores"
         subtitle={`${formatNumber(board.length)} ${board.length === 1 ? "embajador activo" : "embajadores activos"} · ${formatNumber(conversions.total)} invitados totales · ${formatNumber(conversions.converted)} con primera compra confirmada.`}
         actions={
-          <Link href="/ambassadors/payouts" className="font-mono text-[11px] uppercase tracking-widest text-ink hover:text-brass">
-            Ver historial de payouts →
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link
+              href="/ambassadors/invite"
+              className="px-4 py-2 bg-ink text-paper font-mono text-[11px] uppercase tracking-[3px] hover:bg-brass transition-colors"
+            >
+              + Registrar embajador
+            </Link>
+            <Link href="/ambassadors/payouts" className="font-mono text-[11px] uppercase tracking-widest text-ink hover:text-brass">
+              Historial de payouts →
+            </Link>
+          </div>
         }
       />
 

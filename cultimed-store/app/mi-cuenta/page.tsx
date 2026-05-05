@@ -130,8 +130,13 @@ export default async function AccountPage() {
                   Tienes acceso completo al catálogo, precios y disponibilidad. Puedes
                   hacer pedidos cuando quieras.
                 </p>
-                <Link href="/productos" className="btn-brass w-full">Explorar catálogo →</Link>
-                {/* Programa de embajadores oculto del dashboard público — acceso por invitación directa al staff */}
+                <Link href="/productos" className="btn-brass w-full mb-3">Explorar catálogo →</Link>
+                {/* Programa de embajadores: solo visible para pacientes invitados desde cultisoft (is_ambassador=1) */}
+                {customer.is_ambassador === 1 && (
+                  <Link href="/mi-cuenta/embajador" className="btn-link w-full justify-center">
+                    Programa de embajadores →
+                  </Link>
+                )}
               </>
             )}
 

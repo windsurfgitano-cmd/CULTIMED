@@ -18,6 +18,7 @@ export interface CustomerAccount {
   prescription_status: "none" | "pending" | "aprobada" | "rechazada" | "expired";
   prescription_url: string | null;
   age_gate_accepted_at: string | null;
+  is_ambassador: number; // 0 | 1 — solo se activa cuando admin invita desde cultisoft
 }
 
 interface SessionData { id: number; iat: number; }
@@ -98,7 +99,7 @@ export async function getCurrentCustomer(): Promise<CustomerAccount | null> {
   if (!s) return null;
   return (await get<CustomerAccount>(
     `SELECT id, email, full_name, rut, phone, patient_id, prescription_status,
-       prescription_url, age_gate_accepted_at
+       prescription_url, age_gate_accepted_at, is_ambassador
      FROM customer_accounts WHERE id = ?`,
     s.id
   )) || null;

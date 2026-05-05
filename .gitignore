@@ -79,3 +79,4 @@ cultimed-webapp-*.zip
 # (no excluimos los lock files - los necesitamos para Railway)
 yarn.lock
 pnpm-lock.yaml
+.migration-secret.txt
