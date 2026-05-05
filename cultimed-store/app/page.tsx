@@ -1,38 +1,13 @@
 import Link from "next/link";
-import { all } from "@/lib/db";
-import ProductCard from "@/components/ProductCard";
+import { getCurrentCustomer } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-interface FeaturedProduct {
-  id: number;
-  sku: string;
-  slug: string;
-  name: string;
-  category: string;
-  presentation: string | null;
-  default_price: number;
-  thc_percentage: number | null;
-  cbd_percentage: number | null;
-  vendor: string | null;
-  is_house_brand: number;
-  description: string | null;
-  image_url: string | null;
-}
-
 export default async function HomePage() {
-  const featured = await all<FeaturedProduct>(
-    `SELECT p.id, p.sku, p.name, p.category, p.presentation, p.default_price,
-       p.thc_percentage, p.cbd_percentage, p.vendor, p.is_house_brand, p.description,
-       NULL as image_url,
-       LOWER(REPLACE(REPLACE(p.sku, '-', '-'), ' ', '-')) as slug
-     FROM products p
-     JOIN batches b ON b.product_id = p.id
-     WHERE p.is_active = 1 AND b.quantity_current > 0 AND p.shopify_status = 'active'
-     GROUP BY p.id
-     ORDER BY p.is_house_brand DESC, p.created_at DESC
-     LIMIT 6`
-  );
+  // SANNA gating estricto: el catálogo NUNCA se expone en el home público.
+  // Solo pacientes registrados con receta aprobada acceden a /productos.
+  const customer = await getCurrentCustomer();
+  const hasApprovedPrescription = customer?.prescription_status === "aprobada";
 
   return (
     <>
@@ -114,36 +89,78 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ────────────────  SECTION 01 — CATÁLOGO  ──────────────── */}
+      {/* ────────────────  SECTION 01 — CATÁLOGO RESTRINGIDO  ──────────────── */}
       <section className="py-24 lg:py-40 max-w-[1440px] mx-auto px-6 lg:px-12">
-        <div className="grid grid-cols-12 gap-x-6 mb-16 lg:mb-20 items-end">
+        <div className="grid grid-cols-12 gap-x-6 gap-y-12 items-start">
           <div className="col-span-12 lg:col-span-7">
             <div className="flex items-baseline gap-6 mb-6">
               <span className="editorial-numeral text-2xl text-ink-subtle">— 01</span>
-              <span className="eyebrow">Catálogo</span>
+              <span className="eyebrow">Catálogo restringido · Ley 20.850</span>
             </div>
-            <h2 className="font-display text-display-2 leading-[1.0] text-balance">
-              <span className="font-light">Una selección</span>{" "}
-              <span className="italic font-normal">curada</span>{" "}
-              <span className="font-light">de cepas y formulaciones.</span>
+            <h2 className="font-display text-display-2 leading-[1.0] text-balance mb-8">
+              <span className="font-light">Cada producto requiere</span>{" "}
+              <span className="italic font-normal">cuenta verificada</span>{" "}
+              <span className="font-light">y receta médica.</span>
             </h2>
-          </div>
-          <div className="col-span-12 lg:col-span-4 lg:col-start-9 lg:pb-3">
-            <p className="text-sm leading-relaxed text-ink-muted mb-4">
-              Trabajamos con genéticas premium de breeders internacionales y nuestra propia línea farmacéutica.
-              Todos los productos requieren prescripción médica vigente.
+            <p className="text-base leading-relaxed text-ink-muted max-w-2xl">
+              Por compromiso con la normativa SANNA y la seguridad clínica del paciente, el catálogo
+              completo — cepas, precios, disponibilidad y formulaciones farmacéuticas — solo es visible
+              después de crear una cuenta y validar una receta médica vigente. No es un trámite,
+              es lo que distingue a un dispensario clínico de un punto de venta.
             </p>
-            <Link href="/productos" className="btn-link">
-              Ver catálogo completo →
-            </Link>
           </div>
-        </div>
 
-        {/* Featured grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-16 lg:gap-y-24">
-          {featured.map((p, i) => (
-            <ProductCard key={p.id} product={p} index={i} />
-          ))}
+          <div className="col-span-12 lg:col-span-4 lg:col-start-9 bg-paper-bright border border-rule p-7 lg:p-8">
+            {hasApprovedPrescription ? (
+              <>
+                <p className="eyebrow text-forest mb-3">— Tu receta está aprobada</p>
+                <h3 className="font-display text-2xl leading-tight mb-5 text-balance">
+                  <span className="font-light">Tienes acceso al</span>{" "}
+                  <span className="italic font-normal">catálogo completo</span>
+                  <span className="font-light">.</span>
+                </h3>
+                <Link href="/productos" className="btn-brass w-full mb-3">
+                  Ver catálogo →
+                </Link>
+                <Link href="/mi-cuenta" className="btn-link w-full justify-center">
+                  Mi cuenta
+                </Link>
+              </>
+            ) : customer ? (
+              <>
+                <p className="eyebrow text-sangria mb-3">— Validación pendiente</p>
+                <h3 className="font-display text-2xl leading-tight mb-5 text-balance">
+                  <span className="font-light">Carga tu</span>{" "}
+                  <span className="italic font-normal">receta médica</span>
+                </h3>
+                <p className="text-sm text-ink-muted mb-5 leading-relaxed">
+                  Tu cuenta está lista. Solo falta que el químico farmacéutico valide tu receta.
+                </p>
+                <Link href="/mi-cuenta/recetas" className="btn-brass w-full">
+                  Cargar receta
+                </Link>
+              </>
+            ) : (
+              <>
+                <p className="eyebrow mb-3">— Acceso al catálogo</p>
+                <h3 className="font-display text-2xl leading-tight mb-5 text-balance">
+                  <span className="font-light">Crea tu cuenta y</span>{" "}
+                  <span className="italic font-normal">valida tu receta</span>
+                </h3>
+                <p className="text-sm text-ink-muted mb-5 leading-relaxed">
+                  Toma 2 minutos. El químico farmacéutico revisa tu receta en menos de 24h hábiles.
+                </p>
+                <div className="flex flex-col gap-3">
+                  <Link href="/registro" className="btn-brass w-full">
+                    Crear cuenta
+                  </Link>
+                  <Link href="/consulta" className="btn-link w-full justify-center">
+                    ¿No tienes receta? Agendar consulta →
+                  </Link>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </section>
 
