@@ -9,7 +9,7 @@ const SECRET =
   process.env.SESSION_SECRET || "dev-secret-change-in-production-please";
 const MAX_AGE_DAYS = 7;
 
-export type StaffRole = "admin" | "doctor" | "dispenser" | "pharmacist";
+export type StaffRole = "superadmin" | "admin" | "doctor" | "dispenser" | "pharmacist";
 
 export interface StaffUser {
   id: number;
@@ -18,6 +18,16 @@ export interface StaffUser {
   role: StaffRole;
   professional_license: string | null;
   is_active: number;
+}
+
+/** True si el staff puede gestionar el sistema (super admin) — solo gestión de staff/auditoría sistema. */
+export function isSuperadmin(staff: { role: string } | null | undefined): boolean {
+  return staff?.role === "superadmin";
+}
+
+/** True si el staff puede hacer cualquier acción "admin" (incluye superadmin). Para gating de páginas operativas. */
+export function isAdminOrAbove(staff: { role: string } | null | undefined): boolean {
+  return staff?.role === "admin" || staff?.role === "superadmin";
 }
 
 export interface SessionData {

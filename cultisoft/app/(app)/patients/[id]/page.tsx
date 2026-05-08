@@ -94,6 +94,10 @@ export default async function PatientDetailPage({ params }: { params: { id: stri
               <span className="material-symbols-outlined text-base">arrow_back</span>
               Pacientes
             </Link>
+            <Link href={`/patients/${p.id}/edit`} className="btn-secondary">
+              <span className="material-symbols-outlined text-base">edit</span>
+              Editar datos
+            </Link>
             <Link href={`/dispensations/new?patient=${p.id}`} className="btn-primary">
               <span className="material-symbols-outlined text-base">add</span>
               Nueva dispensación

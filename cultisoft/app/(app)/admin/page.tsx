@@ -2,7 +2,7 @@
 // Solo accesible para role=admin.
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { requireStaff } from "@/lib/auth";
+import { requireStaff, isSuperadmin } from "@/lib/auth";
 import { all, get } from "@/lib/db";
 import { formatDateTime, formatNumber } from "@/lib/format";
 import PageHeader from "@/components/PageHeader";
@@ -56,7 +56,8 @@ const ROLE_COLOR: Record<string, string> = {
 
 export default async function SuperAdminPage() {
   const me = await requireStaff();
-  if (me.role !== "admin") redirect("/dashboard");
+  // Solo super-admin (rincondeoz) puede gestionar staff y ver bitácora del sistema
+  if (!isSuperadmin(me)) redirect("/dashboard");
 
   const staff = await all<StaffRow>(
     `SELECT id, email, full_name, role, professional_license, is_active,

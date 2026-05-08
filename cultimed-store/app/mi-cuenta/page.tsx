@@ -66,6 +66,28 @@ export default async function AccountPage() {
 
       <div className="hairline-thick max-w-[1440px] mx-auto" />
 
+      {/* Banner Embajador — solo para invitados (is_ambassador=1), independiente del estado de receta */}
+      {customer.is_ambassador === 1 && (
+        <section className="max-w-[1440px] mx-auto px-6 lg:px-12 pt-12">
+          <div className="border border-brass bg-brass/5 p-6 lg:p-8 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+            <div className="flex-1">
+              <p className="eyebrow text-brass-dim mb-2">— Programa de embajadores · Activo</p>
+              <h3 className="font-display text-2xl leading-tight text-balance">
+                <span className="font-light">Eres</span>{" "}
+                <span className="italic font-normal">embajador</span>{" "}
+                <span className="font-light">de Cultimed.</span>
+              </h3>
+              <p className="text-sm text-ink-muted mt-2">
+                Tu código personal y dashboard de comisiones están listos.
+              </p>
+            </div>
+            <Link href="/mi-cuenta/embajador" className="btn-brass shrink-0">
+              Ir a mi panel →
+            </Link>
+          </div>
+        </section>
+      )}
+
       {/* Two columns */}
       <section className="max-w-[1440px] mx-auto px-6 lg:px-12 py-16 lg:py-24 grid grid-cols-12 gap-x-6 gap-y-16">
         {/* LEFT — Receta status */}
@@ -130,13 +152,8 @@ export default async function AccountPage() {
                   Tienes acceso completo al catálogo, precios y disponibilidad. Puedes
                   hacer pedidos cuando quieras.
                 </p>
-                <Link href="/productos" className="btn-brass w-full mb-3">Explorar catálogo →</Link>
-                {/* Programa de embajadores: solo visible para pacientes invitados desde cultisoft (is_ambassador=1) */}
-                {customer.is_ambassador === 1 && (
-                  <Link href="/mi-cuenta/embajador" className="btn-link w-full justify-center">
-                    Programa de embajadores →
-                  </Link>
-                )}
+                <Link href="/productos" className="btn-brass w-full">Explorar catálogo →</Link>
+                {/* Panel embajador: visible en banner superior si is_ambassador=1 */}
               </>
             )}
 

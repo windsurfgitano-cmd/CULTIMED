@@ -59,10 +59,10 @@ function NavList({ role, onNav }: { role: string; onNav?: () => void }) {
         );
       })}
 
-      {SYSTEM.filter((i) => !i.adminOnly || role === "admin").length > 0 && (
+      {SYSTEM.filter((i) => !i.adminOnly || role === "superadmin").length > 0 && (
         <>
           <p className="mt-8 px-6 mb-3 eyebrow text-ink-subtle">— Sistema</p>
-          {SYSTEM.filter((i) => !i.adminOnly || role === "admin").map((item) => {
+          {SYSTEM.filter((i) => !i.adminOnly || role === "superadmin").map((item) => {
             const active = pathname === item.href || pathname.startsWith(item.href + "/");
             return (
               <Link

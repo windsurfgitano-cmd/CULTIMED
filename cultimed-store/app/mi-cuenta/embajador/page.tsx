@@ -28,7 +28,8 @@ const PUBLIC_BASE = process.env.NEXT_PUBLIC_BASE_URL || "https://dispensariocult
 async function saveBankAction(formData: FormData) {
   "use server";
   const customer = await requireCustomer();
-  if (customer.prescription_status !== "aprobada") return;
+  // Permitir guardar bank info si tiene receta aprobada O fue invitado como embajador
+  if (customer.prescription_status !== "aprobada" && customer.is_ambassador !== 1) return;
 
   const rutRaw = String(formData.get("account_holder_rut") || "").trim();
   if (rutRaw && !isValidRut(rutRaw)) {
@@ -56,8 +57,10 @@ export default async function AmbassadorDashboard({
 }) {
   const customer = await requireCustomer();
 
-  // Gate de acceso: solo recetas aprobadas pueden ser embajadores.
-  if (customer.prescription_status !== "aprobada") {
+  // Gate de acceso: receta aprobada O embajador invitado por admin (sin receta).
+  const isInvitedAmbassador = customer.is_ambassador === 1;
+  const hasApprovedRx = customer.prescription_status === "aprobada";
+  if (!isInvitedAmbassador && !hasApprovedRx) {
     return <NoAccess status={customer.prescription_status} />;
   }
 

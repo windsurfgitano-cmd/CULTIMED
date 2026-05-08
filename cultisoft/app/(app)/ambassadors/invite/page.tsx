@@ -5,12 +5,39 @@
 
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { requireStaff } from "@/lib/auth";
+import { requireStaff, isAdminOrAbove } from "@/lib/auth";
 import { get, run } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { sendEmail } from "@/lib/email";
 import PageHeader from "@/components/PageHeader";
 import crypto from "node:crypto";
+
+// Inline copy de generateReferralCode — sin import cross-project
+function generateReferralCode(): string {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // sin 0/O/1/I para legibilidad
+  let code = "";
+  for (let i = 0; i < 6; i++) code += alphabet[Math.floor(Math.random() * alphabet.length)];
+  return code;
+}
+
+async function ensureReferralCode(accountId: number): Promise<string> {
+  const existing = await get<{ code: string }>(
+    `SELECT code FROM referral_codes WHERE ambassador_account_id = ?`,
+    accountId
+  );
+  if (existing) return existing.code;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const code = generateReferralCode();
+    const collision = await get<{ id: number }>(`SELECT id FROM referral_codes WHERE code = ?`, code);
+    if (collision) continue;
+    await run(
+      `INSERT INTO referral_codes (ambassador_account_id, code, is_active) VALUES (?, ?, 1)`,
+      accountId, code
+    );
+    return code;
+  }
+  throw new Error("could not generate unique code");
+}
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +49,7 @@ const LOGO_IMAGE = "https://ibkhvopshhlbvjwrmuzm.supabase.co/storage/v1/object/p
 async function inviteAmbassadorAction(formData: FormData) {
   "use server";
   const staff = await requireStaff();
-  if (staff.role !== "admin") redirect("/ambassadors/invite?e=forbidden");
+  if (!isAdminOrAbove(staff)) redirect("/ambassadors/invite?e=forbidden");
 
   const email = String(formData.get("email") || "").trim().toLowerCase();
   const fullName = String(formData.get("full_name") || "").trim();
@@ -61,7 +88,10 @@ async function inviteAmbassadorAction(formData: FormData) {
     isNew = true;
   }
 
-  // Genera token de password reset (válido 14 días)
+  // Genera código de referido INMEDIATAMENTE (sin esperar a receta)
+  const referralCode = await ensureReferralCode(accountId);
+
+  // Token opcional para que defina contraseña y vea su dashboard (14 días)
   const rawToken = crypto.randomBytes(32).toString("base64url");
   const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
   await run(
@@ -70,7 +100,8 @@ async function inviteAmbassadorAction(formData: FormData) {
     accountId, tokenHash, TOKEN_TTL_DAYS
   );
 
-  const link = `${STORE_BASE}/recuperar/${rawToken}`;
+  const dashboardLink = `${STORE_BASE}/recuperar/${rawToken}`;
+  const referralLink = `${STORE_BASE}/r/${referralCode}`;
   const greeting = fullName.split(" ")[0];
 
   const html = `<!DOCTYPE html>
@@ -101,24 +132,39 @@ async function inviteAmbassadorAction(formData: FormData) {
           <tr><td style="height:1px;background:#C9B891;"></td></tr>
         </table>
         <p style="margin:0 0 16px;">${greeting},</p>
-        <p style="margin:0 0 16px;">Cultimed te ha invitado a formar parte del <strong>Programa de Embajadores</strong> — pacientes que recomiendan el dispensario a quienes podrían beneficiarse del cannabis medicinal con la rigurosidad clínica que merece.</p>
-        ${message ? `<p style="margin:0 0 16px;padding:14px 18px;background:#FBF5E8;border-left:3px solid #B89968;font-style:italic;font-size:14px;color:#5d544a;">"${message}"</p>` : ""}
-        <p style="margin:0 0 16px;">Para activar tu cuenta:</p>
-        <ol style="margin:0 0 16px;padding-left:20px;">
-          <li style="margin-bottom:8px;"><strong>Define tu contraseña</strong> con el botón de abajo (válido 14 días).</li>
-          <li style="margin-bottom:8px;"><strong>Sube tu receta médica vigente</strong> en tu cuenta.</li>
-          <li style="margin-bottom:0;">Cuando nuestro QF apruebe tu receta, tu panel de embajador queda activado: código personal, link, comisiones y pagos.</li>
-        </ol>
-        <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:36px auto 16px;">
-          <tr><td align="center" style="background:#0F1A22;border:1px solid #0F1A22;">
-            <a href="${link}" style="display:inline-block;padding:18px 44px;font-family:'Helvetica Neue',Arial,sans-serif;font-size:11px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:#F7F1E5;text-decoration:none;">
-              Definir mi contraseña
+        <p style="margin:0 0 16px;">Cultimed te invita a ser <strong>embajador clínico</strong>. Ya tienes tu código personal activado, comparte tu link y comienza a generar comisiones desde hoy.</p>
+        ${message ? `<p style="margin:0 0 24px;padding:14px 18px;background:#FBF5E8;border-left:3px solid #B89968;font-style:italic;font-size:14px;color:#5d544a;">"${message}"</p>` : ""}
+
+        <!-- Código y link prominentes -->
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:24px 0 28px;background:#0F1A22;border:1px solid #0F1A22;">
+          <tr><td align="center" style="padding:32px 24px;">
+            <p style="margin:0 0 12px;font-family:'Helvetica Neue',Arial,sans-serif;font-size:10px;letter-spacing:2.5px;text-transform:uppercase;color:#B89968;">— Tu código personal</p>
+            <p style="margin:0 0 20px;font-family:'Helvetica Neue',Arial,sans-serif;font-size:42px;font-weight:600;letter-spacing:6px;color:#F7F1E5;">${referralCode}</p>
+            <p style="margin:0 0 6px;font-family:'Helvetica Neue',Arial,sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#B89968;">Tu link único:</p>
+            <p style="margin:0;font-family:'Helvetica Neue',Arial,sans-serif;font-size:13px;color:#F7F1E5;word-break:break-all;">
+              <a href="${referralLink}" style="color:#F7F1E5;text-decoration:underline;">${referralLink}</a>
+            </p>
+          </td></tr>
+        </table>
+
+        <p style="margin:0 0 12px;font-family:'Helvetica Neue',Arial,sans-serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#8b7d5c;">— Cómo funciona</p>
+        <ul style="margin:0 0 24px;padding-left:20px;font-size:14px;line-height:1.6;">
+          <li style="margin-bottom:6px;">Comparte tu código <strong>${referralCode}</strong> o tu link único.</li>
+          <li style="margin-bottom:6px;">Quien lo use recibe <strong>5% de descuento</strong> en su primera compra.</li>
+          <li style="margin-bottom:6px;">Tú recibes <strong>10% de comisión</strong> en su primera compra y <strong>5% residual</strong> en compras posteriores (90 días).</li>
+          <li style="margin-bottom:0;">Pagos por transferencia bancaria mensual.</li>
+        </ul>
+
+        <p style="margin:24px 0 16px;font-family:'Helvetica Neue',Arial,sans-serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#8b7d5c;">— Para ver tu dashboard de comisiones</p>
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 auto 8px;">
+          <tr><td align="center" style="background:#F7F1E5;border:1px solid #0F1A22;">
+            <a href="${dashboardLink}" style="display:inline-block;padding:14px 32px;font-family:'Helvetica Neue',Arial,sans-serif;font-size:11px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:#0F1A22;text-decoration:none;">
+              Define tu contraseña
             </a>
           </td></tr>
         </table>
         <p style="margin:8px 0 0;text-align:center;font-family:'Helvetica Neue',Arial,sans-serif;font-size:11px;color:#8b7d5c;">
-          o copia este enlace<br>
-          <span style="word-break:break-all;color:#5d544a;">${link}</span>
+          Necesario solo si quieres ver estadísticas y configurar tu cuenta bancaria. Válido 14 días.
         </p>
       </td></tr>
       <tr><td style="padding:28px 48px 36px;border-top:1px solid #C9B891;font-family:'Helvetica Neue',Arial,sans-serif;font-size:11px;line-height:1.7;color:#8b7d5c;">
@@ -132,13 +178,21 @@ async function inviteAmbassadorAction(formData: FormData) {
 
   const text = `${greeting},
 
-Cultimed te ha invitado a ser embajador del dispensario.
+Cultimed te invita a ser embajador clínico. Tu código ya está activo.
 
-${message ? `"${message}"\n\n` : ""}Para activar tu cuenta:
-1. Define tu contraseña en este enlace (válido 14 días):
-   ${link}
-2. Sube tu receta médica vigente.
-3. Cuando el QF la apruebe, tu panel de embajador queda activado.
+${message ? `"${message}"\n\n` : ""}====================================
+TU CÓDIGO: ${referralCode}
+TU LINK:   ${referralLink}
+====================================
+
+Cómo funciona:
+- Comparte tu código o link
+- Quien lo usa: 5% de descuento en su primera compra
+- Tú: 10% de comisión en su primera compra + 5% residual (90 días)
+- Pagos por transferencia mensual
+
+Para ver tu dashboard de comisiones, define tu contraseña (válido 14 días):
+${dashboardLink}
 
 ¿Dudas? contacto@dispensariocultimed.cl
 
@@ -168,7 +222,7 @@ export default async function InviteAmbassadorPage({
   searchParams: { ok?: string; e?: string; email?: string };
 }) {
   const staff = await requireStaff();
-  if (staff.role !== "admin") {
+  if (!isAdminOrAbove(staff)) {
     return (
       <div className="p-8 border-l-2 border-sangria bg-sangria/5">
         <p className="text-sm text-ink">Solo administradores pueden invitar embajadores.</p>
@@ -188,7 +242,7 @@ export default async function InviteAmbassadorPage({
         numeral="09"
         eyebrow="Programa de embajadores"
         title="Invitar embajador"
-        subtitle="Crea la cuenta del embajador en el dispensario y dispara su email de bienvenida con instrucciones de activación."
+        subtitle="Genera código + link único al instante y dispara email con todo listo para compartir. No requiere cuenta ni receta del embajador."
         actions={
           <Link href="/ambassadors" className="font-mono text-[11px] uppercase tracking-widest text-ink hover:text-brass">
             ← Volver a embajadores
@@ -224,7 +278,7 @@ export default async function InviteAmbassadorPage({
                 className="w-full px-4 py-3 bg-paper-bright border border-rule font-mono text-sm focus:border-ink focus:outline-none"
               />
               <p className="mt-2 text-[11px] text-ink-muted">
-                Si ya tiene cuenta en el dispensario, simplemente lo marcamos como embajador.
+                No necesita estar registrado en el dispensario. El email puede ser cualquiera; el código se genera y se envía al instante.
               </p>
             </div>
 
@@ -273,28 +327,27 @@ export default async function InviteAmbassadorPage({
           <ol className="space-y-3 text-sm text-ink-muted leading-relaxed">
             <li className="flex gap-3">
               <span className="font-mono text-[11px] tracking-widest text-brass-dim shrink-0 pt-0.5">01</span>
-              <span>El invitado recibe email con link para definir contraseña (14 días).</span>
+              <span>El sistema genera código único (ej. <code className="font-mono text-[12px]">XK4P2M</code>) y link <code className="font-mono text-[11px]">/r/XK4P2M</code>.</span>
             </li>
             <li className="flex gap-3">
               <span className="font-mono text-[11px] tracking-widest text-brass-dim shrink-0 pt-0.5">02</span>
-              <span>Se registra y sube su receta médica vigente.</span>
+              <span>Email apothecary con código y link prominentes — listo para reenviar a contactos sin más pasos.</span>
             </li>
             <li className="flex gap-3">
               <span className="font-mono text-[11px] tracking-widest text-brass-dim shrink-0 pt-0.5">03</span>
-              <span>El QF aprueba la receta — flujo normal de validación clínica.</span>
+              <span>Cuando alguien usa el código en una compra: 5% off para el comprador, 10% comisión para el embajador.</span>
             </li>
             <li className="flex gap-3">
               <span className="font-mono text-[11px] tracking-widest text-brass-dim shrink-0 pt-0.5">04</span>
-              <span>Su panel de embajador se activa automáticamente: código personal, link único, dashboard de comisiones.</span>
+              <span>El embajador puede definir contraseña (link en email) para ver su dashboard de comisiones y configurar transferencia bancaria.</span>
             </li>
           </ol>
           <div className="mt-6 pt-4 border-t border-rule">
             <p className="text-[11px] font-mono uppercase tracking-widest text-ink-muted">
-              Compliance · Ley 20.850
+              Sin fricción · Sin receta · Sin registro previo
             </p>
             <p className="mt-2 text-[11px] text-ink-muted leading-relaxed">
-              Solo pacientes con receta validada pueden activar el panel de embajador. Garantía de
-              que cada embajador es un usuario clínico real del dispensario.
+              El embajador no necesita ser paciente. Tu invitación basta para activar su código y empezar a generar comisiones.
             </p>
           </div>
         </aside>

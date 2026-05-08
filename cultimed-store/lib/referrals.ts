@@ -70,11 +70,15 @@ export interface AmbassadorBankInfo {
 
 /** Devuelve (o crea) el código de referido del embajador. Solo se permite si su receta está aprobada. */
 export async function getOrCreateReferralCode(accountId: number): Promise<ReferralCode | null> {
-  const acc = await get<{ prescription_status: string }>(
-    `SELECT prescription_status FROM customer_accounts WHERE id = ?`,
+  const acc = await get<{ prescription_status: string; is_ambassador: number }>(
+    `SELECT prescription_status, is_ambassador FROM customer_accounts WHERE id = ?`,
     accountId
   );
-  if (!acc || acc.prescription_status !== "aprobada") return null;
+  if (!acc) return null;
+  // Acceso al programa: paciente con receta aprobada (auto-eligible) O embajador
+  // invitado por admin (no requiere receta — bypass para reducir fricción).
+  const eligible = acc.prescription_status === "aprobada" || acc.is_ambassador === 1;
+  if (!eligible) return null;
 
   const existing = await get<ReferralCode>(
     `SELECT * FROM referral_codes WHERE ambassador_account_id = ?`,
