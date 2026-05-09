@@ -70,8 +70,9 @@ export default async function AmbassadorDashboard({
   const stats = await getAmbassadorStats(customer.id);
   const bank = await getBankInfo(customer.id);
   const fullLink = `${PUBLIC_BASE}/r/${code.code}`;
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=420x420&margin=10&data=${encodeURIComponent(fullLink)}`;
-  const qrUrlHighRes = `https://api.qrserver.com/v1/create-qr-code/?size=1024x1024&margin=20&data=${encodeURIComponent(fullLink)}`;
+  // QR generado server-side por nuestro propio endpoint (control de branding + sin dependencia externa)
+  const qrUrl = `/api/r/${code.code}/qr`;
+  const qrUrlHighRes = `/api/r/${code.code}/qr`;
 
   return (
     <>

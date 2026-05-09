@@ -68,10 +68,16 @@ export default async function PatientsPage({
         title="Pacientes"
         subtitle={`${formatNumber(total)} registros · base activa de socios Cultimed`}
         actions={
-          <Link href="/patients/new" className="btn-primary">
-            <span className="material-symbols-outlined text-base">person_add</span>
-            Nuevo paciente
-          </Link>
+          <>
+            <a href="/api/patients/export" className="btn-secondary" download>
+              <span className="material-symbols-outlined text-base">download</span>
+              Exportar CSV
+            </a>
+            <Link href="/patients/new" className="btn-primary">
+              <span className="material-symbols-outlined text-base">person_add</span>
+              Nuevo paciente
+            </Link>
+          </>
         }
       />
 

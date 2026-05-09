@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { StaffUser } from "@/lib/auth";
 
 const ROLE_LABELS: Record<string, string> = {
+  superadmin: "Super Admin",
   admin: "Administrador",
   doctor: "Doctor",
   dispenser: "Dispensador",
@@ -54,6 +55,15 @@ export default function TopBar({ staff }: { staff: StaffUser }) {
             </span>
           </div>
         </div>
+
+        <Link
+          href="/me"
+          className="text-ink-muted hover:text-ink px-2 sm:px-3 py-1.5 text-xs uppercase tracking-widest font-mono transition-colors border-b border-transparent hover:border-ink/40"
+          title="Mi cuenta"
+        >
+          <span className="hidden sm:inline">Mi cuenta</span>
+          <span className="sm:hidden">Cuenta</span>
+        </Link>
 
         <form action="/api/logout" method="POST">
           <button
