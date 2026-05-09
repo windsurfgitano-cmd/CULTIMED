@@ -18,6 +18,7 @@ export interface StaffUser {
   role: StaffRole;
   professional_license: string | null;
   is_active: number;
+  totp_enabled?: number;
 }
 
 /** True si el staff puede gestionar el sistema (super admin) — solo gestión de staff/auditoría sistema. */
@@ -33,6 +34,8 @@ export function isAdminOrAbove(staff: { role: string } | null | undefined): bool
 export interface SessionData {
   staffId: number;
   iat: number;
+  /** Si true, falta verificar TOTP — la sesión NO da acceso aún a las páginas. */
+  locked?: boolean;
 }
 
 function sign(data: string): string {
@@ -59,9 +62,9 @@ function decodeSession(token: string): SessionData | null {
   }
 }
 
-export async function login(email: string, password: string): Promise<StaffUser | null> {
-  const staff = await get<StaffUser & { password_hash: string }>(
-    `SELECT id, email, full_name, role, professional_license, is_active, password_hash
+export async function login(email: string, password: string): Promise<{ ok: true; user: StaffUser; needsTotp: boolean } | null> {
+  const staff = await get<StaffUser & { password_hash: string; totp_enabled: number }>(
+    `SELECT id, email, full_name, role, professional_license, is_active, password_hash, totp_enabled
      FROM staff WHERE email = ? AND is_active = 1`,
     email.trim().toLowerCase()
   );
@@ -69,9 +72,15 @@ export async function login(email: string, password: string): Promise<StaffUser 
   const ok = await bcrypt.compare(password, staff.password_hash);
   if (!ok) return null;
 
-  await run(`UPDATE staff SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?`, staff.id);
+  const needsTotp = staff.totp_enabled === 1;
 
-  const token = encodeSession({ staffId: staff.id, iat: Date.now() });
+  // Si tiene 2FA activado, sesión queda "locked" — solo desbloquea con código TOTP válido.
+  // No actualizamos last_login_at hasta que se complete el segundo factor.
+  if (!needsTotp) {
+    await run(`UPDATE staff SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?`, staff.id);
+  }
+
+  const token = encodeSession({ staffId: staff.id, iat: Date.now(), locked: needsTotp });
   cookies().set(COOKIE_NAME, token, {
     httpOnly: true,
     sameSite: "lax",
@@ -80,9 +89,27 @@ export async function login(email: string, password: string): Promise<StaffUser 
     maxAge: MAX_AGE_DAYS * 24 * 60 * 60,
   });
 
-  // strip password_hash
   const { password_hash, ...user } = staff;
-  return user;
+  return { ok: true, user, needsTotp };
+}
+
+/** Tras verificar TOTP exitosamente, desbloquea la sesión re-emitiendo cookie sin locked. */
+export async function unlockSession(): Promise<boolean> {
+  const token = cookies().get(COOKIE_NAME)?.value;
+  if (!token) return false;
+  const session = decodeSession(token);
+  if (!session) return false;
+
+  const newToken = encodeSession({ staffId: session.staffId, iat: Date.now() });
+  cookies().set(COOKIE_NAME, newToken, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: MAX_AGE_DAYS * 24 * 60 * 60,
+  });
+  await run(`UPDATE staff SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?`, session.staffId);
+  return true;
 }
 
 export function logout() {
@@ -94,9 +121,26 @@ export async function getCurrentStaff(): Promise<StaffUser | null> {
   if (!token) return null;
   const session = decodeSession(token);
   if (!session) return null;
+  // Sesión locked = login pasó pero falta TOTP → no da acceso a páginas
+  if (session.locked) return null;
 
   const staff = await get<StaffUser>(
-    `SELECT id, email, full_name, role, professional_license, is_active
+    `SELECT id, email, full_name, role, professional_license, is_active, totp_enabled
+     FROM staff WHERE id = ? AND is_active = 1`,
+    session.staffId
+  );
+  return staff || null;
+}
+
+/** Devuelve el staff cuando la sesión está locked (post-password, pre-TOTP). Para /login/2fa. */
+export async function getLockedStaff(): Promise<StaffUser | null> {
+  const token = cookies().get(COOKIE_NAME)?.value;
+  if (!token) return null;
+  const session = decodeSession(token);
+  if (!session || !session.locked) return null;
+
+  const staff = await get<StaffUser>(
+    `SELECT id, email, full_name, role, professional_license, is_active, totp_enabled
      FROM staff WHERE id = ? AND is_active = 1`,
     session.staffId
   );
@@ -105,7 +149,12 @@ export async function getCurrentStaff(): Promise<StaffUser | null> {
 
 export async function requireStaff(): Promise<StaffUser> {
   const staff = await getCurrentStaff();
-  if (!staff) redirect("/login");
+  if (!staff) {
+    // Si está locked (esperando TOTP), redirige a la página de verificación
+    const locked = await getLockedStaff();
+    if (locked) redirect("/login/2fa");
+    redirect("/login");
+  }
   return staff;
 }
 

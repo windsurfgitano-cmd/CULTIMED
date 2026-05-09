@@ -1,5 +1,6 @@
-// Página personal del staff: cambiar password.
+// Página personal del staff: cambiar password + gestionar 2FA.
 // Cualquier staff autenticado accede a la suya.
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireStaff } from "@/lib/auth";
 import { get, run } from "@/lib/db";
@@ -73,6 +74,12 @@ export default async function MyAccountPage({
   const me = await requireStaff();
   const error = searchParams.e ? ERR[searchParams.e] : null;
   const success = searchParams.ok === "1";
+
+  const totp = await get<{ totp_enabled: number }>(
+    `SELECT totp_enabled FROM staff WHERE id = ?`,
+    me.id
+  );
+  const totpEnabled = totp?.totp_enabled === 1;
 
   return (
     <>
@@ -173,6 +180,42 @@ export default async function MyAccountPage({
               El cambio queda registrado en la bitácora de auditoría con tu cuenta y la fecha/hora.
               Tu sesión actual sigue activa después del cambio.
             </p>
+          </div>
+
+          {/* 2FA section */}
+          <div className="clinical-card p-6 mt-6">
+            <h2 className="text-sm font-bold text-on-surface flex items-center gap-2 mb-3 pb-3 border-b border-outline-variant/40">
+              <span className="material-symbols-outlined text-primary text-[20px]">verified_user</span>
+              Verificación en dos pasos (2FA)
+            </h2>
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                {totpEnabled ? (
+                  <>
+                    <p className="text-sm font-semibold text-success flex items-center gap-2">
+                      <span className="material-symbols-outlined text-base">check_circle</span>
+                      Activo
+                    </p>
+                    <p className="text-[12px] text-on-surface-variant mt-1 leading-relaxed">
+                      Cada inicio de sesión te pide un código de 6 dígitos de tu app autenticadora.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm font-semibold text-warning flex items-center gap-2">
+                      <span className="material-symbols-outlined text-base">warning</span>
+                      No activado
+                    </p>
+                    <p className="text-[12px] text-on-surface-variant mt-1 leading-relaxed">
+                      Tu cuenta está protegida solo con contraseña. Recomendamos activar 2FA por compliance Ley 19.628 y para proteger datos clínicos.
+                    </p>
+                  </>
+                )}
+              </div>
+              <Link href="/me/2fa" className={totpEnabled ? "btn-secondary shrink-0" : "btn-primary shrink-0"}>
+                {totpEnabled ? "Gestionar" : "Activar 2FA"}
+              </Link>
+            </div>
           </div>
         </div>
       </div>

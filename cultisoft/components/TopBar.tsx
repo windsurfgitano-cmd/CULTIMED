@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { StaffUser } from "@/lib/auth";
+import GlobalSearch from "./GlobalSearch";
 
 const ROLE_LABELS: Record<string, string> = {
   superadmin: "Super Admin",
@@ -30,6 +31,8 @@ export default function TopBar({ staff }: { staff: StaffUser }) {
       </Link>
 
       <div className="flex items-center gap-3 sm:gap-5">
+        <GlobalSearch />
+
         <div className="hidden xl:flex items-baseline gap-3 text-[11px] font-mono uppercase tracking-widest text-ink-muted">
           <span className="editorial-numeral text-base text-ink-subtle">—</span>
           <span>

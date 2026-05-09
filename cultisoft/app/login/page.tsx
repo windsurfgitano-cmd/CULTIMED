@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { login, getCurrentStaff } from "@/lib/auth";
+import { login, getCurrentStaff, getLockedStaff } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 
 async function loginAction(formData: FormData) {
@@ -7,9 +7,17 @@ async function loginAction(formData: FormData) {
   const email = String(formData.get("email") || "");
   const password = String(formData.get("password") || "");
   if (!email || !password) redirect("/login?e=missing");
-  const user = await login(email, password);
-  if (!user) redirect("/login?e=invalid");
-  await logAudit({ staffId: user.id, action: "login", entityType: "staff", entityId: user.id });
+  const result = await login(email, password);
+  if (!result) redirect("/login?e=invalid");
+
+  await logAudit({
+    staffId: result.user.id,
+    action: result.needsTotp ? "login_password_ok_pending_2fa" : "login",
+    entityType: "staff",
+    entityId: result.user.id,
+  });
+
+  if (result.needsTotp) redirect("/login/2fa");
   redirect("/dashboard");
 }
 
@@ -19,6 +27,8 @@ export default async function LoginPage({
   searchParams: { e?: string };
 }) {
   if (await getCurrentStaff()) redirect("/dashboard");
+  // Si tiene sesión locked (post-password, pre-TOTP), llevar a 2FA
+  if (await getLockedStaff()) redirect("/login/2fa");
 
   const errorMsg =
     searchParams.e === "invalid"
