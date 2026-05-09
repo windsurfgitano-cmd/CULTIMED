@@ -139,17 +139,9 @@ export default async function LoginPage({
             </button>
           </form>
 
-          <div className="mt-12 pt-7 border-t border-rule-soft">
-            <p className="eyebrow text-ink-subtle mb-3">— Credenciales de prueba (MVP local)</p>
-            <ul className="text-[12px] font-mono nums-lining text-ink-muted space-y-1.5">
-              <li>admin@cultimed.cl · admin123</li>
-              <li>farmacia@cultimed.cl · farma123</li>
-              <li>qf.morales@cultimed.cl · quimico123</li>
-            </ul>
-          </div>
-
           <p className="mt-10 text-[11px] font-mono text-ink-subtle text-center">
-            © {new Date().getFullYear()} Cultimed SpA · Cumplimiento normativa SANNA
+            © {new Date().getFullYear()} Cultimed · Cumplimiento normativa SANNA<br />
+            ¿Sin acceso? Solicítalo a contacto@dispensariocultimed.cl
           </p>
         </div>
       </main>

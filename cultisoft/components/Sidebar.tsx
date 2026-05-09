@@ -120,7 +120,7 @@ export default function Sidebar({ role }: { role: string }) {
         <div className="mt-auto px-6 py-5 border-t border-rule-soft">
           <p className="editorial-numeral text-xs text-ink-subtle">— v1.0</p>
           <p className="text-[10px] uppercase tracking-widest text-ink-subtle font-mono mt-1">
-            Modo local · MVP
+            Cultimed · Operación clínica
           </p>
         </div>
       </aside>

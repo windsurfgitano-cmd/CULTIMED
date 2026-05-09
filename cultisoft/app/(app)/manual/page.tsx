@@ -57,14 +57,15 @@ export default async function ManualPage() {
         eyebrow="Roles"
         title="Quién puede hacer qué."
       >
-        <p>Cuatro roles definen los permisos de cada cuenta de personal:</p>
+        <p>Cinco roles definen los permisos de cada cuenta de personal:</p>
         <Table
-          head={["Rol", "Responsabilidad", "Credencial demo"]}
+          head={["Rol", "Responsabilidad"]}
           rows={[
-            ["Administrador",          "Acceso total, gestión de personal y configuración.", "admin@cultimed.cl · admin123"],
-            ["Químico Farmacéutico",   "Validación de recetas, dispensación de productos controlados.", "qf.morales@cultimed.cl · quimico123"],
-            ["Dispensador",            "Ventas en mostrador, registro de dispensaciones.", "farmacia@cultimed.cl · farma123"],
-            ["Doctor (staff)",         "Médico interno habilitado para emitir recetas digitales.", "dr.silva@cultimed.cl · doctor123"],
+            ["Super Admin",            "Acceso total + gestión de staff + bitácora del sistema. Solo el dueño/director."],
+            ["Administrador",          "Operación día a día: pacientes, recetas, dispensaciones, embajadores, inventario."],
+            ["Químico Farmacéutico",   "Validación de recetas y dispensación de productos controlados."],
+            ["Dispensador",            "Ventas en mostrador y registro de dispensaciones."],
+            ["Doctor (staff)",         "Médico interno habilitado para emitir recetas digitales."],
           ]}
         />
         <p className="text-[12px] font-mono text-ink-muted mt-4 leading-relaxed">
