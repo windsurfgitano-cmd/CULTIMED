@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireStaff } from "@/lib/auth";
+import { requireStaff, isSuperadmin } from "@/lib/auth";
 import { all, get } from "@/lib/db";
 import { formatCLP, formatDate, daysUntil, formatNumber } from "@/lib/format";
 import PageHeader from "@/components/PageHeader";
@@ -48,7 +48,8 @@ export default async function InventoryPage({
 }: {
   searchParams: { q?: string; filter?: string; category?: string };
 }) {
-  await requireStaff();
+  const me = await requireStaff();
+  const showStrainView = isSuperadmin(me);
   const q = (searchParams.q || "").trim();
   const filter = searchParams.filter || "";
   const category = searchParams.category || "";
@@ -111,10 +112,18 @@ export default async function InventoryPage({
         title="Inventario"
         subtitle={`${formatNumber(summary?.total_skus || 0)} productos · ${formatNumber(summary?.total_units || 0)} unidades · valor estimado ${formatCLP(summary?.total_value || 0)}`}
         actions={
-          <Link href="/inventory/new" className="btn-primary">
-            <span className="material-symbols-outlined text-base">add_box</span>
-            Ingresar lote
-          </Link>
+          <>
+            {showStrainView && (
+              <Link href="/inventory/by-strain" className="btn-secondary">
+                <span className="material-symbols-outlined text-base">spa</span>
+                Vista por strain
+              </Link>
+            )}
+            <Link href="/inventory/new" className="btn-primary">
+              <span className="material-symbols-outlined text-base">add_box</span>
+              Ingresar lote
+            </Link>
+          </>
         }
       />
 
