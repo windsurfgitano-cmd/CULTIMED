@@ -88,6 +88,10 @@ export default async function PrescriptionDetailPage({ params }: { params: { id:
               <span className="material-symbols-outlined text-base">arrow_back</span>
               Recetas
             </Link>
+            <Link href={`/prescriptions/${r.id}/edit`} className="btn-secondary">
+              <span className="material-symbols-outlined text-base">edit</span>
+              Editar
+            </Link>
             {r.status === "active" && (
               <Link href={`/dispensations/new?patient=${r.patient_id}&prescription=${r.id}`} className="btn-primary">
                 <span className="material-symbols-outlined text-base">medication</span>

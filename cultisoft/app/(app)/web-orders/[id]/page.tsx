@@ -338,9 +338,15 @@ export default async function WebOrderDetail({
         title={o.folio}
         subtitle={`Creado el ${formatDateTime(o.created_at)} · ${o.customer_name}`}
         actions={
-          <Link href="/web-orders" className="font-mono text-[11px] uppercase tracking-widest text-ink hover:text-brass">
-            ← Volver
-          </Link>
+          <>
+            <Link href={`/web-orders/${o.id}/edit`} className="btn-secondary">
+              <span className="material-symbols-outlined text-base">edit</span>
+              Editar
+            </Link>
+            <Link href="/web-orders" className="font-mono text-[11px] uppercase tracking-widest text-ink hover:text-brass">
+              ← Volver
+            </Link>
+          </>
         }
       />
 
@@ -348,6 +354,16 @@ export default async function WebOrderDetail({
       {searchParams.ok === "proof_uploaded" && (
         <div className="mb-6 p-4 border-l-2 border-forest bg-forest/5">
           <p className="text-sm text-ink">✓ Comprobante cargado manualmente. Quedó registrado en bitácora con tu cuenta.</p>
+        </div>
+      )}
+      {searchParams.ok === "created" && (
+        <div className="mb-6 p-4 border-l-2 border-forest bg-forest/5">
+          <p className="text-sm text-ink">✓ Pedido manual creado. Si ya pagó, marca como "Confirmar pago" abajo.</p>
+        </div>
+      )}
+      {searchParams.ok === "edited" && (
+        <div className="mb-6 p-4 border-l-2 border-forest bg-forest/5">
+          <p className="text-sm text-ink">✓ Datos del pedido actualizados.</p>
         </div>
       )}
       {searchParams.e === "no_file" && (

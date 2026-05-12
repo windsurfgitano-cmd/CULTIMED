@@ -89,6 +89,12 @@ export default async function WebOrdersPage({
         eyebrow="Pedidos web · Donaciones por transferencia"
         title="Pedidos web"
         subtitle={`${formatNumber(rows.length)} ${rows.length === 1 ? "pedido" : "pedidos"} en este filtro · gestiona pagos por transferencia y prepara para entrega.`}
+        actions={
+          <Link href="/web-orders/new" className="btn-primary">
+            <span className="material-symbols-outlined text-base">add_shopping_cart</span>
+            Nuevo pedido manual
+          </Link>
+        }
       />
 
       <div className="mb-8 flex flex-wrap gap-1.5 text-xs">
