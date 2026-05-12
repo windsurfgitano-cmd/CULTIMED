@@ -6,6 +6,7 @@ import { formatCLP, formatDateTime } from "@/lib/format";
 import { logAudit } from "@/lib/audit";
 import { recordCommissionForOrder } from "@/lib/referrals";
 import { resolveStorageUrl } from "@/lib/storage";
+import { saveUploadedFile } from "@/lib/uploads";
 import PageHeader from "@/components/PageHeader";
 
 export const dynamic = "force-dynamic";
@@ -84,6 +85,64 @@ const EVENT_LABEL: Record<string, string> = {
   delivered:        "Entregada",
   cancelled:        "Cancelada",
 };
+
+/**
+ * Admin/Superadmin sube comprobante en nombre del cliente
+ * (cuando el cliente lo manda por WhatsApp en lugar de subirlo a la web).
+ * Actualiza payment_proof_url + payment_proof_uploaded_at, transiciona status a
+ * 'proof_uploaded' si estaba 'pending_payment', inserta evento + audit log.
+ */
+async function adminUploadProofAction(formData: FormData) {
+  "use server";
+  const staff = await requireStaff();
+  const id = Number(formData.get("id"));
+  const file = formData.get("proof") as File | null;
+  const channel = String(formData.get("channel") || "manual").trim(); // "whatsapp", "email", "in-person", etc.
+  const notes = String(formData.get("notes") || "").trim();
+
+  if (!id) redirect("/web-orders");
+  if (!file || file.size === 0) redirect(`/web-orders/${id}?e=no_file`);
+  if (file.size > 8 * 1024 * 1024) redirect(`/web-orders/${id}?e=too_big`);
+
+  const order = await get<{ id: number; status: string; customer_account_id: number }>(
+    `SELECT id, status, customer_account_id FROM customer_orders WHERE id = ?`,
+    id
+  );
+  if (!order) redirect("/web-orders");
+  if (!["pending_payment", "proof_uploaded", "payment_rejected"].includes(order!.status)) {
+    redirect(`/web-orders/${id}?e=wrong_status`);
+  }
+
+  const url = await saveUploadedFile(file, `payment-proofs/${order!.customer_account_id}-${id}`);
+
+  await run(
+    `UPDATE customer_orders
+     SET payment_proof_url = ?,
+         payment_proof_uploaded_at = CURRENT_TIMESTAMP,
+         status = 'proof_uploaded',
+         updated_at = CURRENT_TIMESTAMP
+     WHERE id = ?`,
+    url, id
+  );
+
+  const channelLabel = ({ whatsapp: "WhatsApp", email: "Email", "in-person": "Presencial", manual: "Carga manual" } as Record<string, string>)[channel] || channel;
+  const eventMsg = `Comprobante cargado por ${staff.full_name} (admin) vía ${channelLabel}${notes ? " · " + notes : ""}`;
+  await run(
+    `INSERT INTO customer_order_events (order_id, event_type, message, staff_id)
+     VALUES (?, 'proof_uploaded_by_admin', ?, ?)`,
+    id, eventMsg, staff.id
+  );
+
+  await logAudit({
+    staffId: staff.id,
+    action: "order_proof_uploaded_by_admin",
+    entityType: "customer_order",
+    entityId: id,
+    details: { channel, notes: notes || null, url },
+  });
+
+  redirect(`/web-orders/${id}?ok=proof_uploaded`);
+}
 
 async function transitionAction(formData: FormData) {
   "use server";
@@ -216,7 +275,13 @@ async function transitionAction(formData: FormData) {
   redirect(`/web-orders/${id}`);
 }
 
-export default async function WebOrderDetail({ params }: { params: { id: string } }) {
+export default async function WebOrderDetail({
+  params,
+  searchParams,
+}: {
+  params: { id: string };
+  searchParams: { ok?: string; e?: string };
+}) {
   await requireStaff();
   const id = parseInt(params.id, 10);
   if (!id) notFound();
@@ -279,6 +344,28 @@ export default async function WebOrderDetail({ params }: { params: { id: string 
         }
       />
 
+      {/* Banners */}
+      {searchParams.ok === "proof_uploaded" && (
+        <div className="mb-6 p-4 border-l-2 border-forest bg-forest/5">
+          <p className="text-sm text-ink">✓ Comprobante cargado manualmente. Quedó registrado en bitácora con tu cuenta.</p>
+        </div>
+      )}
+      {searchParams.e === "no_file" && (
+        <div className="mb-6 p-4 border-l-2 border-sangria bg-sangria/5">
+          <p className="text-sm text-ink">Selecciona un archivo antes de cargar.</p>
+        </div>
+      )}
+      {searchParams.e === "too_big" && (
+        <div className="mb-6 p-4 border-l-2 border-sangria bg-sangria/5">
+          <p className="text-sm text-ink">El archivo supera 8MB. Comprime o reescanea.</p>
+        </div>
+      )}
+      {searchParams.e === "wrong_status" && (
+        <div className="mb-6 p-4 border-l-2 border-sangria bg-sangria/5">
+          <p className="text-sm text-ink">No se puede subir comprobante en este estado del pedido.</p>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left: items + comprobante + transitions */}
         <div className="lg:col-span-2 space-y-10">
@@ -332,9 +419,12 @@ export default async function WebOrderDetail({ params }: { params: { id: string 
               <span className="eyebrow">Comprobante de transferencia</span>
             </div>
             {!o.payment_proof_url ? (
-              <div className="border border-rule bg-paper-bright p-12 text-center">
-                <p className="font-display italic text-2xl text-ink-muted">Aún no subido.</p>
-                <p className="text-sm text-ink-subtle mt-2">El paciente debe subir comprobante de transferencia.</p>
+              <div className="border border-rule bg-paper-bright p-6">
+                <p className="font-display italic text-xl text-ink-muted text-center mb-2">Aún no subido por el paciente.</p>
+                <p className="text-sm text-ink-subtle text-center mb-5">
+                  Si el cliente envió el comprobante por <strong>WhatsApp / email / en persona</strong>, súbelo tú aquí para tenerlo a mano.
+                </p>
+                <AdminUploadProofForm orderId={o.id} action={adminUploadProofAction} />
               </div>
             ) : isImage ? (
               <div className="border border-rule bg-paper-bright p-3">
@@ -374,6 +464,22 @@ export default async function WebOrderDetail({ params }: { params: { id: string 
                 <p className="eyebrow text-sangria mb-1">— Comprobante rechazado</p>
                 <p className="text-sm text-ink whitespace-pre-wrap">{o.payment_rejection_reason}</p>
               </div>
+            )}
+
+            {/* Reemplazar comprobante (solo si NO está ya paid/preparing/delivered) */}
+            {o.payment_proof_url && ["pending_payment", "proof_uploaded", "payment_rejected"].includes(o.status) && (
+              <details className="mt-4 border border-rule bg-paper-bright p-5">
+                <summary className="text-[11px] font-mono uppercase tracking-widest text-ink-muted cursor-pointer hover:text-ink">
+                  ↻ Reemplazar con otro comprobante (manual)
+                </summary>
+                <div className="mt-4 pt-4 border-t border-rule-soft">
+                  <p className="text-sm text-ink-muted mb-4">
+                    Si el cliente envió un comprobante mejor (más nítido, monto correcto) por WhatsApp o email,
+                    súbelo aquí. El anterior queda en bitácora.
+                  </p>
+                  <AdminUploadProofForm orderId={o.id} action={adminUploadProofAction} isReplacing />
+                </div>
+              </details>
             )}
           </section>
 
@@ -599,5 +705,62 @@ function KV({ k, v, mono = false }: { k: string; v: string; mono?: boolean }) {
       <dt className="eyebrow text-ink-subtle">{k}</dt>
       <dd className={`mt-0.5 text-sm text-ink ${mono ? "font-mono break-all" : ""}`}>{v}</dd>
     </div>
+  );
+}
+
+function AdminUploadProofForm({ orderId, action, isReplacing = false }: {
+  orderId: number;
+  action: (formData: FormData) => Promise<void>;
+  isReplacing?: boolean;
+}) {
+  return (
+    <form action={action} encType="multipart/form-data" className="space-y-4 max-w-lg mx-auto">
+      <input type="hidden" name="id" value={orderId} />
+
+      <div>
+        <label htmlFor={`proof-${orderId}`} className="input-label">Archivo (PDF / JPG / PNG · máx 8MB)</label>
+        <input
+          type="file"
+          id={`proof-${orderId}`}
+          name="proof"
+          accept=".pdf,image/jpeg,image/png,image/webp"
+          required
+          className="block w-full text-sm text-ink-muted file:mr-3 file:py-2 file:px-4 file:border file:border-rule file:bg-paper-dim/30 file:text-xs file:uppercase file:tracking-widest file:font-mono file:cursor-pointer hover:file:bg-paper-dim/60"
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label htmlFor={`channel-${orderId}`} className="input-label">¿Por dónde lo envió el cliente?</label>
+          <select id={`channel-${orderId}`} name="channel" className="input-field" defaultValue="whatsapp">
+            <option value="whatsapp">WhatsApp</option>
+            <option value="email">Email</option>
+            <option value="in-person">Presencial</option>
+            <option value="manual">Otro / Manual</option>
+          </select>
+        </div>
+        <div>
+          <label htmlFor={`notes-${orderId}`} className="input-label">Notas (opcional)</label>
+          <input
+            type="text"
+            id={`notes-${orderId}`}
+            name="notes"
+            placeholder="Ej: Pago de $143.991 vía Santander"
+            className="input-field"
+          />
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-3 pt-1">
+        <button type="submit" className="btn-primary">
+          <span className="material-symbols-outlined text-base">upload_file</span>
+          {isReplacing ? "Reemplazar comprobante" : "Cargar comprobante"}
+        </button>
+      </div>
+
+      <p className="text-[11px] text-on-surface-variant text-center">
+        Queda registrado en bitácora con tu cuenta como cargador manual + canal de entrega.
+      </p>
+    </form>
   );
 }
