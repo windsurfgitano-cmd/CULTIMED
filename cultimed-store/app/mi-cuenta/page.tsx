@@ -56,7 +56,10 @@ export default async function AccountPage() {
               <span className="font-light">.</span>
             </h1>
           </div>
-          <div className="col-span-12 lg:col-span-3 lg:pb-3">
+          <div className="col-span-12 lg:col-span-3 lg:pb-3 flex flex-col gap-2">
+            <Link href="/mi-cuenta/cambiar-contrasena" className="btn-link text-ink-muted">
+              Cambiar contraseña →
+            </Link>
             <form action="/api/auth/logout" method="POST">
               <button type="submit" className="btn-link text-ink-muted">Cerrar sesión →</button>
             </form>

@@ -51,8 +51,15 @@ export async function registerCustomer(input: {
   if (!email || !input.password) return { error: "missing" };
   if (input.password.length < 6) return { error: "weak_password" };
 
-  const existing = await get<{ id: number }>(`SELECT id FROM customer_accounts WHERE email = ?`, email);
-  if (existing) return { error: "duplicate_email" };
+  const existing = await get<{ id: number; password_hash: string }>(
+    `SELECT id, password_hash FROM customer_accounts WHERE email = ?`,
+    email
+  );
+  if (existing) {
+    // Caso: cuenta migrada/invitada sin password activado — guiarlo al flow de reset, no es duplicado real.
+    if (!existing.password_hash) return { error: "needs_activation" };
+    return { error: "duplicate_email" };
+  }
 
   const hash = await bcrypt.hash(input.password, 10);
   const result = await run(

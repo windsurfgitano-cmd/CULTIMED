@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { registerCustomer, getCurrentCustomer } from "@/lib/auth";
 import { isValidRut, formatRut, cleanRut } from "@/lib/rut";
@@ -9,6 +9,8 @@ import {
   REFERRAL_COOKIE_NAME,
 } from "@/lib/referrals";
 import { get } from "@/lib/db";
+import { createCustomerResetToken } from "@/lib/password-reset";
+import { sendEmail, emailLayout } from "@/lib/email";
 
 async function registerAction(formData: FormData) {
   "use server";
@@ -29,6 +31,27 @@ async function registerAction(formData: FormData) {
 
   const result = await registerCustomer({ email, password, full_name: fullName, rut, phone });
   if ("error" in result) {
+    // Caso especial: usuario migrado que intenta registrarse — dispara email de activación auto
+    if (result.error === "needs_activation") {
+      const ip = headers().get("x-forwarded-for") || headers().get("x-real-ip") || null;
+      const reset = await createCustomerResetToken({ email, ip: ip || undefined });
+      if (reset) {
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `https://${headers().get("host") || "dispensariocultimed.cl"}`;
+        const link = `${baseUrl}/recuperar/${reset.token}`;
+        await sendEmail({
+          to: email,
+          subject: "Activa tu cuenta Cultimed",
+          html: emailLayout({
+            preheader: "Activa tu cuenta Cultimed — define tu contraseña",
+            title: "Activa tu cuenta.",
+            body: `<p>Hola,</p><p>Detectamos que intentaste registrarte con un email que ya tiene cuenta en Cultimed pero aún no la has activado.</p><p>Define tu contraseña con el enlace de abajo (válido 1 hora) y entra normalmente con email + nueva contraseña.</p>`,
+            ctaLabel: "Definir mi contraseña",
+            ctaUrl: link,
+          }),
+          text: `Detectamos que intentaste registrarte con un email que ya existe en Cultimed pero sin activar.\n\nDefine tu contraseña aquí (válido 1 hora):\n${link}\n\nCultimed`,
+        });
+      }
+    }
     redirect(`/registro?e=${result.error}&next=${encodeURIComponent(next)}`);
   }
 
@@ -46,6 +69,7 @@ const ERR: Record<string, string> = {
   missing: "Completa todos los campos obligatorios.",
   weak_password: "La contraseña debe tener al menos 6 caracteres.",
   duplicate_email: "Ya existe una cuenta con ese email. Intenta ingresar.",
+  needs_activation: "Tu cuenta existe pero aún no la has activado. Te enviamos email para crear tu contraseña — revisa tu inbox (y spam).",
   rut_invalid: "RUT inválido. Verifica el dígito verificador.",
 };
 
