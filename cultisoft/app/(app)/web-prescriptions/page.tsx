@@ -54,11 +54,12 @@ export default async function WebPrescriptionsPage({
      ORDER BY
        CASE c.prescription_status
          WHEN 'pending' THEN 1
-         WHEN 'approved' THEN 2
-         WHEN 'rejected' THEN 3
-         ELSE 4
+         WHEN 'aprobada' THEN 2
+         WHEN 'rechazada' THEN 3
+         WHEN 'expired' THEN 4
+         ELSE 5
        END,
-       c.prescription_uploaded_at DESC`,
+       c.prescription_uploaded_at DESC NULLS LAST`,
     ...params
   );
 

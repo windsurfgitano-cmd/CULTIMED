@@ -61,6 +61,18 @@ export async function registerCustomer(input: {
     return { error: "duplicate_email" };
   }
 
+  // Normaliza y valida RUT único — clave para trazabilidad SANNA y para la referencia
+  // de transferencia bancaria (que usa el RUT del paciente).
+  const rutNorm = (input.rut || "").trim().replace(/\./g, "").replace(/\s/g, "").toUpperCase();
+  if (rutNorm) {
+    const rutDup = await get<{ id: number }>(
+      `SELECT id FROM customer_accounts
+       WHERE UPPER(REPLACE(REPLACE(COALESCE(rut,''), '.', ''), ' ', '')) = ?`,
+      rutNorm
+    );
+    if (rutDup) return { error: "duplicate_rut" };
+  }
+
   const hash = await bcrypt.hash(input.password, 10);
   const result = await run(
     `INSERT INTO customer_accounts (email, password_hash, full_name, rut, phone, age_gate_accepted_at)
@@ -71,17 +83,24 @@ export async function registerCustomer(input: {
   return (await getCurrentCustomer())!;
 }
 
-export async function loginCustomer(email: string, password: string): Promise<CustomerAccount | null> {
+export type LoginResult =
+  | { ok: true; account: CustomerAccount }
+  | { ok: false; reason: "invalid" | "needs_activation" };
+
+export async function loginCustomer(email: string, password: string): Promise<LoginResult> {
   const acc = await get<CustomerAccount & { password_hash: string }>(
     `SELECT * FROM customer_accounts WHERE email = ?`,
     email.trim().toLowerCase()
   );
-  if (!acc) return null;
+  if (!acc) return { ok: false, reason: "invalid" };
+  // Cuenta migrada de Shopify o invitada que aún no definió contraseña:
+  // password_hash es string vacío. No es "credencial inválida" — necesita activar.
+  if (!acc.password_hash) return { ok: false, reason: "needs_activation" };
   const ok = await bcrypt.compare(password, acc.password_hash);
-  if (!ok) return null;
+  if (!ok) return { ok: false, reason: "invalid" };
   setCookie(acc.id);
   const { password_hash, ...rest } = acc as any;
-  return rest;
+  return { ok: true, account: rest };
 }
 
 function setCookie(id: number) {

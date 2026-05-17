@@ -8,8 +8,15 @@ async function loginAction(formData: FormData) {
   const password = String(formData.get("password") || "");
   const next = String(formData.get("next") || "/mi-cuenta");
   if (!email || !password) redirect("/ingresar?e=missing&next=" + encodeURIComponent(next));
-  const acc = await loginCustomer(email, password);
-  if (!acc) redirect("/ingresar?e=invalid&next=" + encodeURIComponent(next));
+  const result = await loginCustomer(email, password);
+  if (!result.ok) {
+    // Cuenta sin activar (migrada de Shopify / invitada): la mandamos a recuperar
+    // contraseña con el email pre-cargado, en vez de un confuso "credencial inválida".
+    if (result.reason === "needs_activation") {
+      redirect("/recuperar?activar=1&email=" + encodeURIComponent(email.trim().toLowerCase()));
+    }
+    redirect("/ingresar?e=invalid&next=" + encodeURIComponent(next));
+  }
   redirect(next);
 }
 

@@ -34,11 +34,22 @@ async function changeStatus(formData: FormData) {
   const id = Number(formData.get("id"));
   const status = String(formData.get("status"));
   if (!id || !["pending", "active", "fulfilled", "rejected", "expired"].includes(status)) return;
-  await run(
-    `UPDATE prescriptions SET status = ?, verified_by = ?, verified_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-     WHERE id = ?`,
-    status, staff.id, id
-  );
+
+  // verified_by/verified_at solo se setean al VERIFICAR la receta (pasar a 'active').
+  // Cambios posteriores (fulfilled/expired/etc.) NO deben pisar quién la verificó originalmente
+  // — eso falsificaría el registro clínico bajo normativa SANNA.
+  if (status === "active") {
+    await run(
+      `UPDATE prescriptions SET status = ?, verified_by = ?, verified_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      status, staff.id, id
+    );
+  } else {
+    await run(
+      `UPDATE prescriptions SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      status, id
+    );
+  }
   await logAudit({ staffId: staff.id, action: `prescription_${status}`, entityType: "prescription", entityId: id });
   redirect(`/prescriptions/${id}`);
 }

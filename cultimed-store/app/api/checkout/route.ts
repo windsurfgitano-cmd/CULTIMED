@@ -44,11 +44,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "mp_disabled" }, { status: 400 });
   }
 
-  // Recompute totals server-side from products table to avoid client tampering
+  // Recompute totals server-side from products table to avoid client tampering.
+  // Además verificamos stock disponible: la suma de quantity_current de los lotes
+  // 'available' de cada producto debe cubrir la cantidad pedida — evita overselling.
   let subtotal = 0;
   const validatedItems: Array<{
     productId: number; qty: number; unitPrice: number; total: number; name: string;
   }> = [];
+  const outOfStock: string[] = [];
 
   for (const it of body.items) {
     const product = await get<{ default_price: number; name: string }>(
@@ -56,6 +59,19 @@ export async function POST(req: NextRequest) {
       it.productId
     );
     if (!product) continue;
+    if (it.quantity <= 0) continue;
+
+    const stockRow = await get<{ available: number }>(
+      `SELECT COALESCE(SUM(quantity_current), 0)::int AS available
+       FROM batches WHERE product_id = ? AND status = 'available'`,
+      it.productId
+    );
+    const available = stockRow?.available ?? 0;
+    if (available < it.quantity) {
+      outOfStock.push(`${product.name} — disponible: ${available}, pediste: ${it.quantity}`);
+      continue;
+    }
+
     const total = product.default_price * it.quantity;
     subtotal += total;
     validatedItems.push({
@@ -67,6 +83,12 @@ export async function POST(req: NextRequest) {
     });
   }
 
+  if (outOfStock.length > 0) {
+    return NextResponse.json(
+      { error: "out_of_stock", detail: outOfStock },
+      { status: 409 }
+    );
+  }
   if (validatedItems.length === 0) {
     return NextResponse.json({ error: "no_valid_items" }, { status: 400 });
   }

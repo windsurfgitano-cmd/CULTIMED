@@ -56,7 +56,16 @@ export default function CheckoutClient({
         body: JSON.stringify(payload),
       });
       const json = await res.json();
-      if (!res.ok || !json.orderId) throw new Error(json.error || "Error");
+      if (!res.ok || !json.orderId) {
+        // Stock insuficiente: mostramos el detalle por producto
+        if (json.error === "out_of_stock" && Array.isArray(json.detail)) {
+          throw new Error(
+            "Algunos productos ya no tienen stock suficiente:\n" + json.detail.join("\n") +
+            "\nAjusta tu carrito e intenta de nuevo."
+          );
+        }
+        throw new Error(json.error || "Error");
+      }
       clear();
 
       // Si MercadoPago, redirigimos al checkout de MP
@@ -105,7 +114,7 @@ export default function CheckoutClient({
 
         {error && (
           <div className="mb-8 p-5 bg-sangria/10 border-l-2 border-sangria">
-            <p className="text-sm text-ink">{error}</p>
+            <p className="text-sm text-ink whitespace-pre-line">{error}</p>
           </div>
         )}
 

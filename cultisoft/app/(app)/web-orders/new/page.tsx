@@ -55,11 +55,12 @@ async function createOrderAction(formData: FormData) {
   const items: Array<{ product_id: number; quantity: number; unit_price: number; total: number }> = [];
   for (let i = 0; i < productIds.length; i++) {
     if (!productIds[i] || qtys[i] <= 0) continue;
-    const p = await get<{ default_price: number }>(
+    const p = await get<{ default_price: number | null }>(
       `SELECT default_price FROM products WHERE id = ? AND is_active = 1`,
       productIds[i]
     );
-    if (!p) continue;
+    // Producto inexistente, inactivo, o SIN PRECIO definido → se omite (evita total NaN).
+    if (!p || p.default_price == null || p.default_price <= 0) continue;
     items.push({
       product_id: productIds[i],
       quantity: qtys[i],

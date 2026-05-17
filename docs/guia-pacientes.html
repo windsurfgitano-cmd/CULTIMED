@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Cultimed · Guía del paciente</title>
+<style>
+  /* ─────────── DESIGN TOKENS ─────────── */
+  :root {
+    --paper: #F7F1E5;
+    --paper-bright: #FBF5E8;
+    --paper-dim: #ECE3CC;
+    --ink: #1a1a1a;
+    --ink-deep: #0F1A22;
+    --ink-muted: #5d544a;
+    --ink-subtle: #8b7d5c;
+    --rule: #C9B891;
+    --rule-soft: #DCD3C4;
+    --brass: #B89968;
+    --brass-dim: #8b7d5c;
+    --sangria: #9b3a3a;
+    --forest: #1F3A2D;
+  }
+
+  @page {
+    size: 8.5in 11in;
+    margin: 0;
+  }
+
+  @media print {
+    html, body { background: var(--paper); }
+    .page { box-shadow: none !important; margin: 0 !important; }
+  }
+
+  * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #2a2a2a;
+    font-family: "Helvetica Neue", "Helvetica", "Arial", sans-serif;
+    font-size: 10.5pt;
+    line-height: 1.6;
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ─────────── PAGE FRAME ─────────── */
+  .page {
+    width: 8.5in;
+    height: 11in;
+    margin: 24px auto;
+    background: var(--paper);
+    position: relative;
+    overflow: hidden;
+    page-break-after: always;
+    box-shadow: 0 12px 60px rgba(0,0,0,0.4);
+  }
+  .page:last-child { page-break-after: auto; }
+
+  .page-inner {
+    position: absolute;
+    inset: 0.65in;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Editorial corner marks */
+  .page::before, .page::after {
+    content: "";
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    border: 1px solid var(--rule);
+    opacity: 0.5;
+  }
+  .page::before { top: 0.3in; left: 0.3in; border-right: none; border-bottom: none; }
+  .page::after { bottom: 0.3in; right: 0.3in; border-left: none; border-top: none; }
+
+  /* ─────────── TYPOGRAPHY ─────────── */
+  .eyebrow {
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 8.5pt;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--brass-dim);
+    font-weight: 600;
+  }
+  .eyebrow .dot { color: var(--brass); margin: 0 6px; }
+
+  .display {
+    font-family: Georgia, "Times New Roman", serif;
+    font-weight: 300;
+    letter-spacing: -0.015em;
+    color: var(--ink-deep);
+    line-height: 0.95;
+  }
+  .display em { font-style: italic; font-weight: 400; }
+
+  h1.display { font-size: 56pt; margin: 0; }
+  h2.display { font-size: 32pt; margin: 0 0 14px; line-height: 1.0; }
+  h3.display { font-size: 18pt; margin: 0 0 10px; line-height: 1.1; }
+
+  .lead {
+    font-family: Georgia, serif;
+    font-size: 14pt;
+    font-style: italic;
+    color: var(--ink-muted);
+    line-height: 1.4;
+    margin: 0;
+  }
+
+  .body { font-size: 10.5pt; line-height: 1.65; color: var(--ink-muted); margin: 0 0 10px; }
+  .body strong { color: var(--ink); font-weight: 600; }
+
+  /* Editorial numeral mark used as section anchor */
+  .numeral {
+    font-family: Georgia, serif;
+    font-style: italic;
+    font-weight: 400;
+    color: var(--brass);
+    font-size: 56pt;
+    line-height: 0.9;
+    letter-spacing: -0.02em;
+  }
+  .numeral.small { font-size: 22pt; }
+
+  /* Hairlines */
+  .hairline { height: 1px; background: var(--rule); width: 100%; }
+  .hairline-thick { height: 1px; background: var(--ink-deep); width: 100%; }
+
+  /* ─────────── COVER PAGE ─────────── */
+  .cover { padding: 0; display: block; }
+  .cover .hero {
+    position: relative;
+    width: 100%;
+    height: 5.0in;
+    overflow: hidden;
+  }
+  .cover .hero img {
+    width: 100%; height: 100%; object-fit: cover;
+    filter: contrast(1.05) saturate(0.95);
+  }
+  .cover .hero::after {
+    content: "";
+    position: absolute; inset: 0;
+    background: linear-gradient(to bottom, transparent 60%, var(--paper) 100%);
+  }
+  .cover-logo {
+    position: absolute;
+    top: 0.55in; left: 50%;
+    transform: translateX(-50%);
+    z-index: 2;
+  }
+  .cover-logo img { width: 140px; height: auto; display: block; filter: brightness(1.15) saturate(1.1); }
+
+  .cover-meta {
+    position: absolute;
+    top: 5.3in;
+    left: 0.7in;
+    right: 0.7in;
+  }
+  .cover-meta .eyebrow { font-size: 9pt; letter-spacing: 0.35em; }
+  .cover-meta .rule {
+    width: 80px;
+    height: 1px;
+    background: var(--ink-deep);
+    margin: 18px 0 28px;
+  }
+  .cover-meta h1 { margin: 0; }
+  .cover-meta h1 .lineA { display: block; font-size: 44pt; font-weight: 300; color: var(--ink-deep); letter-spacing: -0.02em; line-height: 1.0; }
+  .cover-meta h1 .lineB { display: block; font-size: 84pt; font-style: italic; font-weight: 400; color: var(--ink-deep); margin-top: -8px; letter-spacing: -0.04em; line-height: 0.95; }
+  .cover-meta .subline {
+    margin-top: 22px;
+    font-family: Georgia, serif;
+    font-size: 13pt;
+    font-style: italic;
+    color: var(--ink-muted);
+    max-width: 5in;
+    line-height: 1.4;
+  }
+
+  .cover-footer {
+    position: absolute;
+    bottom: 0.6in;
+    left: 0.7in;
+    right: 0.7in;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding-top: 14px;
+    border-top: 1px solid var(--rule);
+  }
+  .cover-footer .imprint {
+    font-family: "Helvetica Neue", sans-serif;
+    font-size: 7.5pt;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+  }
+  .cover-footer .channels {
+    font-family: Georgia, serif;
+    font-size: 10pt;
+    color: var(--ink-deep);
+    text-align: right;
+  }
+  .cover-footer .channels span { display: block; line-height: 1.5; }
+  .cover-footer .channels .url { font-style: italic; }
+
+  /* ─────────── CONTENT PAGE ─────────── */
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .page-header .brand {
+    font-family: Georgia, serif;
+    font-size: 11pt;
+    color: var(--ink-deep);
+  }
+  .page-header .brand .name { font-weight: 400; }
+  .page-header .brand .name em { font-style: italic; color: var(--brass-dim); }
+  .page-header .doc-title {
+    font-family: "Helvetica Neue", sans-serif;
+    font-size: 7.5pt;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    color: var(--ink-muted);
+  }
+
+  .page-footer {
+    margin-top: auto;
+    padding-top: 14px;
+    border-top: 1px solid var(--rule);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-family: "Helvetica Neue", sans-serif;
+    font-size: 7.5pt;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--ink-muted);
+  }
+  .page-footer .num {
+    font-family: Georgia, serif;
+    font-style: italic;
+    font-size: 14pt;
+    color: var(--brass);
+    letter-spacing: -0.02em;
+  }
+
+  /* ─────────── CONTENT BLOCKS ─────────── */
+  .content { flex: 1; padding-top: 24px; }
+
+  .section {
+    display: grid;
+    grid-template-columns: 90px 1fr;
+    column-gap: 28px;
+    margin-bottom: 28px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--rule-soft);
+  }
+  .section:last-child { border-bottom: none; padding-bottom: 0; }
+  .section .num {
+    grid-column: 1;
+    align-self: start;
+  }
+  .section .num .roman {
+    font-family: Georgia, serif;
+    font-style: italic;
+    font-weight: 400;
+    color: var(--brass);
+    font-size: 36pt;
+    line-height: 0.9;
+    display: block;
+    letter-spacing: -0.02em;
+  }
+  .section .body-col {
+    grid-column: 2;
+  }
+  .section h2.display {
+    font-size: 22pt;
+    margin: 0 0 14px;
+  }
+  .section .lead {
+    font-size: 11.5pt;
+    margin-bottom: 14px;
+  }
+  .section p { margin: 0 0 9px; }
+
+  /* Ordered editorial list */
+  ol.steps {
+    list-style: none;
+    margin: 8px 0 4px;
+    padding: 0;
+    counter-reset: step;
+  }
+  ol.steps > li {
+    counter-increment: step;
+    display: grid;
+    grid-template-columns: 28px 1fr;
+    column-gap: 12px;
+    padding: 7px 0;
+    border-bottom: 1px dotted var(--rule-soft);
+    font-size: 10.5pt;
+    color: var(--ink-muted);
+    line-height: 1.55;
+  }
+  ol.steps > li::before {
+    content: counter(step, decimal-leading-zero);
+    font-family: Georgia, serif;
+    font-style: italic;
+    color: var(--brass);
+    font-size: 12pt;
+    line-height: 1.4;
+  }
+  ol.steps > li strong { color: var(--ink-deep); font-weight: 600; }
+
+  /* Bullet refined list */
+  ul.refined {
+    list-style: none;
+    margin: 8px 0;
+    padding: 0;
+  }
+  ul.refined > li {
+    position: relative;
+    padding: 5px 0 5px 18px;
+    font-size: 10.5pt;
+    color: var(--ink-muted);
+    line-height: 1.55;
+  }
+  ul.refined > li::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 14px;
+    width: 8px; height: 1px;
+    background: var(--brass);
+  }
+
+  /* Callout (warning, info) */
+  .callout {
+    margin: 14px 0 4px;
+    padding: 14px 18px;
+    background: var(--paper-bright);
+    border-left: 2px solid var(--brass);
+    font-size: 10pt;
+    line-height: 1.55;
+    color: var(--ink-muted);
+  }
+  .callout .label {
+    font-family: "Helvetica Neue", sans-serif;
+    font-size: 8pt;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--brass-dim);
+    margin-right: 8px;
+    font-weight: 600;
+  }
+  .callout strong { color: var(--ink); font-weight: 600; }
+
+  .callout.alert {
+    border-left-color: var(--sangria);
+    background: rgba(155, 58, 58, 0.05);
+  }
+  .callout.alert .label { color: var(--sangria); }
+
+  /* Option pair (A / B) */
+  .options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 10px 0 6px;
+  }
+  .option {
+    padding: 14px 16px;
+    border: 1px solid var(--rule);
+    background: rgba(255,255,255,0.4);
+  }
+  .option .letter {
+    font-family: Georgia, serif;
+    font-style: italic;
+    font-size: 24pt;
+    color: var(--brass);
+    line-height: 1;
+    margin-bottom: 6px;
+    display: block;
+  }
+  .option .title {
+    font-family: Georgia, serif;
+    font-size: 12pt;
+    color: var(--ink-deep);
+    margin-bottom: 6px;
+    line-height: 1.3;
+  }
+  .option .title em { font-style: italic; }
+  .option .desc { font-size: 9.5pt; color: var(--ink-muted); line-height: 1.5; }
+  .option .url {
+    display: block;
+    margin-top: 8px;
+    font-family: "Helvetica Neue", sans-serif;
+    font-size: 9pt;
+    color: var(--ink-deep);
+    word-break: break-all;
+    padding: 4px 0;
+    border-top: 1px solid var(--rule-soft);
+  }
+
+  /* Support card */
+  .support-card {
+    margin-top: 16px;
+    padding: 22px 28px;
+    background: var(--ink-deep);
+    color: var(--paper);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+  }
+  .support-card .col {
+    font-family: Georgia, serif;
+  }
+  .support-card .col .lbl {
+    font-family: "Helvetica Neue", sans-serif;
+    font-size: 8pt;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--brass);
+    margin-bottom: 6px;
+    display: block;
+  }
+  .support-card .col .val {
+    font-size: 11pt;
+    color: var(--paper);
+    line-height: 1.5;
+    display: block;
+  }
+  .support-card .col .val.italic { font-style: italic; }
+
+  /* TOC table */
+  .toc {
+    margin: 32px 0 0;
+  }
+  .toc-item {
+    display: grid;
+    grid-template-columns: 36px 1fr auto;
+    column-gap: 16px;
+    align-items: baseline;
+    padding: 10px 0;
+    border-bottom: 1px dotted var(--rule-soft);
+  }
+  .toc-item:last-child { border-bottom: none; }
+  .toc-item .n {
+    font-family: Georgia, serif;
+    font-style: italic;
+    color: var(--brass);
+    font-size: 14pt;
+    line-height: 1;
+  }
+  .toc-item .label {
+    font-family: Georgia, serif;
+    font-size: 12pt;
+    color: var(--ink-deep);
+    line-height: 1.3;
+  }
+  .toc-item .label em { font-style: italic; color: var(--ink-muted); }
+  .toc-item .pg {
+    font-family: "Helvetica Neue", sans-serif;
+    font-size: 9pt;
+    color: var(--ink-subtle);
+    letter-spacing: 0.1em;
+  }
+
+  /* Inline code-ish url */
+  .ref-url {
+    font-family: "Helvetica Neue", sans-serif;
+    font-size: 9.5pt;
+    color: var(--ink-deep);
+    background: rgba(184, 153, 104, 0.12);
+    padding: 1px 5px;
+    border-bottom: 1px solid var(--brass);
+    text-decoration: none;
+  }
+
+  /* Quote-style intro */
+  .quote-intro {
+    margin: 20px 0 24px;
+    padding-left: 24px;
+    border-left: 2px solid var(--brass);
+    font-family: Georgia, serif;
+    font-style: italic;
+    font-size: 13pt;
+    line-height: 1.45;
+    color: var(--ink-muted);
+  }
+
+  /* Discrete grid 2 col split */
+  .split-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ PAGE 1 — COVER ═══════════════ -->
+<section class="page cover">
+  <div class="cover-logo">
+    <img src="https://ibkhvopshhlbvjwrmuzm.supabase.co/storage/v1/object/public/email-assets/cultimed-logo-gold.png" alt="Cultimed">
+  </div>
+
+  <div class="hero">
+    <img src="https://ibkhvopshhlbvjwrmuzm.supabase.co/storage/v1/object/public/email-assets/apothecary-hero.png" alt="">
+  </div>
+
+  <div class="cover-meta">
+    <div class="eyebrow">Guía del paciente <span class="dot">·</span> Edición 01 · 2026</div>
+    <div class="rule"></div>
+    <h1>
+      <span class="lineA">Bienvenido a la</span>
+      <span class="lineB">nueva plataforma.</span>
+    </h1>
+    <p class="subline">
+      Cómo activar tu cuenta, validar tu receta y comprar
+      con la rigurosidad clínica que mereces.
+    </p>
+  </div>
+
+  <div class="cover-footer">
+    <div class="imprint">Cultimed · Dispensario clínico autorizado</div>
+    <div class="channels">
+      <span class="url">dispensariocultimed.cl</span>
+      <span>WhatsApp · +56 9 9317 7375</span>
+      <span>contacto@dispensariocultimed.cl</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ PAGE 2 — TOC ═══════════════ -->
+<section class="page">
+  <div class="page-inner">
+    <header class="page-header">
+      <div class="brand">
+        <span class="name">Culti<em>med</em></span>
+      </div>
+      <div class="doc-title">Guía del paciente · v1.0</div>
+    </header>
+
+    <div class="content">
+      <div style="display:grid; grid-template-columns: 90px 1fr; column-gap: 28px;">
+        <div></div>
+        <div>
+          <p class="eyebrow" style="margin-bottom:16px;">— Índice</p>
+          <h2 class="display" style="font-size:38pt;">
+            <span style="font-weight:300;">Cinco</span> <em>pasos</em>
+            <br><span style="font-weight:300;">para empezar.</span>
+          </h2>
+
+          <div class="quote-intro" style="margin-top:30px;">
+            Si recibiste un email nuestro de migración, salta directo
+            al paso 01. Si no, comienza por el 02 para reclamar o crear
+            tu cuenta. El resto te acompaña hasta tu primera dispensación.
+          </div>
+
+          <div class="toc">
+            <div class="toc-item">
+              <div class="n">I</div>
+              <div class="label">Activar tu cuenta <em>(si te llegó el email de migración)</em></div>
+              <div class="pg">PÁG. 03</div>
+            </div>
+            <div class="toc-item">
+              <div class="n">II</div>
+              <div class="label">¿No te llegó el email?</div>
+              <div class="pg">PÁG. 04</div>
+            </div>
+            <div class="toc-item">
+              <div class="n">III</div>
+              <div class="label">Hacer una compra</div>
+              <div class="pg">PÁG. 05</div>
+            </div>
+            <div class="toc-item">
+              <div class="n">IV</div>
+              <div class="label">Cambiar tu contraseña</div>
+              <div class="pg">PÁG. 06</div>
+            </div>
+            <div class="toc-item">
+              <div class="n">V</div>
+              <div class="label">Soporte <em>y horarios</em></div>
+              <div class="pg">PÁG. 06</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="page-footer">
+      <span>Cultimed · Asociación de Usuarios de Plantas Medicinales · Ley 20.850</span>
+      <span class="num">02</span>
+    </footer>
+  </div>
+</section>
+
+<!-- ═══════════════ PAGE 3 — SECTION I ═══════════════ -->
+<section class="page">
+  <div class="page-inner">
+    <header class="page-header">
+      <div class="brand"><span class="name">Culti<em>med</em></span></div>
+      <div class="doc-title">Guía del paciente · v1.0</div>
+    </header>
+
+    <div class="content">
+      <div class="section">
+        <div class="num"><span class="roman">I</span></div>
+        <div class="body-col">
+          <p class="eyebrow">— Activación de cuenta migrada</p>
+          <h2 class="display"><span style="font-weight:300;">Tu cuenta</span> <em>te espera</em><span style="font-weight:300;">.</span></h2>
+          <p class="lead">Si recibiste el email "Tu cuenta migró · Cultimed", todos tus datos y receta están listos.</p>
+
+          <ol class="steps">
+            <li>Abre el email <strong>"Tu cuenta migró · Cultimed"</strong> en tu bandeja de entrada (revisa también la carpeta de spam si no lo ves).</li>
+            <li>Haz click en el botón navy <strong>"Definir mi contraseña"</strong>.</li>
+            <li>Crea una contraseña <strong>mínimo 6 caracteres</strong> &mdash; elige algo que recuerdes.</li>
+            <li>Listo. Ya estás dentro de la nueva plataforma.</li>
+          </ol>
+
+          <div class="callout alert">
+            <span class="label">Importante</span>
+            El link del email es válido por <strong>14 días</strong>. Si ya caducó, pide uno nuevo en
+            <a href="https://dispensariocultimed.cl/recuperar" class="ref-url">dispensariocultimed.cl/recuperar</a>.
+          </div>
+
+          <div class="callout">
+            <span class="label">Si tu receta estaba aprobada</span>
+            No necesitas volver a subirla. Ya está vigente en la nueva plataforma y puedes
+            comprar inmediatamente después de definir tu contraseña.
+          </div>
+        </div>
+      </div>
+
+      <div class="section" style="border-bottom:none;">
+        <div class="num"></div>
+        <div class="body-col">
+          <p class="eyebrow">— Qué pasa después de activar</p>
+          <p class="body" style="font-size:11pt;">
+            Al definir tu contraseña, accedes a tu panel personal en
+            <a href="https://dispensariocultimed.cl/mi-cuenta" class="ref-url">mi-cuenta</a>.
+            Desde ahí ves el estado de tu receta, tus pedidos pasados, dirección de despacho guardada,
+            y tienes acceso al catálogo completo si tu receta médica está vigente.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <footer class="page-footer">
+      <span>Cultimed · Asociación de Usuarios de Plantas Medicinales · Ley 20.850</span>
+      <span class="num">03</span>
+    </footer>
+  </div>
+</section>
+
+<!-- ═══════════════ PAGE 4 — SECTION II ═══════════════ -->
+<section class="page">
+  <div class="page-inner">
+    <header class="page-header">
+      <div class="brand"><span class="name">Culti<em>med</em></span></div>
+      <div class="doc-title">Guía del paciente · v1.0</div>
+    </header>
+
+    <div class="content">
+      <div class="section">
+        <div class="num"><span class="roman">II</span></div>
+        <div class="body-col">
+          <p class="eyebrow">— Dos caminos posibles</p>
+          <h2 class="display"><span style="font-weight:300;">¿No te llegó el</span> <em>email</em><span style="font-weight:300;">?</span></h2>
+          <p class="lead">No te preocupes. Hay dos rutas según tu historia con nosotros.</p>
+
+          <div class="options">
+            <div class="option">
+              <span class="letter">A</span>
+              <p class="title">Eras <em>paciente</em><br>Cultimed antes</p>
+              <p class="desc">Solicitas un link de recuperación. Lo enviamos al email con que estabas registrado.</p>
+              <span class="url">dispensariocultimed.cl/recuperar</span>
+            </div>
+            <div class="option">
+              <span class="letter">B</span>
+              <p class="title">Eres <em>nuevo</em><br>paciente</p>
+              <p class="desc">Te registras desde cero, llenas tus datos y subes tu receta médica.</p>
+              <span class="url">dispensariocultimed.cl/registro</span>
+            </div>
+          </div>
+
+          <div style="margin-top:24px;">
+            <p class="eyebrow" style="margin-bottom:10px;">Opción A · paciente antiguo</p>
+            <ol class="steps">
+              <li>Ingresa a <a href="https://dispensariocultimed.cl/recuperar" class="ref-url">dispensariocultimed.cl/recuperar</a>.</li>
+              <li>Escribe el email con el que comprabas antes en Cultimed.</li>
+              <li>Te llega un nuevo enlace en menos de 1 minuto.</li>
+              <li>Click el enlace, define contraseña, listo.</li>
+            </ol>
+          </div>
+
+          <div style="margin-top:20px;">
+            <p class="eyebrow" style="margin-bottom:10px;">Opción B · paciente nuevo</p>
+            <ol class="steps">
+              <li>Ingresa a <a href="https://dispensariocultimed.cl/registro" class="ref-url">dispensariocultimed.cl/registro</a>.</li>
+              <li>Completa email, nombre, RUT, teléfono y tu contraseña.</li>
+              <li>Inicia sesión y entra a <strong>Mi cuenta &rarr; Recetas</strong>.</li>
+              <li>Sube tu receta médica vigente (PDF, JPG o PNG, máx. 8MB).</li>
+              <li>Nuestro Químico Farmacéutico la valida en <strong>menos de 24 horas hábiles</strong>.</li>
+            </ol>
+          </div>
+
+          <div class="callout">
+            <span class="label">Receta retenida</span>
+            Si tu receta es de tipo <strong>retenida</strong> (estupefaciente), la conservaremos en nuestros
+            archivos físicos según exige la normativa SANNA. Te lo confirmamos al momento de validar.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="page-footer">
+      <span>Cultimed · Asociación de Usuarios de Plantas Medicinales · Ley 20.850</span>
+      <span class="num">04</span>
+    </footer>
+  </div>
+</section>
+
+<!-- ═══════════════ PAGE 5 — SECTION III ═══════════════ -->
+<section class="page">
+  <div class="page-inner">
+    <header class="page-header">
+      <div class="brand"><span class="name">Culti<em>med</em></span></div>
+      <div class="doc-title">Guía del paciente · v1.0</div>
+    </header>
+
+    <div class="content">
+      <div class="section" style="border-bottom:none;">
+        <div class="num"><span class="roman">III</span></div>
+        <div class="body-col">
+          <p class="eyebrow">— Tu primera dispensación</p>
+          <h2 class="display"><span style="font-weight:300;">Hacer una</span> <em>compra</em><span style="font-weight:300;">.</span></h2>
+          <p class="lead">Siete pasos desde tu login hasta el despacho en tu casa o consulta.</p>
+
+          <ol class="steps">
+            <li>Inicia sesión en <a href="https://dispensariocultimed.cl/ingresar" class="ref-url">dispensariocultimed.cl/ingresar</a> con tu email y contraseña.</li>
+            <li>El <strong>catálogo aparece sólo después</strong> de que tu Químico Farmacéutico haya validado tu receta. Si aún no la has subido, hazlo en <strong>Mi cuenta &rarr; Recetas</strong>.</li>
+            <li>Elige el producto y el <strong>gramaje</strong> (5g, 10g o 20g para flor; mililitros para aceite). Agrega al carrito.</li>
+            <li>En el checkout, ingresa tus datos de despacho: dirección, comuna, teléfono WhatsApp.</li>
+            <li>Selecciona pago por <strong>transferencia bancaria</strong>. Recibes los datos de cuenta y monto exacto.</li>
+            <li class="strong-line"><strong>Tienes -10% de descuento</strong> automático por pagar con transferencia. El total final se muestra antes de confirmar.</li>
+            <li>Una vez transferido, sube tu <strong>comprobante</strong> en la misma página del pedido (sección "Sube tu comprobante"). Te confirmamos el pago en menos de 4 horas hábiles y te avisamos por WhatsApp cuando esté listo para retiro o despacho.</li>
+          </ol>
+
+          <div class="callout">
+            <span class="label">Tiempos de despacho</span>
+            <strong>24 a 72 horas hábiles</strong> desde que confirmamos tu pago. El courier privado
+            te avisa por WhatsApp el día de entrega. Si pides retiro, te avisamos cuando esté listo en farmacia.
+          </div>
+
+          <div class="callout alert">
+            <span class="label">Atención</span>
+            Cada lote que dispensamos tiene su número de seguimiento y certificado de análisis (COA).
+            Está disponible en tu página de pedido por cumplimiento de trazabilidad GMP.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="page-footer">
+      <span>Cultimed · Asociación de Usuarios de Plantas Medicinales · Ley 20.850</span>
+      <span class="num">05</span>
+    </footer>
+  </div>
+</section>
+
+<!-- ═══════════════ PAGE 6 — SECTIONS IV & V ═══════════════ -->
+<section class="page">
+  <div class="page-inner">
+    <header class="page-header">
+      <div class="brand"><span class="name">Culti<em>med</em></span></div>
+      <div class="doc-title">Guía del paciente · v1.0</div>
+    </header>
+
+    <div class="content">
+      <div class="section">
+        <div class="num"><span class="roman">IV</span></div>
+        <div class="body-col">
+          <p class="eyebrow">— Seguridad de tu cuenta</p>
+          <h2 class="display"><span style="font-weight:300;">Cambiar tu</span> <em>contraseña</em><span style="font-weight:300;">.</span></h2>
+          <p class="lead">En cualquier momento, desde tu cuenta logueada.</p>
+
+          <ol class="steps">
+            <li>Inicia sesión en <a href="https://dispensariocultimed.cl/ingresar" class="ref-url">dispensariocultimed.cl/ingresar</a>.</li>
+            <li>Ve a <strong>"Mi cuenta"</strong> en la barra superior.</li>
+            <li>En la columna derecha verás el enlace <strong>"Cambiar contraseña &rarr;"</strong>.</li>
+            <li>Ingresa tu contraseña actual + nueva (mín. 6 caracteres) + confirmación.</li>
+          </ol>
+
+          <div class="callout">
+            <span class="label">Si olvidaste tu actual</span>
+            No te preocupes: vuelve al flujo de
+            <a href="https://dispensariocultimed.cl/recuperar" class="ref-url">recuperar contraseña</a>
+            con tu email. Te enviamos un link nuevo para resetearla.
+          </div>
+        </div>
+      </div>
+
+      <div class="section" style="border-bottom:none;">
+        <div class="num"><span class="roman" style="font-size:36pt;">V</span></div>
+        <div class="body-col">
+          <p class="eyebrow">— Soporte humano</p>
+          <h2 class="display"><span style="font-weight:300;">Estamos</span> <em>aquí</em><span style="font-weight:300;">.</span></h2>
+
+          <div class="support-card">
+            <div class="col">
+              <span class="lbl">Email</span>
+              <span class="val italic">contacto@dispensariocultimed.cl</span>
+              <span class="lbl" style="margin-top:14px;">WhatsApp</span>
+              <span class="val">+56 9 9317 7375</span>
+            </div>
+            <div class="col">
+              <span class="lbl">Atención</span>
+              <span class="val">Lunes a Viernes<br>10:00 — 19:00</span>
+              <span class="val" style="margin-top:6px;">Sábado<br>10:00 — 14:00</span>
+            </div>
+          </div>
+
+          <p class="body" style="margin-top:18px; font-size:10pt;">
+            Por temas clínicos o reacciones inesperadas, también podemos derivarte a uno de nuestros médicos
+            tratantes. Para eso, agenda una <a href="https://dispensariocultimed.cl/consulta" class="ref-url">consulta médica online</a>.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <footer class="page-footer">
+      <span>Cultimed · Asociación de Usuarios de Plantas Medicinales · Ley 20.850 / 19.628</span>
+      <span class="num">06</span>
+    </footer>
+  </div>
+</section>
+
+</body>
+</html>

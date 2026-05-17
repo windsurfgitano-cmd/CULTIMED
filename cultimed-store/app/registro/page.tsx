@@ -69,6 +69,7 @@ const ERR: Record<string, string> = {
   missing: "Completa todos los campos obligatorios.",
   weak_password: "La contraseña debe tener al menos 6 caracteres.",
   duplicate_email: "Ya existe una cuenta con ese email. Intenta ingresar.",
+  duplicate_rut: "Ya existe una cuenta registrada con ese RUT. Si es tuya, ingresa o recupera tu contraseña.",
   needs_activation: "Tu cuenta existe pero aún no la has activado. Te enviamos email para crear tu contraseña — revisa tu inbox (y spam).",
   rut_invalid: "RUT inválido. Verifica el dígito verificador.",
 };

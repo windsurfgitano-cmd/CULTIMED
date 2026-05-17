@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { requireStaff } from "@/lib/auth";
+import { requireStaff, isAdminOrAbove } from "@/lib/auth";
 import { all, get, run, transaction } from "@/lib/db";
 import { formatCLP, formatDateTime } from "@/lib/format";
 import { logAudit } from "@/lib/audit";
@@ -63,7 +63,7 @@ interface OrderEvent {
 const STORE_PUBLIC_BASE = process.env.STORE_PUBLIC_BASE || "http://localhost:3000";
 
 const STATUS_META: Record<string, { label: string; cls: string }> = {
-  pending_proof:    { label: "Esperando comprobante", cls: "pill-neutral" },
+  pending_payment:  { label: "Esperando comprobante", cls: "pill-neutral" },
   proof_uploaded:   { label: "Comprobante recibido", cls: "pill-warning" },
   paid:             { label: "Pago confirmado",       cls: "pill-success" },
   preparing:        { label: "En preparación",        cls: "pill-tertiary" },
@@ -96,6 +96,7 @@ async function adminUploadProofAction(formData: FormData) {
   "use server";
   const staff = await requireStaff();
   const id = Number(formData.get("id"));
+  if (!isAdminOrAbove(staff)) redirect(`/web-orders/${id}?e=forbidden`);
   const file = formData.get("proof") as File | null;
   const channel = String(formData.get("channel") || "manual").trim(); // "whatsapp", "email", "in-person", etc.
   const notes = String(formData.get("notes") || "").trim();
@@ -197,7 +198,7 @@ async function transitionAction(formData: FormData) {
       defaultMsg: "Entregado al paciente.",
     },
     cancel: {
-      from: ["pending_proof", "proof_uploaded", "paid", "preparing", "ready_for_pickup"],
+      from: ["pending_payment", "proof_uploaded", "paid", "preparing", "ready_for_pickup"],
       to: "cancelled",
       event: "cancelled",
       defaultMsg: "Pedido cancelado.",
@@ -207,6 +208,13 @@ async function transitionAction(formData: FormData) {
   const rule = transitions[action];
   if (!rule) return;
   if (!rule.from.includes(order.status)) return;
+
+  // Acciones que tocan dinero o cancelan: solo admin/superadmin.
+  // Transiciones operativas (preparar, despachar, entregar): cualquier staff.
+  const adminOnlyActions = ["confirm_payment", "reject_payment", "cancel"];
+  if (adminOnlyActions.includes(action) && !isAdminOrAbove(staff)) {
+    redirect(`/web-orders/${id}?e=forbidden`);
+  }
 
   await transaction(async (tx) => {
     if (action === "confirm_payment") {
@@ -379,6 +387,11 @@ export default async function WebOrderDetail({
       {searchParams.e === "wrong_status" && (
         <div className="mb-6 p-4 border-l-2 border-sangria bg-sangria/5">
           <p className="text-sm text-ink">No se puede subir comprobante en este estado del pedido.</p>
+        </div>
+      )}
+      {searchParams.e === "forbidden" && (
+        <div className="mb-6 p-4 border-l-2 border-sangria bg-sangria/5">
+          <p className="text-sm text-ink">No tienes permisos para esa acción. Confirmar pagos, rechazar y cancelar pedidos requiere rol administrador.</p>
         </div>
       )}
 

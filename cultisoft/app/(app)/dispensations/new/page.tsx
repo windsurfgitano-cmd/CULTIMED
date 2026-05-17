@@ -46,6 +46,21 @@ async function createDispensation(formData: FormData) {
   }
   if (!patientId || items.length === 0) redirect("/dispensations/new?e=missing");
 
+  // Consolidar items por lote: si el usuario agregó el mismo batch dos veces, sumamos
+  // las cantidades en UNA sola línea. Sin esto, la verificación de stock chequea cada
+  // línea contra el mismo quantity_current y el UPDATE descuenta dos veces (doble merma).
+  {
+    const byBatch = new Map<number, typeof items[number]>();
+    for (const it of items) {
+      if (!it.batchId || it.quantity <= 0) continue;
+      const existing = byBatch.get(it.batchId);
+      if (existing) existing.quantity += it.quantity;
+      else byBatch.set(it.batchId, { ...it });
+    }
+    items = Array.from(byBatch.values());
+  }
+  if (items.length === 0) redirect("/dispensations/new?e=missing");
+
   const folio = `DISP-${new Date().getFullYear()}-${Date.now().toString(36).toUpperCase()}`;
   let total = 0;
   for (const it of items) total += it.price * it.quantity;

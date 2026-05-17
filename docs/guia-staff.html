@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Cultisoft · Manual operativo</title>
+<style>
+  :root {
+    --paper: #F7F1E5;
+    --paper-bright: #FBF5E8;
+    --paper-dim: #ECE3CC;
+    --ink: #1a1a1a;
+    --ink-deep: #0F1A22;
+    --ink-muted: #5d544a;
+    --ink-subtle: #8b7d5c;
+    --rule: #C9B891;
+    --rule-soft: #DCD3C4;
+    --brass: #B89968;
+    --brass-dim: #8b7d5c;
+    --sangria: #9b3a3a;
+    --forest: #1F3A2D;
+  }
+  @page { size: 8.5in 11in; margin: 0; }
+  @media print {
+    html, body { background: var(--paper); }
+    .page { box-shadow: none !important; margin: 0 !important; }
+  }
+
+  * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  html, body {
+    margin: 0; padding: 0;
+    background: #2a2a2a;
+    font-family: "Helvetica Neue", "Helvetica", "Arial", sans-serif;
+    font-size: 10pt;
+    line-height: 1.55;
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    width: 8.5in;
+    height: 11in;
+    margin: 24px auto;
+    background: var(--paper);
+    position: relative;
+    overflow: hidden;
+    page-break-after: always;
+    box-shadow: 0 12px 60px rgba(0,0,0,0.4);
+  }
+  .page:last-child { page-break-after: auto; }
+  .page-inner { position: absolute; inset: 0.6in; display: flex; flex-direction: column; }
+
+  .page::before, .page::after {
+    content: ""; position: absolute; width: 16px; height: 16px;
+    border: 1px solid var(--rule); opacity: 0.5;
+  }
+  .page::before { top: 0.28in; left: 0.28in; border-right: none; border-bottom: none; }
+  .page::after { bottom: 0.28in; right: 0.28in; border-left: none; border-top: none; }
+
+  .eyebrow {
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 8pt;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--brass-dim);
+    font-weight: 600;
+  }
+  .eyebrow .dot { color: var(--brass); margin: 0 6px; }
+
+  .display { font-family: Georgia, "Times New Roman", serif; font-weight: 300; letter-spacing: -0.015em; color: var(--ink-deep); line-height: 0.95; }
+  .display em { font-style: italic; font-weight: 400; }
+
+  h1.display { font-size: 50pt; margin: 0; }
+  h2.display { font-size: 20pt; margin: 0 0 12px; line-height: 1.05; }
+  h3.display { font-size: 14pt; margin: 0 0 6px; line-height: 1.15; }
+
+  .lead {
+    font-family: Georgia, serif;
+    font-size: 12pt;
+    font-style: italic;
+    color: var(--ink-muted);
+    line-height: 1.4;
+    margin: 0;
+  }
+
+  .body { font-size: 10pt; line-height: 1.55; color: var(--ink-muted); margin: 0 0 8px; }
+  .body strong { color: var(--ink); font-weight: 600; }
+
+  /* ─────────── COVER ─────────── */
+  .cover { padding: 0; display: block; }
+  .cover .hero {
+    position: relative; width: 100%; height: 5in; overflow: hidden;
+  }
+  .cover .hero img { width: 100%; height: 100%; object-fit: cover; filter: contrast(1.05) saturate(0.85) brightness(0.85); }
+  .cover .hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(15,26,34,0.2) 0%, transparent 40%, var(--paper) 100%); }
+  .cover-logo { position: absolute; top: 0.55in; left: 50%; transform: translateX(-50%); z-index: 2; }
+  .cover-logo img { width: 130px; height: auto; display: block; filter: brightness(1.4) saturate(1.3); }
+  .cover-meta { position: absolute; top: 5.3in; left: 0.7in; right: 0.7in; }
+  .cover-meta .eyebrow { font-size: 9pt; letter-spacing: 0.35em; }
+  .cover-meta .rule { width: 80px; height: 1px; background: var(--ink-deep); margin: 18px 0 26px; }
+  .cover-meta h1 .lineA { display: block; font-size: 90pt; font-style: italic; font-weight: 400; color: var(--ink-deep); letter-spacing: -0.04em; line-height: 0.92; }
+  .cover-meta h1 .lineB { display: block; font-size: 28pt; font-weight: 300; color: var(--ink-deep); margin-top: 8px; letter-spacing: -0.01em; line-height: 1.05; }
+  .cover-meta h1 .lineB em { font-style: italic; }
+  .cover-meta .subline { margin-top: 22px; font-family: Georgia, serif; font-size: 12pt; font-style: italic; color: var(--ink-muted); max-width: 4.8in; line-height: 1.4; }
+
+  .cover-footer {
+    position: absolute;
+    bottom: 0.55in; left: 0.7in; right: 0.7in;
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding-top: 12px; border-top: 1px solid var(--rule);
+  }
+  .cover-footer .imprint { font-family: "Helvetica Neue", sans-serif; font-size: 7.5pt; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-muted); }
+  .cover-footer .channels { font-family: Georgia, serif; font-size: 10pt; color: var(--ink-deep); text-align: right; }
+  .cover-footer .channels span { display: block; line-height: 1.5; }
+  .cover-footer .channels .url { font-style: italic; }
+
+  /* ─────────── CONTENT PAGES ─────────── */
+  .page-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px; border-bottom: 1px solid var(--rule); }
+  .page-header .brand { font-family: Georgia, serif; font-size: 11pt; color: var(--ink-deep); }
+  .page-header .brand .name em { font-style: italic; color: var(--brass-dim); }
+  .page-header .doc-title { font-family: "Helvetica Neue", sans-serif; font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.2em; color: var(--ink-muted); }
+
+  .page-footer {
+    margin-top: auto; padding-top: 12px; border-top: 1px solid var(--rule);
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-family: "Helvetica Neue", sans-serif; font-size: 7.5pt;
+    text-transform: uppercase; letter-spacing: 0.18em; color: var(--ink-muted);
+  }
+  .page-footer .num { font-family: Georgia, serif; font-style: italic; font-size: 14pt; color: var(--brass); letter-spacing: -0.02em; }
+
+  .content { flex: 1; padding-top: 20px; }
+
+  .section { display: grid; grid-template-columns: 80px 1fr; column-gap: 24px; margin-bottom: 22px; padding-bottom: 18px; border-bottom: 1px solid var(--rule-soft); }
+  .section:last-child { border-bottom: none; padding-bottom: 0; }
+  .section .num .roman { font-family: Georgia, serif; font-style: italic; font-weight: 400; color: var(--brass); font-size: 32pt; line-height: 0.9; display: block; letter-spacing: -0.02em; }
+  .section h2.display { font-size: 17pt; margin: 0 0 8px; }
+  .section .lead { font-size: 10.5pt; margin-bottom: 12px; }
+  .section p { margin: 0 0 7px; }
+
+  /* Half-section (compact) */
+  .section.compact { margin-bottom: 18px; padding-bottom: 14px; }
+  .section.compact h2.display { font-size: 14pt; }
+  .section.compact .num .roman { font-size: 24pt; }
+
+  ol.steps { list-style: none; margin: 6px 0 4px; padding: 0; counter-reset: step; }
+  ol.steps > li {
+    counter-increment: step;
+    display: grid; grid-template-columns: 26px 1fr; column-gap: 10px;
+    padding: 5px 0; border-bottom: 1px dotted var(--rule-soft);
+    font-size: 10pt; color: var(--ink-muted); line-height: 1.5;
+  }
+  ol.steps > li::before {
+    content: counter(step, decimal-leading-zero);
+    font-family: Georgia, serif; font-style: italic;
+    color: var(--brass); font-size: 11pt; line-height: 1.4;
+  }
+  ol.steps > li strong { color: var(--ink-deep); font-weight: 600; }
+
+  ul.refined { list-style: none; margin: 6px 0; padding: 0; }
+  ul.refined > li {
+    position: relative; padding: 4px 0 4px 18px;
+    font-size: 10pt; color: var(--ink-muted); line-height: 1.5;
+  }
+  ul.refined > li::before {
+    content: ""; position: absolute; left: 0; top: 12px;
+    width: 8px; height: 1px; background: var(--brass);
+  }
+  ul.refined > li strong { color: var(--ink-deep); font-weight: 600; }
+
+  .callout {
+    margin: 10px 0 4px; padding: 12px 16px;
+    background: var(--paper-bright); border-left: 2px solid var(--brass);
+    font-size: 9.5pt; line-height: 1.55; color: var(--ink-muted);
+  }
+  .callout .label {
+    font-family: "Helvetica Neue", sans-serif; font-size: 7.5pt;
+    letter-spacing: 0.2em; text-transform: uppercase; color: var(--brass-dim);
+    margin-right: 6px; font-weight: 600;
+  }
+  .callout strong { color: var(--ink); font-weight: 600; }
+  .callout.alert { border-left-color: var(--sangria); background: rgba(155, 58, 58, 0.05); }
+  .callout.alert .label { color: var(--sangria); }
+  .callout.dark { border-left-color: var(--brass); background: var(--ink-deep); color: rgba(247, 241, 229, 0.85); }
+  .callout.dark .label { color: var(--brass); }
+  .callout.dark strong { color: var(--paper); }
+
+  /* Sidebar reference */
+  .sidebar-ref {
+    display: inline-block;
+    padding: 1px 6px;
+    background: var(--ink-deep);
+    color: var(--paper);
+    font-family: "Helvetica Neue", sans-serif;
+    font-size: 8pt;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    border-radius: 2px;
+    margin-right: 4px;
+    font-weight: 500;
+  }
+  .sidebar-ref .item-n {
+    color: var(--brass);
+    margin-right: 4px;
+    font-family: Georgia, serif;
+    font-style: italic;
+  }
+
+  /* Code reference */
+  .ref-url {
+    font-family: "Helvetica Neue", sans-serif; font-size: 9pt;
+    color: var(--ink-deep);
+    background: rgba(184, 153, 104, 0.12);
+    padding: 1px 5px;
+    border-bottom: 1px solid var(--brass);
+    text-decoration: none;
+  }
+
+  /* Flow diagram */
+  .flow {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 4px;
+    margin: 12px 0 16px;
+  }
+  .flow .step {
+    text-align: center;
+    padding: 10px 6px;
+    background: var(--paper-bright);
+    border: 1px solid var(--rule);
+    font-family: "Helvetica Neue", sans-serif;
+    font-size: 8.5pt;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-deep);
+    line-height: 1.3;
+    position: relative;
+  }
+  .flow .step .n {
+    display: block;
+    font-family: Georgia, serif;
+    font-style: italic;
+    color: var(--brass);
+    font-size: 13pt;
+    margin-bottom: 4px;
+    line-height: 1;
+  }
+  .flow .step:not(:last-child)::after {
+    content: "→";
+    position: absolute;
+    right: -10px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--brass);
+    font-size: 11pt;
+    font-weight: 400;
+    z-index: 2;
+  }
+
+  /* Toc */
+  .toc { margin: 24px 0 0; }
+  .toc-item { display: grid; grid-template-columns: 36px 1fr auto; column-gap: 14px; align-items: baseline; padding: 8px 0; border-bottom: 1px dotted var(--rule-soft); }
+  .toc-item:last-child { border-bottom: none; }
+  .toc-item .n { font-family: Georgia, serif; font-style: italic; color: var(--brass); font-size: 13pt; line-height: 1; }
+  .toc-item .label { font-family: Georgia, serif; font-size: 11pt; color: var(--ink-deep); line-height: 1.3; }
+  .toc-item .label em { font-style: italic; color: var(--ink-muted); }
+  .toc-item .pg { font-family: "Helvetica Neue", sans-serif; font-size: 8.5pt; color: var(--ink-subtle); letter-spacing: 0.1em; }
+
+  /* Card with dark accent (for actions section) */
+  .action-card {
+    margin: 8px 0;
+    padding: 12px 14px;
+    border: 1px solid var(--rule);
+    background: rgba(255,255,255,0.4);
+    font-size: 9.5pt;
+    line-height: 1.55;
+  }
+  .action-card .head {
+    font-family: "Helvetica Neue", sans-serif;
+    font-size: 8.5pt;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-deep);
+    margin-bottom: 4px;
+    font-weight: 600;
+  }
+  .action-card .head .icon {
+    color: var(--brass);
+    font-family: Georgia, serif;
+    font-style: italic;
+    margin-right: 6px;
+  }
+  .action-card.dark {
+    background: var(--ink-deep);
+    color: rgba(247, 241, 229, 0.9);
+    border-color: var(--ink-deep);
+  }
+  .action-card.dark .head { color: var(--brass); }
+  .action-card.dark strong { color: var(--paper); }
+
+  .quote-intro {
+    margin: 16px 0 20px;
+    padding-left: 22px;
+    border-left: 2px solid var(--brass);
+    font-family: Georgia, serif;
+    font-style: italic;
+    font-size: 12pt;
+    line-height: 1.45;
+    color: var(--ink-muted);
+  }
+
+  .split-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+
+  /* Small numbered grid */
+  .role-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin: 10px 0;
+  }
+  .role-tile {
+    padding: 10px 12px;
+    border-left: 2px solid var(--brass);
+    background: var(--paper-bright);
+  }
+  .role-tile .role {
+    font-family: "Helvetica Neue", sans-serif;
+    font-size: 8.5pt;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--brass-dim);
+    font-weight: 600;
+  }
+  .role-tile .desc {
+    font-size: 9pt;
+    color: var(--ink-muted);
+    margin-top: 4px;
+    line-height: 1.45;
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ COVER ═══════════════ -->
+<section class="page cover">
+  <div class="cover-logo">
+    <img src="https://ibkhvopshhlbvjwrmuzm.supabase.co/storage/v1/object/public/email-assets/cultimed-logo-gold.png" alt="Cultimed">
+  </div>
+
+  <div class="hero">
+    <img src="https://ibkhvopshhlbvjwrmuzm.supabase.co/storage/v1/object/public/email-assets/apothecary-hero.png" alt="">
+  </div>
+
+  <div class="cover-meta">
+    <div class="eyebrow">Manual operativo <span class="dot">·</span> Edición 01 · 2026</div>
+    <div class="rule"></div>
+    <h1>
+      <span class="lineA">Cultisoft.</span>
+      <span class="lineB">Operación <em>clínica</em> del dispensario.</span>
+    </h1>
+    <p class="subline">
+      Manual de uso del panel interno para staff, químicos farmacéuticos,
+      médicos y administradores. Once secciones operativas.
+    </p>
+  </div>
+
+  <div class="cover-footer">
+    <div class="imprint">Cultimed · Confidencial · Uso interno</div>
+    <div class="channels">
+      <span class="url">panel.dispensariocultimed.cl</span>
+      <span>v1.0 · Mayo 2026</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ TOC ═══════════════ -->
+<section class="page">
+  <div class="page-inner">
+    <header class="page-header">
+      <div class="brand"><span class="name">Culti<em>soft</em></span></div>
+      <div class="doc-title">Manual operativo · v1.0</div>
+    </header>
+
+    <div class="content">
+      <div style="display:grid; grid-template-columns: 80px 1fr; column-gap: 24px;">
+        <div></div>
+        <div>
+          <p class="eyebrow" style="margin-bottom:14px;">— Índice</p>
+          <h2 class="display" style="font-size:36pt; line-height:0.95;">
+            <span style="font-weight:300;">Once</span> <em>secciones</em>
+            <br><span style="font-weight:300;">para operar.</span>
+          </h2>
+
+          <div class="quote-intro" style="margin-top:24px;">
+            Cada sección es independiente. Lee en orden para tu onboarding,
+            o salta a la que necesites. Todas las acciones quedan auditadas
+            con tu usuario y la fecha exacta.
+          </div>
+
+          <div class="toc">
+            <div class="toc-item"><div class="n">I</div><div class="label">Primer login <em>y 2FA</em></div><div class="pg">PÁG. 03</div></div>
+            <div class="toc-item"><div class="n">II</div><div class="label">Atajos globales</div><div class="pg">PÁG. 03</div></div>
+            <div class="toc-item"><div class="n">III</div><div class="label">Recetas web <em>(validación de pacientes)</em></div><div class="pg">PÁG. 04</div></div>
+            <div class="toc-item"><div class="n">IV</div><div class="label">Pedidos web <em>y pedidos manuales</em></div><div class="pg">PÁG. 05</div></div>
+            <div class="toc-item"><div class="n">V</div><div class="label">Pacientes</div><div class="pg">PÁG. 06</div></div>
+            <div class="toc-item"><div class="n">VI</div><div class="label">Recetas internas <em>(emisión)</em></div><div class="pg">PÁG. 07</div></div>
+            <div class="toc-item"><div class="n">VII</div><div class="label">Dispensaciones</div><div class="pg">PÁG. 07</div></div>
+            <div class="toc-item"><div class="n">VIII</div><div class="label">Inventario <em>y alertas automáticas</em></div><div class="pg">PÁG. 08</div></div>
+            <div class="toc-item"><div class="n">IX</div><div class="label">Embajadores <em>(cero fricción)</em></div><div class="pg">PÁG. 09</div></div>
+            <div class="toc-item"><div class="n">X</div><div class="label">Reportes</div><div class="pg">PÁG. 10</div></div>
+            <div class="toc-item"><div class="n">XI</div><div class="label">Super Admin <em>(solo rincondeoz)</em></div><div class="pg">PÁG. 10</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="page-footer">
+      <span>Cultisoft · Confidencial · Uso interno</span>
+      <span class="num">02</span>
+    </footer>
+  </div>
+</section>
+
+<!-- ═══════════════ PAGE 3 — I & II ═══════════════ -->
+<section class="page">
+  <div class="page-inner">
+    <header class="page-header">
+      <div class="brand"><span class="name">Culti<em>soft</em></span></div>
+      <div class="doc-title">Manual operativo · v1.0</div>
+    </header>
+
+    <div class="content">
+
+      <div class="section">
+        <div class="num"><span class="roman">I</span></div>
+        <div class="body-col">
+          <p class="eyebrow">— Onboarding</p>
+          <h2 class="display"><span style="font-weight:300;">Primer</span> <em>login</em><span style="font-weight:300;">.</span></h2>
+          <p class="lead">Tu cuenta llega creada por el super admin. Tu rol determina qué ves.</p>
+
+          <ol class="steps">
+            <li>Abre <a href="https://panel.dispensariocultimed.cl/login" class="ref-url">panel.dispensariocultimed.cl/login</a>.</li>
+            <li>Email <strong>tu_correo@gmail.com</strong> · contraseña inicial <strong>LEOWEKO</strong>.</li>
+            <li>Arriba a la derecha, click en <strong>"Mi cuenta"</strong>. Cambia tu contraseña inmediatamente.</li>
+            <li>Activa <strong>2FA</strong> en la misma página: "Activar 2FA" → escanea el QR con Google Authenticator, Authy o 1Password → ingresa el código de 6 dígitos.</li>
+          </ol>
+
+          <div class="callout">
+            <span class="label">Compliance Ley 19.628</span>
+            La activación de 2FA es altamente recomendada para roles que acceden a datos clínicos
+            de pacientes. Cada inicio de sesión pedirá tu código TOTP además de la contraseña.
+          </div>
+
+          <p class="eyebrow" style="margin-top:14px; margin-bottom:6px;">— Roles del sistema</p>
+          <div class="role-grid">
+            <div class="role-tile">
+              <div class="role">Super Admin</div>
+              <div class="desc">Solo rincondeoz. Acceso al panel /admin y vistas estratégicas.</div>
+            </div>
+            <div class="role-tile">
+              <div class="role">Administrador</div>
+              <div class="desc">Gestión completa salvo gestión de staff. Crea pedidos, edita pacientes, invita embajadores.</div>
+            </div>
+            <div class="role-tile">
+              <div class="role">Químico Farmacéutico</div>
+              <div class="desc">Valida recetas web, autoriza dispensaciones, gestiona inventario.</div>
+            </div>
+            <div class="role-tile">
+              <div class="role">Médico · Dispensador</div>
+              <div class="desc">Roles especializados con permisos restringidos a su área.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section compact" style="border-bottom:none;">
+        <div class="num"><span class="roman">II</span></div>
+        <div class="body-col">
+          <p class="eyebrow">— Atajos globales</p>
+          <h2 class="display"><span style="font-weight:300;">Búsqueda</span> <em>universal</em><span style="font-weight:300;">.</span></h2>
+
+          <ul class="refined">
+            <li><strong>⌘ K</strong> (Mac) o <strong>Ctrl K</strong> (Windows) abre la búsqueda universal en cualquier página.</li>
+            <li>Busca por nombre, RUT, email, folio de pedido, código de receta, SKU de producto, código de embajador.</li>
+            <li>Navega con flechas <strong>↑↓</strong>, abre con <strong>Enter</strong>, cierra con <strong>ESC</strong>.</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+
+    <footer class="page-footer">
+      <span>Cultisoft · Confidencial · Uso interno</span>
+      <span class="num">03</span>
+    </footer>
+  </div>
+</section>
+
+<!-- ═══════════════ PAGE 4 — III RECETAS WEB ═══════════════ -->
+<section class="page">
+  <div class="page-inner">
+    <header class="page-header">
+      <div class="brand"><span class="name">Culti<em>soft</em></span></div>
+      <div class="doc-title">Manual operativo · v1.0</div>
+    </header>
+
+    <div class="content">
+      <div class="section" style="border-bottom:none;">
+        <div class="num"><span class="roman">III</span></div>
+        <div class="body-col">
+          <p class="eyebrow">— Validación de pacientes nuevos</p>
+          <h2 class="display"><span style="font-weight:300;">Recetas</span> <em>web</em><span style="font-weight:300;">.</span></h2>
+          <p class="lead">El paso más importante de tu día. Sin receta validada, el paciente no ve el catálogo.</p>
+
+          <div style="margin: 14px 0;">
+            <span class="sidebar-ref"><span class="item-n">06</span>RECETAS WEB</span>
+            <span style="font-size:9pt; color:var(--ink-muted); margin-left:4px;">Sidebar lateral izquierda.</span>
+          </div>
+
+          <ol class="steps">
+            <li>Abre la pestaña <strong>"Pendientes"</strong>. Verás los pacientes con receta subida esperando revisión.</li>
+            <li>Click el nombre del paciente. Carga la imagen o PDF de su receta médica.</li>
+            <li>Revisa: nombre coincide, RUT del paciente, fecha de emisión, fecha de vencimiento, firma y RUT del médico, productos prescritos.</li>
+            <li>Decide:
+              <ul class="refined" style="margin-top:6px;">
+                <li><strong>Aprobar</strong> &mdash; agrega nota opcional para el paciente (visible en su panel).</li>
+                <li><strong>Rechazar</strong> &mdash; escribe el motivo claro (calidad ilegible, vencida, dudosa).</li>
+              </ul>
+            </li>
+            <li>El cliente recibe notificación automática por email con tu decisión y nota.</li>
+          </ol>
+
+          <div class="callout">
+            <span class="label">Reabrir validación</span>
+            Si rechazaste por error o el paciente reclama, abre el detalle de la receta y usa
+            <strong>"Reabrir validación →"</strong>. La receta vuelve a estado <em>pending</em>.
+          </div>
+
+          <div class="callout alert">
+            <span class="label">Receta retenida (estupefaciente)</span>
+            Marca el flag <strong>"Receta retenida"</strong> al aprobar. Esto retiene físicamente
+            la receta según DS 345/2016. El sistema marca al paciente para auditoría especial.
+          </div>
+
+          <p class="eyebrow" style="margin-top:18px; margin-bottom:6px;">— Notificación automática al paciente</p>
+          <p class="body" style="font-size:9.5pt;">
+            Apenas guardas tu decisión, el sistema envía un email al paciente con el resultado.
+            Si aprobaste, se desbloquea el catálogo en su sesión inmediatamente. Si rechazaste,
+            ve tu nota y puede subir una receta corregida.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <footer class="page-footer">
+      <span>Cultisoft · Confidencial · Uso interno</span>
+      <span class="num">04</span>
+    </footer>
+  </div>
+</section>
+
+<!-- ═══════════════ PAGE 5 — IV PEDIDOS WEB ═══════════════ -->
+<section class="page">
+  <div class="page-inner">
+    <header class="page-header">
+      <div class="brand"><span class="name">Culti<em>soft</em></span></div>
+      <div class="doc-title">Manual operativo · v1.0</div>
+    </header>
+
+    <div class="content">
+      <div class="section" style="border-bottom:none;">
+        <div class="num"><span class="roman">IV</span></div>
+        <div class="body-col">
+          <p class="eyebrow">— Gestión de órdenes</p>
+          <h2 class="display"><span style="font-weight:300;">Pedidos</span> <em>web</em><span style="font-weight:300;">.</span></h2>
+          <p class="lead">Tu cola operacional. Cada pedido pasa por seis estados hasta llegar al paciente.</p>
+
+          <div style="margin: 14px 0 6px;">
+            <span class="sidebar-ref"><span class="item-n">04</span>PEDIDOS WEB</span>
+          </div>
+
+          <div class="flow">
+            <div class="step"><span class="n">01</span>Por<br>confirmar</div>
+            <div class="step"><span class="n">02</span>Pagados</div>
+            <div class="step"><span class="n">03</span>En<br>preparación</div>
+            <div class="step"><span class="n">04</span>Despacho /<br>retiro</div>
+            <div class="step"><span class="n">05</span>Entregado</div>
+          </div>
+
+          <p class="eyebrow" style="margin-top:8px; margin-bottom:6px;">— Acciones por pedido</p>
+          <ul class="refined">
+            <li><strong>Ver comprobante</strong> &mdash; click en el pedido para abrir el detalle.</li>
+            <li><strong>Subir comprobante manual</strong> &mdash; si el cliente lo mandó por WhatsApp en vez de subirlo: abrir pedido → sección "Comprobante de transferencia" → botón <strong>"Cargar comprobante"</strong>.</li>
+            <li><strong>Confirmar pago</strong> &mdash; revisa el comprobante, valida el monto, click "Confirmar pago" para pasar a "Pagados".</li>
+            <li><strong>Editar dirección, teléfono, tracking</strong> &mdash; botón <strong>"Editar"</strong> arriba a la derecha del pedido. Útil para corregir typos o agregar número Starken/Chilexpress.</li>
+            <li><strong>Despachar</strong> &mdash; cuando sale el envío, marca "Despachado". El cliente recibe email + WhatsApp con el tracking.</li>
+          </ul>
+
+          <div class="callout dark" style="margin-top:14px;">
+            <span class="label">Pedido manual</span><br>
+            Si un cliente compra por teléfono, presencial o por WhatsApp y quieres registrar la
+            orden manualmente: en la lista de pedidos web, click <strong>"+ Nuevo pedido manual"</strong>.
+            Seleccionas el cliente (búsqueda por email o RUT), agregas productos, ingresas datos de despacho,
+            eliges método de pago y estado inicial (pending_payment, proof_uploaded o paid directo si ya pagó cash).
+            El folio queda con sufijo <strong>"-M"</strong> para distinguirlo de un pedido web normal.
+          </div>
+
+          <div class="callout">
+            <span class="label">Sin pedido sin pago confirmado</span>
+            Por compliance, no preparamos ni despachamos pedidos hasta que el pago esté verificado.
+            La excepción es modo <em>paid</em> en pedido manual cuando el cliente pagó cash presencial.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="page-footer">
+      <span>Cultisoft · Confidencial · Uso interno</span>
+      <span class="num">05</span>
+    </footer>
+  </div>
+</section>
+
+<!-- ═══════════════ PAGE 6 — V PACIENTES ═══════════════ -->
+<section class="page">
+  <div class="page-inner">
+    <header class="page-header">
+      <div class="brand"><span class="name">Culti<em>soft</em></span></div>
+      <div class="doc-title">Manual operativo · v1.0</div>
+    </header>
+
+    <div class="content">
+      <div class="section" style="border-bottom:none;">
+        <div class="num"><span class="roman">V</span></div>
+        <div class="body-col">
+          <p class="eyebrow">— Padrón clínico</p>
+          <h2 class="display"><span style="font-weight:300;">Pacientes</span><span style="font-weight:300;">.</span></h2>
+          <p class="lead">Tu padrón completo. Cada paciente concentra sus recetas, dispensaciones y pedidos.</p>
+
+          <div style="margin: 14px 0 6px;">
+            <span class="sidebar-ref"><span class="item-n">02</span>PACIENTES</span>
+          </div>
+
+          <p class="eyebrow" style="margin-top:14px; margin-bottom:6px;">— Acciones principales</p>
+          <ul class="refined">
+            <li><strong>Buscar</strong> con el filtro superior o con <strong>⌘ K</strong> desde cualquier página.</li>
+            <li><strong>Crear paciente</strong> &mdash; botón "Nuevo paciente" arriba a la derecha. RUT, nombre, fecha de nacimiento, contacto, alergias, condiciones crónicas, contacto de emergencia.</li>
+            <li><strong>Editar datos</strong> &mdash; abrir paciente, botón <strong>"Editar datos"</strong> en el header. Cambia cualquier campo. Queda registrado en auditoría con tu usuario.</li>
+            <li><strong>Exportar CSV completo</strong> &mdash; botón <strong>"Exportar CSV"</strong> en la lista. Descarga todo el padrón con datos clínicos para tu BI o contabilidad. UTF-8 con BOM (Excel lo abre correctamente con tildes).</li>
+            <li><strong>Ver historial</strong> &mdash; scroll en la página del paciente: bloques de recetas, dispensaciones, pedidos web, eventos.</li>
+          </ul>
+
+          <p class="eyebrow" style="margin-top:14px; margin-bottom:6px;">— Estado de membresía</p>
+          <ul class="refined">
+            <li><strong>Activo</strong> &mdash; paciente normal, puede comprar.</li>
+            <li><strong>Pendiente verificación</strong> &mdash; recién registrado, esperando QF apruebe receta.</li>
+            <li><strong>Suspendido</strong> &mdash; bloqueado por reclamo, riesgo clínico o decisión administrativa. No aparece en el catálogo aunque tenga receta.</li>
+          </ul>
+
+          <div class="callout">
+            <span class="label">Auditoría Ley 19.628</span>
+            Cada modificación de datos del paciente queda en la bitácora con tu nombre, la
+            fecha y la lista de campos modificados. Solo el super admin puede ver la bitácora
+            completa en <em>panel /admin</em>.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="page-footer">
+      <span>Cultisoft · Confidencial · Uso interno</span>
+      <span class="num">06</span>
+    </footer>
+  </div>
+</section>
+
+<!-- ═══════════════ PAGE 7 — VI & VII RECETAS INTERNAS + DISPENSACIONES ═══════════════ -->
+<section class="page">
+  <div class="page-inner">
+    <header class="page-header">
+      <div class="brand"><span class="name">Culti<em>soft</em></span></div>
+      <div class="doc-title">Manual operativo · v1.0</div>
+    </header>
+
+    <div class="content">
+
+      <div class="section">
+        <div class="num"><span class="roman">VI</span></div>
+        <div class="body-col">
+          <p class="eyebrow">— Emisión por el dispensario</p>
+          <h2 class="display"><span style="font-weight:300;">Recetas</span> <em>internas</em><span style="font-weight:300;">.</span></h2>
+          <p class="lead">Las que emite uno de nuestros médicos tratantes en consulta.</p>
+
+          <div style="margin: 12px 0 6px;">
+            <span class="sidebar-ref"><span class="item-n">05</span>RECETAS</span>
+          </div>
+
+          <ul class="refined">
+            <li><strong>Crear receta</strong> &mdash; "Nueva receta" → seleccionar paciente, médico, items con dosis y cantidad, fecha emisión y vencimiento, retención si corresponde.</li>
+            <li><strong>Editar diagnóstico, fechas, retención, notas</strong> &mdash; botón <strong>"Editar"</strong> en el header de la receta. No permite cambiar paciente/médico/medicamentos.</li>
+            <li><strong>Cambiar estado</strong> &mdash; formulario al pie: <em>pending → active → fulfilled / rejected / expired</em>. Cada cambio queda auditado.</li>
+            <li><strong>Dispensar</strong> &mdash; botón verde "Dispensar" en una receta en estado <em>active</em>. Va al flow de dispensación.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="section compact" style="border-bottom:none;">
+        <div class="num"><span class="roman">VII</span></div>
+        <div class="body-col">
+          <p class="eyebrow">— Entrega al paciente</p>
+          <h2 class="display"><span style="font-weight:300;">Dispensaciones</span><span style="font-weight:300;">.</span></h2>
+
+          <div style="margin: 10px 0 6px;">
+            <span class="sidebar-ref"><span class="item-n">03</span>DISPENSACIONES</span>
+          </div>
+
+          <ul class="refined">
+            <li><strong>Nueva dispensación</strong> &mdash; seleccionar paciente, receta vinculada, items y cantidades. El stock se descuenta automáticamente al guardar.</li>
+            <li><strong>Lote asignado automáticamente</strong> &mdash; el sistema toma del lote con vencimiento más próximo (FIFO).</li>
+            <li><strong>Imprimir</strong> &mdash; desde la página de la dispensación, botón "Imprimir" entrega el documento físico para el paciente.</li>
+          </ul>
+
+          <div class="callout">
+            <span class="label">Trazabilidad GMP</span>
+            Cada dispensación queda con número de lote, fecha exacta, staff que dispensó, paciente
+            que recibió. Auditable a perpetuidad. Imprimible para inspección SANNA.
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <footer class="page-footer">
+      <span>Cultisoft · Confidencial · Uso interno</span>
+      <span class="num">07</span>
+    </footer>
+  </div>
+</section>
+
+<!-- ═══════════════ PAGE 8 — VIII INVENTARIO ═══════════════ -->
+<section class="page">
+  <div class="page-inner">
+    <header class="page-header">
+      <div class="brand"><span class="name">Culti<em>soft</em></span></div>
+      <div class="doc-title">Manual operativo · v1.0</div>
+    </header>
+
+    <div class="content">
+      <div class="section" style="border-bottom:none;">
+        <div class="num"><span class="roman">VIII</span></div>
+        <div class="body-col">
+          <p class="eyebrow">— Stock y trazabilidad</p>
+          <h2 class="display"><span style="font-weight:300;">Inventario</span><span style="font-weight:300;">.</span></h2>
+          <p class="lead">Vista por lote, con filtros operacionales y alertas que llegan a tu inbox.</p>
+
+          <div style="margin: 14px 0 6px;">
+            <span class="sidebar-ref"><span class="item-n">07</span>INVENTARIO</span>
+          </div>
+
+          <p class="eyebrow" style="margin-top:14px; margin-bottom:6px;">— Funcionalidad principal</p>
+          <ul class="refined">
+            <li><strong>Vista por lote</strong> &mdash; default. Cada fila es un lote físico con cantidad, vencimiento, supplier, COA.</li>
+            <li><strong>Filtros</strong> &mdash; stock bajo (&lt;5 unidades), agotado, por vencer (&lt;60 días).</li>
+            <li><strong>Ingresar lote nuevo</strong> &mdash; botón "Ingresar lote": producto, número de lote, cantidad, fecha de fabricación, vencimiento, precio costo/venta, supplier, COA URL.</li>
+            <li><strong>Editar lote</strong> &mdash; click en cualquier lote para ajustar cantidad o vencimiento. Útil para mermas, devoluciones, recuento físico.</li>
+          </ul>
+
+          <div class="callout dark" style="margin-top:14px;">
+            <span class="label">Alerta automática diaria</span><br>
+            Cada día a las <strong>09:47 hora Chile</strong> (12:47 UTC), el sistema envía un email
+            consolidado a <em>todos los administradores activos</em> con:
+            productos con menos de 10 unidades de stock + lotes que vencen en los próximos 60 días.
+            Si no hay nada que reportar, no llega email (cero ruido).
+          </div>
+
+          <p class="eyebrow" style="margin-top:18px; margin-bottom:6px;">— Vista por strain (solo super admin)</p>
+          <p class="body" style="font-size:9.5pt;">
+            El super admin tiene un botón adicional <strong>"Vista por strain"</strong> en el header
+            de inventario. Consolida las 7 cepas activas, muestra stock total convertido a gramos
+            (sumando 5g, 10g, 20g de cada variante × unidades), valor del inventario, próximo
+            vencimiento por strain. Útil para decisiones estratégicas de reabastecimiento.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <footer class="page-footer">
+      <span>Cultisoft · Confidencial · Uso interno</span>
+      <span class="num">08</span>
+    </footer>
+  </div>
+</section>
+
+<!-- ═══════════════ PAGE 9 — IX EMBAJADORES ═══════════════ -->
+<section class="page">
+  <div class="page-inner">
+    <header class="page-header">
+      <div class="brand"><span class="name">Culti<em>soft</em></span></div>
+      <div class="doc-title">Manual operativo · v1.0</div>
+    </header>
+
+    <div class="content">
+      <div class="section" style="border-bottom:none;">
+        <div class="num"><span class="roman">IX</span></div>
+        <div class="body-col">
+          <p class="eyebrow">— Programa de referidos</p>
+          <h2 class="display"><span style="font-weight:300;">Embajadores</span><span style="font-weight:300;">.</span></h2>
+          <p class="lead">Cero fricción para el embajador. El código se entrega al instante.</p>
+
+          <div style="margin: 14px 0 6px;">
+            <span class="sidebar-ref"><span class="item-n">09</span>EMBAJADORES</span>
+          </div>
+
+          <p class="eyebrow" style="margin-top:14px; margin-bottom:6px;">— Invitar a un embajador</p>
+          <ol class="steps">
+            <li>Click el botón <strong>"+ Registrar embajador"</strong> arriba a la derecha.</li>
+            <li>Ingresa email + nombre completo. Opcional: mensaje personalizado que aparece como cita en su email.</li>
+            <li>Al confirmar, el sistema genera un <strong>código único de 6 caracteres</strong> (ej: <em>XK4P2M</em>) y envía un email con diseño apothecary que muestra el código en hero box dorado.</li>
+            <li>El embajador puede compartir su código <strong>inmediatamente</strong>, sin necesidad de registrarse en el dispensario ni subir receta.</li>
+          </ol>
+
+          <div class="callout" style="margin-top:12px;">
+            <span class="label">Cómo lo usa el invitado</span>
+            La persona invitada comparte su link único <em>dispensariocultimed.cl/r/{código}</em>
+            o el código por sí solo. Quien lo use recibe <strong>5% de descuento</strong> en su primera
+            compra. El embajador recibe <strong>10% de comisión</strong> en esa primera compra y
+            <strong>5% residual</strong> durante 90 días en las siguientes compras del referido.
+          </div>
+
+          <p class="eyebrow" style="margin-top:18px; margin-bottom:6px;">— Pagos a embajadores</p>
+          <ul class="refined">
+            <li><strong>Comisiones pendientes</strong> &mdash; tabla con el monto acumulado por embajador y la fecha del último abono.</li>
+            <li><strong>Generar payout</strong> &mdash; aparece cuando el embajador acumula <strong>más de $20.000 CLP</strong> en comisiones. Click "Generar payout" deja el monto listo para transferencia.</li>
+            <li><strong>Transferencia bancaria mensual</strong> &mdash; lo procesas con los datos bancarios que cada embajador subió en su panel.</li>
+            <li><strong>Cap mensual</strong> &mdash; por defecto $1.000.000 CLP por embajador. Ajustable por super admin.</li>
+          </ul>
+
+          <p class="eyebrow" style="margin-top:14px; margin-bottom:6px;">— Detalle del embajador</p>
+          <p class="body" style="font-size:9.5pt;">
+            Click sobre cualquier embajador en el leaderboard para ver: número de invitados, conversiones
+            (primera compra confirmada), comisiones histórico, código personal, link único, datos bancarios.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <footer class="page-footer">
+      <span>Cultisoft · Confidencial · Uso interno</span>
+      <span class="num">09</span>
+    </footer>
+  </div>
+</section>
+
+<!-- ═══════════════ PAGE 10 — X & XI ═══════════════ -->
+<section class="page">
+  <div class="page-inner">
+    <header class="page-header">
+      <div class="brand"><span class="name">Culti<em>soft</em></span></div>
+      <div class="doc-title">Manual operativo · v1.0</div>
+    </header>
+
+    <div class="content">
+
+      <div class="section">
+        <div class="num"><span class="roman">X</span></div>
+        <div class="body-col">
+          <p class="eyebrow">— Inteligencia de negocio</p>
+          <h2 class="display"><span style="font-weight:300;">Reportes</span><span style="font-weight:300;">.</span></h2>
+
+          <div style="margin: 10px 0 6px;">
+            <span class="sidebar-ref"><span class="item-n">08</span>REPORTES</span>
+          </div>
+
+          <ul class="refined">
+            <li><strong>Ventas</strong> &mdash; vista por día, semana o mes. Compara contra periodos anteriores.</li>
+            <li><strong>Inventario por categoría</strong> &mdash; flor, aceite, cápsula, tópico. Stock + valor inventario.</li>
+            <li><strong>Top productos</strong> &mdash; SKUs más vendidos en el periodo.</li>
+            <li><strong>Top pacientes</strong> &mdash; quienes más han comprado. Útil para ofrecer beneficios de fidelización.</li>
+            <li><strong>Embajadores</strong> &mdash; quiénes generan más conversiones y comisiones.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="section compact" style="border-bottom:none;">
+        <div class="num"><span class="roman">XI</span></div>
+        <div class="body-col">
+          <p class="eyebrow">— Solo super admin (rincondeoz)</p>
+          <h2 class="display"><span style="font-weight:300;">Super</span> <em>Admin</em><span style="font-weight:300;">.</span></h2>
+
+          <div style="margin: 8px 0 6px;">
+            <span class="sidebar-ref"><span class="item-n">10</span>SUPER ADMIN</span>
+            <span style="font-size:9pt; color:var(--ink-muted); margin-left:4px;">Solo visible para rincondeoz.</span>
+          </div>
+
+          <ul class="refined">
+            <li><strong>Lista de staff</strong> &mdash; tabla con email, rol, licencia profesional, último login, estado activo.</li>
+            <li><strong>Bitácora de auditoría</strong> &mdash; últimos 20 eventos del sistema con detalle del staff que ejecutó cada acción.</li>
+            <li><strong>Embajadores invitados</strong> &mdash; tabla cruzada de embajadores con el staff que los invitó y su estado actual de receta.</li>
+          </ul>
+
+          <div class="callout dark" style="margin-top:12px;">
+            <span class="label">Vista por strain (super admin)</span><br>
+            Desde Inventario, botón <strong>"Vista por strain"</strong>. Consolida las 7 cepas en
+            stock master con conversión real a gramos. Drill-down a cada formato (5g, 10g, 20g).
+            Decisiones de reabastecimiento más estratégicas y menos por unidad granular.
+          </div>
+
+          <div class="callout" style="margin-top:10px;">
+            <span class="label">Gestión de staff</span>
+            Crear, desactivar o cambiar rol de staff se hace por ahora vía script
+            (<em>scripts/create-admin-users.js</em>) o consulta directa a la base de datos.
+            Form web web para esto está en roadmap.
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <footer class="page-footer">
+      <span>Cultisoft · Confidencial · Uso interno · Ley 19.628</span>
+      <span class="num">10</span>
+    </footer>
+  </div>
+</section>
+
+</body>
+</html>

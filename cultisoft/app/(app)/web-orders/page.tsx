@@ -24,7 +24,7 @@ interface OrderRow {
 }
 
 const STATUS_META: Record<string, { label: string; cls: string }> = {
-  pending_proof:    { label: "Esperando comprobante", cls: "pill-neutral" },
+  pending_payment:  { label: "Esperando comprobante", cls: "pill-neutral" },
   proof_uploaded:   { label: "Comprobante recibido", cls: "pill-warning" },
   paid:             { label: "Pago confirmado",       cls: "pill-success" },
   preparing:        { label: "En preparación",        cls: "pill-tertiary" },
@@ -69,7 +69,7 @@ export default async function WebOrdersPage({
          WHEN 'ready_for_pickup' THEN 4
          WHEN 'shipped' THEN 5
          WHEN 'delivered' THEN 6
-         WHEN 'pending_proof' THEN 7
+         WHEN 'pending_payment' THEN 7
          ELSE 8
        END,
        o.created_at DESC`,

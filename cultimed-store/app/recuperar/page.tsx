@@ -47,10 +47,14 @@ async function requestResetAction(formData: FormData) {
 export default function ForgotPasswordPage({
   searchParams,
 }: {
-  searchParams: { e?: string; ok?: string };
+  searchParams: { e?: string; ok?: string; activar?: string; email?: string };
 }) {
   const success = searchParams.ok === "1";
   const error = searchParams.e === "missing" ? "Ingresa tu email." : null;
+  // Llega desde /ingresar cuando una cuenta migrada/invitada intentó login sin haber
+  // definido contraseña. Mostramos un mensaje específico y pre-cargamos el email.
+  const needsActivation = searchParams.activar === "1";
+  const prefillEmail = (searchParams.email || "").trim().toLowerCase();
 
   return (
     <section className="max-w-[1440px] mx-auto px-6 lg:px-12 py-16 lg:py-24 min-h-[80vh]">
@@ -91,6 +95,16 @@ export default function ForgotPasswordPage({
             </div>
           ) : (
             <>
+              {needsActivation && (
+                <div className="mb-8 p-5 border-l-2 border-brass bg-brass/5">
+                  <p className="eyebrow text-brass-dim mb-1">— Tu cuenta necesita activación</p>
+                  <p className="text-sm text-ink leading-relaxed">
+                    Tu cuenta existe pero aún no has definido una contraseña (cuenta migrada
+                    de la plataforma anterior). Confirma tu email abajo y te enviamos el
+                    enlace para activarla.
+                  </p>
+                </div>
+              )}
               {error && (
                 <div className="mb-8 p-5 bg-sangria/10 border-l-2 border-sangria">
                   <p className="eyebrow text-sangria mb-1">— Error</p>
@@ -107,6 +121,7 @@ export default function ForgotPasswordPage({
                     required
                     autoFocus
                     autoComplete="email"
+                    defaultValue={prefillEmail}
                     className="input-editorial"
                     placeholder="tu@correo.cl"
                   />
