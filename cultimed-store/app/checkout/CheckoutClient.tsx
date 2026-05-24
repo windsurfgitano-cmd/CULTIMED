@@ -8,6 +8,7 @@ import { formatCLP } from "@/lib/format";
 import type { CustomerAccount } from "@/lib/auth";
 
 const TRANSFER_DISCOUNT_PCT = 10; // matches lib/payments.ts
+const FREE_SHIPPING_THRESHOLD = 100000;
 
 export default function CheckoutClient({
   customer,
@@ -26,6 +27,7 @@ export default function CheckoutClient({
 
   const transferDiscount = Math.round((subtotal * TRANSFER_DISCOUNT_PCT) / 100);
   const finalTotal = paymentMethod === "transfer" ? subtotal - transferDiscount : subtotal;
+  const shippingIsFree = subtotal > FREE_SHIPPING_THRESHOLD;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -132,7 +134,7 @@ export default function CheckoutClient({
                   onSelect={() => setShippingMethod("courier")}
                   title="Despacho a domicilio"
                   body="Courier privado · 24–72h hábiles desde la dispensación"
-                  cost="Cotización al confirmar"
+                  cost={shippingIsFree ? "Despacho gratis" : `Cotización al confirmar · gratis sobre ${formatCLP(FREE_SHIPPING_THRESHOLD)}`}
                 />
                 <DisabledOption
                   title="Retiro en farmacia"
@@ -255,6 +257,12 @@ export default function CheckoutClient({
                     <span className="font-mono nums-lining tabular-nums">−{formatCLP(transferDiscount)}</span>
                   </div>
                 )}
+                <div className="flex justify-between items-baseline text-sm">
+                  <span className="text-ink-muted">Despacho</span>
+                  <span className="font-mono nums-lining tabular-nums">
+                    {shippingIsFree ? "Gratis" : "Cotización"}
+                  </span>
+                </div>
                 <div className="flex justify-between items-baseline pt-3 border-t border-rule-soft">
                   <span className="font-display text-lg">Total a pagar</span>
                   <span className="font-display text-3xl nums-lining tabular-nums">{formatCLP(finalTotal)}</span>
@@ -272,8 +280,8 @@ export default function CheckoutClient({
               </button>
               <p className="text-[11px] font-mono leading-relaxed text-ink-muted mt-5">
                 {paymentMethod === "transfer"
-                  ? "Al continuar generamos tu folio y te mostramos los datos para transferir. Recibirás confirmación por WhatsApp y email."
-                  : "Te redirigiremos a MercadoPago para completar el pago. Recibirás confirmación inmediata."}
+                  ? `Al continuar generamos tu folio y te mostramos los datos para transferir. Despacho gratis solo sobre ${formatCLP(FREE_SHIPPING_THRESHOLD)} de compra; bajo ese monto se cotiza al confirmar.`
+                  : `Te redirigiremos a MercadoPago para completar el pago. Despacho gratis solo sobre ${formatCLP(FREE_SHIPPING_THRESHOLD)} de compra; bajo ese monto se cotiza al confirmar.`}
               </p>
             </div>
           </aside>
