@@ -144,6 +144,12 @@ export default function CheckoutClient({
                   body="Estamos habilitando nuestra farmacia física. Por ahora todos los pedidos se entregan por courier privado."
                 />
               </div>
+              <div className="mt-4 border-l-2 border-brass-dim bg-brass-dim/5 px-4 py-3">
+                <p className="eyebrow text-brass-dim mb-1">— Precios de envío</p>
+                <p className="text-xs font-mono leading-relaxed text-ink-muted">
+                  Santiago urbano {formatCLP(URBAN_SHIPPING_FEE)} · zonas fuera de Santiago urbano {formatCLP(OUTLYING_SHIPPING_FEE)} · gratis en compras sobre {formatCLP(FREE_SHIPPING_THRESHOLD)}.
+                </p>
+              </div>
             </div>
 
             {/* Address (only for courier) */}
