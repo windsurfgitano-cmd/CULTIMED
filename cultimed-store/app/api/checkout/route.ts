@@ -9,6 +9,7 @@ import {
   buildItemsDescription,
   isMercadoPagoEnabled,
 } from "@/lib/payments";
+import { calcShippingFee } from "@/lib/shipping";
 
 interface CheckoutPayload {
   shipping_method: "pickup" | "courier";
@@ -37,6 +38,13 @@ export async function POST(req: NextRequest) {
   // Forzamos courier en backend incluso si el cliente lo intenta saltar.
   if (body.shipping_method !== "courier") {
     return NextResponse.json({ error: "pickup_disabled" }, { status: 400 });
+  }
+  const shippingAddress = (body.shipping_address || "").trim();
+  const shippingCity = (body.shipping_city || "").trim();
+  const shippingRegion = (body.shipping_region || "").trim();
+  const shippingPhone = (body.shipping_phone || "").trim();
+  if (!shippingAddress || !shippingCity || !shippingRegion || !shippingPhone) {
+    return NextResponse.json({ error: "missing_shipping_data" }, { status: 400 });
   }
 
   const paymentMethod: PaymentMethod = body.payment_method === "mercadopago" ? "mercadopago" : "transfer";
@@ -104,8 +112,9 @@ export async function POST(req: NextRequest) {
   // El descuento por método se aplica sobre el subtotal (no sobre el subtotal-referral) para evitar
   // doble descuento sobre el mismo monto.
   const paymentDiscount = calcPaymentDiscount(subtotal, paymentMethod);
+  const shippingFee = calcShippingFee(subtotal, shippingCity, shippingRegion);
 
-  const total = Math.max(0, subtotal - referralDiscount - paymentDiscount);
+  const total = Math.max(0, subtotal - referralDiscount - paymentDiscount + shippingFee);
 
   const folio = `CM-${new Date().getFullYear()}-${Date.now().toString(36).toUpperCase()}`;
   let orderId = 0;
@@ -119,10 +128,10 @@ export async function POST(req: NextRequest) {
        VALUES (?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       folio, customer.id, subtotal, total,
       body.shipping_method,
-      body.shipping_method === "courier" ? body.shipping_address || null : null,
-      body.shipping_method === "courier" ? body.shipping_city || null : null,
-      body.shipping_method === "courier" ? body.shipping_region || null : null,
-      body.shipping_phone,
+      shippingAddress,
+      shippingCity,
+      shippingRegion,
+      shippingPhone,
       body.notes || null,
       eligibleForReferralDiscount ? conversion!.id : null,
       referralDiscount,
@@ -143,12 +152,13 @@ export async function POST(req: NextRequest) {
     if (referralDiscount > 0) discounts.push(`embajador 5% (-$${referralDiscount.toLocaleString("es-CL")})`);
     if (paymentDiscount > 0) discounts.push(`transferencia 10% (-$${paymentDiscount.toLocaleString("es-CL")})`);
     const discountNote = discounts.length ? ` con descuento ${discounts.join(" + ")}` : "";
+    const shippingNote = shippingFee > 0 ? ` y despacho $${shippingFee.toLocaleString("es-CL")}` : " y despacho gratis";
 
     await tx.run(
       `INSERT INTO customer_order_events (order_id, event_type, message)
        VALUES (?, 'created', ?)`,
       orderId,
-      `Orden creada${discountNote}`
+      `Orden creada${discountNote}${shippingNote}`
     );
   });
 
@@ -196,5 +206,6 @@ export async function POST(req: NextRequest) {
     paymentMethod,
     referralDiscount,
     paymentDiscount,
+    shippingFee,
   });
 }

@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useCart } from "@/lib/cart";
 import { formatCLP } from "@/lib/format";
+import { calcShippingFee, FREE_SHIPPING_THRESHOLD, OUTLYING_SHIPPING_FEE, URBAN_SHIPPING_FEE } from "@/lib/shipping";
 import type { CustomerAccount } from "@/lib/auth";
 
 const TRANSFER_DISCOUNT_PCT = 10; // matches lib/payments.ts
-const FREE_SHIPPING_THRESHOLD = 100000;
 
 export default function CheckoutClient({
   customer,
@@ -22,12 +22,15 @@ export default function CheckoutClient({
   const [submitting, setSubmitting] = useState(false);
   // Retiro en farmacia deshabilitado por ahora (aún no tenemos farmacia física propia).
   const [shippingMethod, setShippingMethod] = useState<"pickup" | "courier">("courier");
+  const [shippingCity, setShippingCity] = useState("");
+  const [shippingRegion, setShippingRegion] = useState("RM");
   const [paymentMethod, setPaymentMethod] = useState<"transfer" | "mercadopago">("transfer");
   const [error, setError] = useState<string | null>(null);
 
   const transferDiscount = Math.round((subtotal * TRANSFER_DISCOUNT_PCT) / 100);
-  const finalTotal = paymentMethod === "transfer" ? subtotal - transferDiscount : subtotal;
-  const shippingIsFree = subtotal > FREE_SHIPPING_THRESHOLD;
+  const shippingFee = shippingMethod === "courier" ? calcShippingFee(subtotal, shippingCity, shippingRegion) : 0;
+  const finalTotal = Math.max(0, subtotal - (paymentMethod === "transfer" ? transferDiscount : 0) + shippingFee);
+  const shippingIsFree = shippingFee === 0;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -134,7 +137,7 @@ export default function CheckoutClient({
                   onSelect={() => setShippingMethod("courier")}
                   title="Despacho a domicilio"
                   body="Courier privado · 24–72h hábiles desde la dispensación"
-                  cost={shippingIsFree ? "Despacho gratis" : `Cotización al confirmar · gratis sobre ${formatCLP(FREE_SHIPPING_THRESHOLD)}`}
+                  cost={shippingIsFree ? "Despacho gratis" : `${formatCLP(shippingFee)} · gratis sobre ${formatCLP(FREE_SHIPPING_THRESHOLD)}`}
                 />
                 <DisabledOption
                   title="Retiro en farmacia"
@@ -157,11 +160,25 @@ export default function CheckoutClient({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-7">
                   <div>
                     <label className="input-label">Comuna</label>
-                    <input name="shipping_city" required className="input-editorial" placeholder="Providencia" />
+                    <input
+                      name="shipping_city"
+                      required
+                      className="input-editorial"
+                      placeholder="Providencia"
+                      value={shippingCity}
+                      onChange={(e) => setShippingCity(e.currentTarget.value)}
+                    />
                   </div>
                   <div>
                     <label className="input-label">Región</label>
-                    <input name="shipping_region" required className="input-editorial" placeholder="RM" />
+                    <input
+                      name="shipping_region"
+                      required
+                      className="input-editorial"
+                      placeholder="RM"
+                      value={shippingRegion}
+                      onChange={(e) => setShippingRegion(e.currentTarget.value)}
+                    />
                   </div>
                 </div>
               </div>
@@ -260,7 +277,7 @@ export default function CheckoutClient({
                 <div className="flex justify-between items-baseline text-sm">
                   <span className="text-ink-muted">Despacho</span>
                   <span className="font-mono nums-lining tabular-nums">
-                    {shippingIsFree ? "Gratis" : "Cotización"}
+                    {shippingIsFree ? "Gratis" : formatCLP(shippingFee)}
                   </span>
                 </div>
                 <div className="flex justify-between items-baseline pt-3 border-t border-rule-soft">
@@ -280,8 +297,8 @@ export default function CheckoutClient({
               </button>
               <p className="text-[11px] font-mono leading-relaxed text-ink-muted mt-5">
                 {paymentMethod === "transfer"
-                  ? `Al continuar generamos tu folio y te mostramos los datos para transferir. Despacho gratis solo sobre ${formatCLP(FREE_SHIPPING_THRESHOLD)} de compra; bajo ese monto se cotiza al confirmar.`
-                  : `Te redirigiremos a MercadoPago para completar el pago. Despacho gratis solo sobre ${formatCLP(FREE_SHIPPING_THRESHOLD)} de compra; bajo ese monto se cotiza al confirmar.`}
+                  ? `Al continuar generamos tu folio y te mostramos los datos para transferir. Despacho urbano ${formatCLP(URBAN_SHIPPING_FEE)}; zonas fuera de Santiago urbano ${formatCLP(OUTLYING_SHIPPING_FEE)}; gratis sobre ${formatCLP(FREE_SHIPPING_THRESHOLD)}.`
+                  : `Te redirigiremos a MercadoPago para completar el pago. Despacho urbano ${formatCLP(URBAN_SHIPPING_FEE)}; zonas fuera de Santiago urbano ${formatCLP(OUTLYING_SHIPPING_FEE)}; gratis sobre ${formatCLP(FREE_SHIPPING_THRESHOLD)}.`}
               </p>
             </div>
           </aside>
