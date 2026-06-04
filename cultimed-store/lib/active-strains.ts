@@ -1,15 +1,17 @@
-// Cepas activas para venta en el storefront.
-// Cuando se quiera volver a activar una cepa: agregarla al set y aplicar
-// supabase/activate-strain.sql (que la pone is_active=1 y shopify_status='active').
+// Productos activos para venta en el storefront.
+// Cuando se quiera volver a activar una cepa/producto: agregarla al set y aplicar
+// supabase/deactivate-other-strains.sql (deja activos solo los keys permitidos).
 
 export const ACTIVE_STRAIN_KEYS: ReadonlySet<string> = new Set([
   "gaslight-purple-ghost-sativa-dominante-lit-farm",
   "bourbon-street-lit-farms",
+  "aceite-sublingual-calma",
 ]);
 
 export const ACTIVE_STRAIN_DISPLAY: Readonly<Record<string, string>> = {
   "gaslight-purple-ghost-sativa-dominante-lit-farm": "Gaslight · Purple Ghost (Sativa dominante)",
   "bourbon-street-lit-farms": "Bourbon Street · LIT Farms",
+  "aceite-sublingual-calma": "Aceite Sublingual Calma",
 };
 
 export const STRAIN_DISPLAY_NAMES: Readonly<Record<string, string>> = {
@@ -18,7 +20,6 @@ export const STRAIN_DISPLAY_NAMES: Readonly<Record<string, string>> = {
   "dulce-de-fresa-bloom-seed-co": "Dulce de Fresa · Bloom Seed Co.",
   "predispensado-cereal-milk-cookies-powerzzz-genetics": "Cereal Milk · Cookies x Powerzzz Genetics",
   "wedding-cake-ndica-dominante---litfarms": "Wedding Cake · Lit Farms",
-  "aceite-sublingual-calma": "Aceite Sublingual Calma",
 };
 
 export function isActiveStrain(strainKey: string | null | undefined): boolean {

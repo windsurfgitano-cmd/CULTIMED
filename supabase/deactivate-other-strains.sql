@@ -1,8 +1,18 @@
--- Deactiva las cepas que no están en el allow-list del storefront.
--- Activas a la fecha: bourbon-street-lit-farms, gaslight-purple-ghost-sativa-dominante-lit-farm
--- Esta migración es idempotente. Para reactivar una cepa:
---   UPDATE products SET is_active = 1, shopify_status = 'active'
---   WHERE strain_key = '<strain_key>';
+-- Deja activos solo los productos permitidos para compra web.
+-- Activos a la fecha:
+--   - bourbon-street-lit-farms
+--   - gaslight-purple-ghost-sativa-dominante-lit-farm
+--   - aceite-sublingual-calma
+-- Esta migración es idempotente.
+
+UPDATE products
+   SET is_active = 1,
+       shopify_status = 'active'
+ WHERE strain_key IN (
+     'bourbon-street-lit-farms',
+     'gaslight-purple-ghost-sativa-dominante-lit-farm',
+     'aceite-sublingual-calma'
+   );
 
 UPDATE products
    SET is_active = 0,
@@ -10,5 +20,6 @@ UPDATE products
  WHERE strain_key IS NOT NULL
    AND strain_key NOT IN (
      'bourbon-street-lit-farms',
-     'gaslight-purple-ghost-sativa-dominante-lit-farm'
+     'gaslight-purple-ghost-sativa-dominante-lit-farm',
+     'aceite-sublingual-calma'
    );
