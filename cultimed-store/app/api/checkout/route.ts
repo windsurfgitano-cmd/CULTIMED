@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { requireCustomer, canPurchase } from "@/lib/auth";
 import { run, transaction, get } from "@/lib/db";
 import { getActiveConversionForReferred, REFERRED_DISCOUNT_BPS } from "@/lib/referrals";
+import { ACTIVE_STRAIN_KEYS, isActiveStrain } from "@/lib/active-strains";
 import {
   PaymentMethod,
   calcPaymentDiscount,
@@ -62,12 +63,17 @@ export async function POST(req: NextRequest) {
   const outOfStock: string[] = [];
 
   for (const it of body.items) {
-    const product = await get<{ default_price: number; name: string }>(
-      `SELECT default_price, name FROM products WHERE id = ? AND is_active = 1`,
+    const product = await get<{ default_price: number; name: string; strain_key: string | null }>(
+      `SELECT default_price, name, strain_key FROM products WHERE id = ? AND is_active = 1`,
       it.productId
     );
     if (!product) continue;
     if (it.quantity <= 0) continue;
+    // Defensa servidor: solo cepas activas pueden comprarse.
+    if (!isActiveStrain(product.strain_key)) {
+      outOfStock.push(`${product.name} — no disponible para compra web`);
+      continue;
+    }
 
     const stockRow = await get<{ available: number }>(
       `SELECT COALESCE(SUM(quantity_current), 0)::int AS available

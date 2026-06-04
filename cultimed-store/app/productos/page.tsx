@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { all } from "@/lib/db";
 import { getCurrentCustomer, canPurchase } from "@/lib/auth";
+import { ACTIVE_STRAIN_KEYS } from "@/lib/active-strains";
 import ProductCard from "@/components/ProductCard";
 import CatalogGate from "@/components/CatalogGate";
 
@@ -47,8 +48,12 @@ export default async function CatalogPage({
   const brand = searchParams.brand || "";
   const sort = searchParams.sort || "newest";
 
-  const where: string[] = [`p.is_active = 1`, `p.shopify_status = 'active'`];
-  const params: any[] = [];
+  const where: string[] = [
+    `p.is_active = 1`,
+    `p.shopify_status = 'active'`,
+    `p.strain_key IN (${[...ACTIVE_STRAIN_KEYS].map(() => "?").join(", ") || "''"})`,
+  ];
+  const params: any[] = [...ACTIVE_STRAIN_KEYS];
   if (cat) { where.push(`p.category = ?`); params.push(cat); }
   if (brand === "cultimed") where.push(`p.is_house_brand = 1`);
   else if (brand === "external") where.push(`p.is_house_brand = 0`);

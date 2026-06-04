@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { all, get } from "@/lib/db";
 import { getCurrentCustomer, canPurchase } from "@/lib/auth";
+import { ACTIVE_STRAIN_KEYS, isActiveStrain } from "@/lib/active-strains";
 import ProductCard from "@/components/ProductCard";
 import CatalogGate from "@/components/CatalogGate";
 import VariantPicker from "@/components/VariantPicker";
@@ -49,6 +50,8 @@ export default async function ProductDetailPage({ params }: { params: { slug: st
     slug
   );
   if (!product) notFound();
+  // Solo cepas activas se pueden ver en detalle. El resto devuelve 404.
+  if (!isActiveStrain(product.strain_key)) notFound();
 
   const batches = await all<BatchInfo>(
     `SELECT id, batch_number, quantity_current, manufacture_date, expiry_date, supplier
@@ -61,6 +64,7 @@ export default async function ProductDetailPage({ params }: { params: { slug: st
   const showPrice = canPurchase(customer);
 
   // Hermanas (mismo strain_key) — agrupa variantes de gramaje en una sola publicación.
+  // Solo cepas activas se muestran como switcher de gramaje.
   const siblingVariants = product.strain_key
     ? await all<VariantRow>(
         `SELECT p.id, p.sku, p.presentation, p.default_price,
@@ -72,15 +76,20 @@ export default async function ProductDetailPage({ params }: { params: { slug: st
       )
     : [{ id: product.id, sku: product.sku, presentation: product.presentation, default_price: product.default_price, total_stock: totalStock }];
 
-  // Relacionadas: misma categoría, distinto strain_key (1 publicación por cepa)
+  // Relacionadas: misma categoría, distinto strain_key (1 publicación por cepa).
+  // Solo cepas activas en el carrusel.
   const related = await all<any>(
     `SELECT DISTINCT ON (p.strain_key) p.id, p.sku, p.name, p.category, p.presentation, p.default_price,
        p.thc_percentage, p.cbd_percentage, p.vendor, p.is_house_brand, p.description, p.image_url, p.strain_key
      FROM products p
-     WHERE p.category = ? AND (p.strain_key IS NULL OR p.strain_key != ?) AND p.is_active = 1 AND p.shopify_status = 'active'
+     WHERE p.category = ?
+       AND p.strain_key != ?
+       AND p.strain_key IN (${[...ACTIVE_STRAIN_KEYS].map(() => "?").join(", ") || "''"})
+       AND p.is_active = 1
+       AND p.shopify_status = 'active'
      ORDER BY p.strain_key, p.default_price ASC
      LIMIT 6`,
-    product.category, product.strain_key || ""
+    product.category, product.strain_key || "", ...ACTIVE_STRAIN_KEYS
   );
 
   // Parse name parts
