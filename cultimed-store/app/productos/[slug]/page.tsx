@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { all, get } from "@/lib/db";
 import { getCurrentCustomer, canPurchase } from "@/lib/auth";
-import { ACTIVE_STRAIN_KEYS, isActiveStrain } from "@/lib/active-strains";
+import { ACTIVE_STRAIN_KEYS, displayStrainName, isActiveStrain } from "@/lib/active-strains";
 import ProductCard from "@/components/ProductCard";
 import CatalogGate from "@/components/CatalogGate";
 import VariantPicker from "@/components/VariantPicker";
@@ -93,7 +93,7 @@ export default async function ProductDetailPage({ params }: { params: { slug: st
   );
 
   // Parse name parts
-  const cleanName = product.name.replace(/\s*\(([^)]+)\)\s*$/, "").trim();
+  const cleanName = displayStrainName(product.strain_key, product.name);
   const presentationFromName = product.name.match(/\(([^)]+)\)\s*$/)?.[1];
   const presentation = presentationFromName || product.presentation;
   const nameParts = cleanName.split(" ");

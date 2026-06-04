@@ -18,7 +18,7 @@ export default async function HomePage() {
             {/* Eyebrow rule */}
             <div className="col-span-12 flex items-center gap-6 mb-6 lg:mb-12">
               <span className="eyebrow opacity-0 animate-fade-up" style={{ animationDelay: "0.1s" }}>
-                — Dispensario clínico autorizado
+                — Dispensario médico autorizado
               </span>
               <span
                 className="hairline-thick max-w-[200px] origin-left animate-rule-grow"
@@ -36,7 +36,7 @@ export default async function HomePage() {
                 <span className="font-light">de</span>
               </span>
               <span className="block opacity-0 animate-fade-up" style={{ animationDelay: "0.55s" }}>
-                <span className="font-light">precisión.</span>
+                <span className="font-light">calidad mundial.</span>
               </span>
             </h1>
 
@@ -44,10 +44,9 @@ export default async function HomePage() {
             <div className="col-span-12 lg:col-span-3 lg:col-start-10 lg:pb-3">
               <div className="opacity-0 animate-fade-up" style={{ animationDelay: "0.7s" }}>
                 <p className="text-sm leading-relaxed text-ink-muted mb-6 max-w-xs">
-                  Productos farmacéuticos de grado médico, formulados bajo
-                  estándares <span className="italic">GMP</span> y respaldados por
-                  evidencia clínica. Cada lote certificado por laboratorio
-                  independiente.
+                  Cannabis medicinal seleccionado bajo estándares farmacéuticos,
+                  con trazabilidad por lote, análisis independiente y dispensación
+                  clínica para pacientes validados.
                 </p>
                 <div className="flex flex-col gap-3">
                   <Link href="/consulta" className="btn-brass">

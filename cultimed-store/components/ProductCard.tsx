@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { formatCLP } from "@/lib/format";
+import { displayStrainName } from "@/lib/active-strains";
 
 interface ProductLite {
   id: number;
@@ -14,6 +15,7 @@ interface ProductLite {
   is_house_brand: number;
   description: string | null;
   image_url?: string | null;
+  strain_key?: string | null;
   slug?: string;
 }
 
@@ -40,16 +42,18 @@ export default function ProductCard({
   showPrice = false,
   variants,
   aggregateStock,
+  unavailable = false,
 }: {
   product: ProductLite;
   index?: number;
   showPrice?: boolean;
   variants?: VariantLite[];
   aggregateStock?: number;
+  unavailable?: boolean;
 }) {
   // Strip "(XXg)" suffix from name and treat as separate
   const presentationFromName = p.name.match(/\(([^)]+)\)\s*$/)?.[1];
-  const cleanName = p.name.replace(/\s*\(([^)]+)\)\s*$/, "").trim();
+  const cleanName = displayStrainName(p.strain_key, p.name);
   const presentation = presentationFromName || p.presentation || "";
 
   const slug = p.slug || p.sku.toLowerCase();
@@ -60,12 +64,8 @@ export default function ProductCard({
   const maxPrice = hasVariants ? variants![variants!.length - 1].default_price : p.default_price;
   const stock = aggregateStock !== undefined ? aggregateStock : null;
 
-  return (
-    <Link
-      href={`/productos/${slug}`}
-      className="group block opacity-0 animate-fade-up"
-      style={{ animationDelay: `${0.1 + index * 0.08}s` }}
-    >
+  const content = (
+    <>
       {/* Image well — apothecary photo if available, fallback to botanical SVG */}
       <div className="relative aspect-[4/5] mb-6 overflow-hidden bg-paper-dim">
         {p.image_url ? (
@@ -73,7 +73,7 @@ export default function ProductCard({
           <img
             src={p.image_url}
             alt={cleanName}
-            className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-editorial group-hover:scale-105"
+            className={`absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-editorial ${unavailable ? "grayscale contrast-90 opacity-70" : "group-hover:scale-105"}`}
             loading="lazy"
           />
         ) : (
@@ -82,12 +82,19 @@ export default function ProductCard({
             accent={p.is_house_brand ? "forest" : "brass"}
           />
         )}
+        {unavailable && (
+          <div className="absolute inset-x-[-18%] top-1/2 -translate-y-1/2 -rotate-6 bg-ink/90 py-3 text-center shadow-lg">
+            <span className="font-mono text-[12px] uppercase tracking-[0.45em] text-paper">Agotado</span>
+          </div>
+        )}
         {/* Hover hint */}
-        <div className="absolute bottom-4 right-4 transition-all duration-500 ease-editorial opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0">
-          <span className="text-[10px] tracking-widest uppercase font-mono px-3 py-1.5 bg-paper-bright text-ink">
-            Ver ficha →
-          </span>
-        </div>
+        {!unavailable && (
+          <div className="absolute bottom-4 right-4 transition-all duration-500 ease-editorial opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0">
+            <span className="text-[10px] tracking-widest uppercase font-mono px-3 py-1.5 bg-paper-bright text-ink">
+              Ver ficha →
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Meta row */}
@@ -143,7 +150,12 @@ export default function ProductCard({
 
       {/* Price / prescription row */}
       <div className="flex items-baseline justify-between border-t border-rule pt-3">
-        {showPrice ? (
+        {unavailable ? (
+          <span className="text-[10px] uppercase tracking-widest font-mono text-ink-muted flex items-center gap-1.5">
+            <span className="w-1 h-1 rounded-full bg-ink-muted" />
+            Agotado
+          </span>
+        ) : showPrice ? (
           <span className="font-mono text-sm text-ink nums-lining">
             {hasVariants && minPrice !== maxPrice ? (
               <>desde {formatCLP(minPrice)}</>
@@ -158,9 +170,31 @@ export default function ProductCard({
           </span>
         )}
         <span className="text-[10px] uppercase tracking-widest font-mono text-ink-subtle group-hover:text-ink transition-colors">
-          → Ficha técnica
+          {unavailable ? "No disponible" : "→ Ficha técnica"}
         </span>
       </div>
+    </>
+  );
+
+  if (unavailable) {
+    return (
+      <article
+        aria-disabled="true"
+        className="group block opacity-0 animate-fade-up cursor-not-allowed select-none"
+        style={{ animationDelay: `${0.1 + index * 0.08}s` }}
+      >
+        {content}
+      </article>
+    );
+  }
+
+  return (
+    <Link
+      href={`/productos/${slug}`}
+      className="group block opacity-0 animate-fade-up"
+      style={{ animationDelay: `${0.1 + index * 0.08}s` }}
+    >
+      {content}
     </Link>
   );
 }
