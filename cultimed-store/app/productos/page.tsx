@@ -98,6 +98,8 @@ export default async function CatalogPage({
     ...g,
     variants: g.variants.sort((a, b) => a.default_price - b.default_price),
   }));
+  const availableCount = strains.filter((s) => isActiveStrain(s.head.strain_key)).length;
+  const soldOutCount = strains.length - availableCount;
 
   const buildHref = (overrides: Record<string, string | undefined>) => {
     const sp = new URLSearchParams();
@@ -114,18 +116,19 @@ export default async function CatalogPage({
           <div className="col-span-12 lg:col-span-8">
             <div className="flex items-baseline gap-6 mb-6">
               <span className="editorial-numeral text-2xl text-ink-subtle">— 01</span>
-              <span className="eyebrow">Catálogo · {strains.length} {strains.length === 1 ? "publicación" : "publicaciones"}</span>
+              <span className="eyebrow">Catálogo clínico · {availableCount} disponibles · {soldOutCount} agotadas</span>
             </div>
             <h1 className="font-display text-display-2 leading-[1.0] text-balance">
               <span className="font-light">Catálogo</span>{" "}
-              <span className="italic font-normal">vivo</span>
+              <span className="italic font-normal">clínico</span>
               <span className="font-light">.</span>
             </h1>
           </div>
           <div className="col-span-12 lg:col-span-4 lg:pb-3">
             <p className="text-sm leading-relaxed text-ink-muted">
-              Selección rotativa de cepas premium y formulaciones farmacéuticas. Disponibilidad
-              y precios visibles únicamente con cuenta y receta validada.
+              Disponibilidad real por lote para pacientes validados. Gaslight y Bourbon están
+              habilitadas para compra; las demás genéticas quedan visibles como agotadas para
+              transparentar reposiciones y trazabilidad del dispensario.
             </p>
           </div>
         </div>

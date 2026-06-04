@@ -49,12 +49,34 @@ export default async function HomePage() {
                   clínica para pacientes validados.
                 </p>
                 <div className="flex flex-col gap-3">
-                  <Link href="/consulta" className="btn-brass">
-                    Agenda tu consulta
-                  </Link>
-                  <Link href="/productos" className="btn-link">
-                    Ver el catálogo →
-                  </Link>
+                  {hasApprovedPrescription ? (
+                    <>
+                      <Link href="/productos" className="btn-brass">
+                        Ver catálogo
+                      </Link>
+                      <Link href="/mi-cuenta" className="btn-link">
+                        Mi cuenta →
+                      </Link>
+                    </>
+                  ) : customer ? (
+                    <>
+                      <Link href="/mi-cuenta/recetas" className="btn-brass">
+                        Completar validación
+                      </Link>
+                      <Link href="/mi-cuenta" className="btn-link">
+                        Mi cuenta →
+                      </Link>
+                    </>
+                  ) : (
+                    <>
+                      <Link href="/consulta" className="btn-brass">
+                        Agenda tu consulta
+                      </Link>
+                      <Link href="/productos" className="btn-link">
+                        Ver el catálogo →
+                      </Link>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -118,12 +140,14 @@ export default async function HomePage() {
                   <span className="italic font-normal">catálogo completo</span>
                   <span className="font-light">.</span>
                 </h3>
-                <Link href="/productos" className="btn-brass w-full mb-3">
-                  Ver catálogo →
-                </Link>
-                <Link href="/mi-cuenta" className="btn-link w-full justify-center">
-                  Mi cuenta
-                </Link>
+                <div className="flex flex-col gap-3">
+                  <Link href="/productos" className="btn-brass w-full">
+                    Ver catálogo →
+                  </Link>
+                  <Link href="/mi-cuenta" className="btn-link w-full justify-center">
+                    Mi cuenta
+                  </Link>
+                </div>
               </>
             ) : customer ? (
               <>
