@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { all, get } from "@/lib/db";
 import { getCurrentCustomer, canPurchase } from "@/lib/auth";
-import { ACTIVE_STRAIN_KEYS, displayStrainName, isActiveStrain } from "@/lib/active-strains";
+import { displayStrainName } from "@/lib/active-strains";
 import ProductCard from "@/components/ProductCard";
 import CatalogGate from "@/components/CatalogGate";
 import VariantPicker from "@/components/VariantPicker";
@@ -46,12 +46,10 @@ export default async function ProductDetailPage({ params }: { params: { slug: st
 
   const slug = params.slug.toLowerCase();
   const product = await get<ProductFull>(
-    `SELECT * FROM products WHERE LOWER(sku) = ? AND is_active = 1`,
+    `SELECT * FROM products WHERE LOWER(sku) = ? AND is_active = 1 AND shopify_status = 'active'`,
     slug
   );
   if (!product) notFound();
-  // Solo cepas activas se pueden ver en detalle. El resto devuelve 404.
-  if (!isActiveStrain(product.strain_key)) notFound();
 
   const batches = await all<BatchInfo>(
     `SELECT id, batch_number, quantity_current, manufacture_date, expiry_date, supplier
@@ -70,7 +68,7 @@ export default async function ProductDetailPage({ params }: { params: { slug: st
         `SELECT p.id, p.sku, p.presentation, p.default_price,
            COALESCE((SELECT SUM(quantity_current) FROM batches b WHERE b.product_id = p.id AND b.status='available'), 0) as total_stock
          FROM products p
-         WHERE p.strain_key = ? AND p.is_active = 1
+         WHERE p.strain_key = ? AND p.is_active = 1 AND p.shopify_status = 'active'
          ORDER BY p.default_price ASC`,
         product.strain_key
       )
@@ -84,12 +82,11 @@ export default async function ProductDetailPage({ params }: { params: { slug: st
      FROM products p
      WHERE p.category = ?
        AND p.strain_key != ?
-       AND p.strain_key IN (${[...ACTIVE_STRAIN_KEYS].map(() => "?").join(", ") || "''"})
        AND p.is_active = 1
        AND p.shopify_status = 'active'
      ORDER BY p.strain_key, p.default_price ASC
      LIMIT 6`,
-    product.category, product.strain_key || "", ...ACTIVE_STRAIN_KEYS
+    product.category, product.strain_key || ""
   );
 
   // Parse name parts

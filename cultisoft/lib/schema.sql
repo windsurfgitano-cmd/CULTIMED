@@ -70,6 +70,8 @@ CREATE TABLE IF NOT EXISTS products (
   is_controlled INTEGER NOT NULL DEFAULT 0,  -- receta retenida (estupefacientes)
   default_price INTEGER, -- CLP
   description TEXT,
+  image_url TEXT,
+  strain_key TEXT,
   vendor TEXT,                    -- breeder/proveedor: "Bloom Seed Co.", "LIT Farms", etc.
   is_house_brand INTEGER NOT NULL DEFAULT 0, -- 1 = línea propia Cultimed (vs breeder externo)
   is_preorder INTEGER NOT NULL DEFAULT 0,    -- 1 = (PREVENTA) o (PREDISPENSADO)

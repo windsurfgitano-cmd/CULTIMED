@@ -12,13 +12,14 @@ const NAV = [
   { n: "04", href: "/web-orders",        label: "Pedidos web" },
   { n: "05", href: "/prescriptions",     label: "Recetas" },
   { n: "06", href: "/web-prescriptions", label: "Recetas web" },
-  { n: "07", href: "/inventory",         label: "Inventario" },
-  { n: "08", href: "/reports",           label: "Reportes" },
-  { n: "09", href: "/ambassadors",       label: "Embajadores" },
+  { n: "07", href: "/products",          label: "Productos" },
+  { n: "08", href: "/inventory",         label: "Inventario" },
+  { n: "09", href: "/reports",           label: "Reportes" },
+  { n: "10", href: "/ambassadors",       label: "Embajadores" },
 ];
 
 const SYSTEM = [
-  { n: "10", href: "/admin", label: "Super Admin", adminOnly: true },
+  { n: "11", href: "/admin", label: "Super Admin", adminOnly: true },
 ];
 
 function NavList({ role, onNav }: { role: string; onNav?: () => void }) {

@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { all } from "@/lib/db";
 import { getCurrentCustomer, canPurchase } from "@/lib/auth";
-import { ACTIVE_STRAIN_KEYS, isActiveStrain } from "@/lib/active-strains";
 import ProductCard from "@/components/ProductCard";
 import CatalogGate from "@/components/CatalogGate";
 
@@ -21,6 +20,8 @@ interface CatalogProduct {
   description: string | null;
   image_url: string | null;
   strain_key: string | null;
+  is_active: number;
+  shopify_status: string | null;
   total_stock: number;
 }
 
@@ -48,30 +49,29 @@ export default async function CatalogPage({
   const brand = searchParams.brand || "";
   const sort = searchParams.sort || "newest";
 
-  const activeStrainKeys = [...ACTIVE_STRAIN_KEYS];
-  const activeStrainPlaceholders = activeStrainKeys.map(() => "?").join(", ") || "''";
   const where: string[] = [`p.strain_key IS NOT NULL`];
   const params: any[] = [];
   if (cat) { where.push(`p.category = ?`); params.push(cat); }
   if (brand === "cultimed") where.push(`p.is_house_brand = 1`);
   else if (brand === "external") where.push(`p.is_house_brand = 0`);
 
-  let order = `CASE WHEN p.strain_key IN (${activeStrainPlaceholders}) THEN 0 ELSE 1 END, p.is_house_brand DESC, p.created_at DESC`;
-  if (sort === "thc-high") order = `CASE WHEN p.strain_key IN (${activeStrainPlaceholders}) THEN 0 ELSE 1 END, p.thc_percentage DESC NULLS LAST`;
-  else if (sort === "thc-low") order = `CASE WHEN p.strain_key IN (${activeStrainPlaceholders}) THEN 0 ELSE 1 END, p.thc_percentage ASC NULLS LAST`;
-  else if (sort === "price-low") order = `CASE WHEN p.strain_key IN (${activeStrainPlaceholders}) THEN 0 ELSE 1 END, p.default_price ASC`;
-  else if (sort === "price-high") order = `CASE WHEN p.strain_key IN (${activeStrainPlaceholders}) THEN 0 ELSE 1 END, p.default_price DESC`;
+  const purchasableOrder = `CASE WHEN p.is_active = 1 AND p.shopify_status = 'active' THEN 0 ELSE 1 END`;
+  let order = `${purchasableOrder}, p.is_house_brand DESC, p.created_at DESC`;
+  if (sort === "thc-high") order = `${purchasableOrder}, p.thc_percentage DESC NULLS LAST`;
+  else if (sort === "thc-low") order = `${purchasableOrder}, p.thc_percentage ASC NULLS LAST`;
+  else if (sort === "price-low") order = `${purchasableOrder}, p.default_price ASC`;
+  else if (sort === "price-high") order = `${purchasableOrder}, p.default_price DESC`;
 
   const products = await all<CatalogProduct>(
     `SELECT p.id, p.sku, p.name, p.category, p.presentation, p.default_price,
        p.thc_percentage, p.cbd_percentage, p.vendor, p.is_house_brand, p.description,
-       p.image_url, p.strain_key,
+       p.image_url, p.strain_key, p.is_active, p.shopify_status,
        COALESCE((SELECT SUM(quantity_current) FROM batches b WHERE b.product_id = p.id), 0) as total_stock
      FROM products p
      WHERE ${where.join(" AND ")}
      ORDER BY ${order}
      LIMIT 200`,
-    ...params, ...activeStrainKeys
+    ...params
   );
 
   // Agrupa por strain_key (1 publicación por cepa). Head = la variante de menor gramaje (precio más bajo).
@@ -98,7 +98,7 @@ export default async function CatalogPage({
     ...g,
     variants: g.variants.sort((a, b) => a.default_price - b.default_price),
   }));
-  const availableCount = strains.filter((s) => isActiveStrain(s.head.strain_key)).length;
+  const availableCount = strains.filter((s) => s.head.is_active === 1 && s.head.shopify_status === "active").length;
   const soldOutCount = strains.length - availableCount;
 
   const buildHref = (overrides: Record<string, string | undefined>) => {
@@ -181,7 +181,7 @@ export default async function CatalogPage({
                 showPrice={showPrice}
                 variants={s.variants}
                 aggregateStock={s.total_stock}
-                unavailable={!isActiveStrain(s.head.strain_key)}
+                unavailable={!(s.head.is_active === 1 && s.head.shopify_status === "active")}
               />
             ))}
           </div>

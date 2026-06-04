@@ -72,6 +72,8 @@ CREATE TABLE IF NOT EXISTS products (
   is_controlled SMALLINT NOT NULL DEFAULT 0,
   default_price INTEGER,
   description TEXT,
+  image_url TEXT,
+  strain_key TEXT,
   vendor TEXT,
   is_house_brand SMALLINT NOT NULL DEFAULT 0,
   is_preorder SMALLINT NOT NULL DEFAULT 0,
