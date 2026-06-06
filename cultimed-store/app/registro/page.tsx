@@ -8,7 +8,7 @@ import {
   findActiveCode,
   REFERRAL_COOKIE_NAME,
 } from "@/lib/referrals";
-import { get } from "@/lib/db";
+import { get, run } from "@/lib/db";
 import { createCustomerResetToken } from "@/lib/password-reset";
 import { sendEmail, emailLayout } from "@/lib/email";
 
@@ -19,17 +19,28 @@ async function registerAction(formData: FormData) {
   const fullName = String(formData.get("full_name") || "").trim();
   const rutRaw = String(formData.get("rut") || "").trim();
   const phone = String(formData.get("phone") || "").trim();
+  const dateOfBirth = String(formData.get("date_of_birth") || "").trim();
+  const gender = String(formData.get("gender") || "").trim() || null;
   const next = String(formData.get("next") || "/mi-cuenta");
 
-  if (!email || !password || !fullName) {
+  if (!email || !password || !fullName || !rutRaw || !dateOfBirth || !phone) {
     redirect("/registro?e=missing&next=" + encodeURIComponent(next));
   }
-  if (rutRaw && !isValidRut(rutRaw)) {
+  if (!isValidRut(rutRaw)) {
     redirect("/registro?e=rut_invalid&next=" + encodeURIComponent(next));
   }
-  const rut = rutRaw ? formatRut(cleanRut(rutRaw)) : undefined;
+  // Validar mayoría de edad (18 años)
+  const birthDate = new Date(dateOfBirth);
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
+  if (age < 18) {
+    redirect("/registro?e=underage&next=" + encodeURIComponent(next));
+  }
+  const rut = formatRut(cleanRut(rutRaw));
 
-  const result = await registerCustomer({ email, password, full_name: fullName, rut, phone });
+  const result = await registerCustomer({ email, password, full_name: fullName, rut, phone, dateOfBirth, gender });
   if ("error" in result) {
     // Caso especial: usuario migrado que intenta registrarse — dispara email de activación auto
     if (result.error === "needs_activation") {
@@ -55,6 +66,36 @@ async function registerAction(formData: FormData) {
     redirect(`/registro?e=${result.error}&next=${encodeURIComponent(next)}`);
   }
 
+  // Crear o vincular ficha clínica automáticamente. Si ya existe por RUT
+  // (carga admin/importación), no duplicamos: completamos datos básicos.
+  const existingPatient = await get<{ id: number }>(`SELECT id FROM patients WHERE rut = ?`, rut);
+  let patientId = existingPatient?.id || 0;
+  if (patientId) {
+    await run(
+      `UPDATE patients
+         SET full_name = COALESCE(NULLIF(full_name, ''), ?),
+             date_of_birth = COALESCE(date_of_birth, ?),
+             gender = COALESCE(gender, ?),
+             email = COALESCE(email, ?),
+             phone = COALESCE(phone, ?),
+             updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      fullName, dateOfBirth, gender, email, phone, patientId
+    );
+  } else {
+    const patientRes = await run(
+      `INSERT INTO patients (rut, full_name, date_of_birth, gender, email, phone, membership_status, membership_started_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'active', CURRENT_TIMESTAMP)
+       RETURNING id`,
+      rut, fullName, dateOfBirth, gender, email, phone
+    );
+    patientId = Number(patientRes.lastInsertRowid);
+  }
+  await run(
+    `UPDATE customer_accounts SET patient_id = ? WHERE id = ?`,
+    patientId, result.id
+  );
+
   // Tracking de referral: si hay cookie con código válido, asociar conversión.
   const refCode = cookies().get(REFERRAL_COOKIE_NAME)?.value;
   if (refCode) {
@@ -72,6 +113,7 @@ const ERR: Record<string, string> = {
   duplicate_rut: "Ya existe una cuenta registrada con ese RUT. Si es tuya, ingresa o recupera tu contraseña.",
   needs_activation: "Tu cuenta existe pero aún no la has activado. Te enviamos email para crear tu contraseña — revisa tu inbox (y spam).",
   rut_invalid: "RUT inválido. Verifica el dígito verificador.",
+  underage: "Debes ser mayor de 18 años para registrarte.",
 };
 
 export default async function RegisterPage({ searchParams }: { searchParams: { e?: string; next?: string; invitado?: string } }) {
@@ -160,12 +202,27 @@ export default async function RegisterPage({ searchParams }: { searchParams: { e
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-7">
               <div>
-                <label htmlFor="rut" className="input-label">RUT</label>
-                <input id="rut" name="rut" className="input-editorial nums-lining" placeholder="12.345.678-9" />
+                <label htmlFor="rut" className="input-label">RUT *</label>
+                <input id="rut" name="rut" required className="input-editorial nums-lining" placeholder="12.345.678-9" />
               </div>
               <div>
-                <label htmlFor="phone" className="input-label">Teléfono / WhatsApp</label>
-                <input id="phone" name="phone" type="tel" className="input-editorial" placeholder="+56 9 XXXX XXXX" />
+                <label htmlFor="date_of_birth" className="input-label">Fecha de nacimiento *</label>
+                <input id="date_of_birth" name="date_of_birth" type="date" required className="input-editorial" />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-7">
+              <div>
+                <label htmlFor="phone" className="input-label">Teléfono / WhatsApp *</label>
+                <input id="phone" name="phone" type="tel" required className="input-editorial" placeholder="+56 9 XXXX XXXX" />
+              </div>
+              <div>
+                <label htmlFor="gender" className="input-label">Género</label>
+                <select id="gender" name="gender" className="input-editorial">
+                  <option value="">— Seleccionar —</option>
+                  <option value="F">Femenino</option>
+                  <option value="M">Masculino</option>
+                  <option value="X">Otro / Prefiere no decir</option>
+                </select>
               </div>
             </div>
 

@@ -46,6 +46,8 @@ export async function registerCustomer(input: {
   full_name: string;
   rut?: string;
   phone?: string;
+  dateOfBirth?: string;
+  gender?: string | null;
 }): Promise<CustomerAccount | { error: string }> {
   const email = input.email.trim().toLowerCase();
   if (!email || !input.password) return { error: "missing" };
