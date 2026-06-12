@@ -1,4 +1,4 @@
-// Supabase Storage helper para uploads de pacientes (recetas + comprobantes).
+﻿// Supabase Storage helper para uploads de pacientes (recetas + comprobantes).
 // Bucket: "uploads" (público, signed URLs para acceso controlado).
 //
 // Buckets a crear en Supabase Storage:
@@ -24,7 +24,7 @@ export function getStorageAdmin(): SupabaseClient {
   return _admin;
 }
 
-export type UploadBucket = "prescriptions" | "payment-proofs" | "documents";
+export type UploadBucket = "prescriptions" | "payment-proofs" | "documents" | "patient-documents";
 
 export interface UploadResult {
   /** Path interno del objeto, ej: "1/2026-04-30T20-00-00_receta.pdf" */
