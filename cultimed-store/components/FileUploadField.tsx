@@ -59,7 +59,7 @@ export default function FileUploadField({
             </button>
           </div>
         ) : (
-          <label className="block border-2 border-dashed border-rule hover:border-ink bg-paper-bright p-8 text-center cursor-pointer transition-colors">
+          <label htmlFor={name} className="block border-2 border-dashed border-rule hover:border-ink bg-paper-bright p-8 text-center cursor-pointer transition-colors">
             <p className="font-display text-lg italic text-ink-muted">Seleccionar archivo</p>
             <p className="text-xs text-ink-muted font-mono uppercase tracking-widest mt-2">{accept.replace(/,/g, " · ")} · máx 8 MB</p>
           </label>
