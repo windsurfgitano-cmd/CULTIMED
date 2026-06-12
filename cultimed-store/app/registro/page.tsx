@@ -80,24 +80,31 @@ async function registerAction(formData: FormData) {
 
   const customerId = result.id;
 
-  // Subir cada documento con el customer ID real
-  const updates: string[] = [];
-  const params: any[] = [];
-  for (const doc of docFields) {
-    const file = formData.get(doc.key) as File;
-    const url = await saveUploadedFile(file, "patient-documents", String(customerId), doc.docType);
-    updates.push(`${doc.column} = ?`);
-    params.push(url);
-  }
-  // Marcar prescription_status = pending automáticamente
-  updates.push("prescription_status = ?");
-  params.push("pending");
-  params.push(customerId);
+  try {
+    // Subir cada documento con el customer ID real
+    const updates: string[] = [];
+    const params: any[] = [];
+    for (const doc of docFields) {
+      const file = formData.get(doc.key) as File;
+      const url = await saveUploadedFile(file, "patient-documents", String(customerId), doc.docType);
+      updates.push(`${doc.column} = ?`);
+      params.push(url);
+    }
+    // Marcar prescription_status = pending automáticamente
+    updates.push("prescription_status = ?");
+    params.push("pending");
+    params.push(customerId);
 
-  await run(
-    `UPDATE customer_accounts SET ${updates.join(", ")}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-    ...params
-  );
+    await run(
+      `UPDATE customer_accounts SET ${updates.join(", ")}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      ...params
+    );
+  } catch (uploadError: any) {
+    // Si falla el upload, borrar la cuenta creada (rollback)
+    await run(`DELETE FROM customer_accounts WHERE id = ?`, customerId);
+    console.error("Upload failed:", uploadError);
+    redirect(`/registro?e=upload_failed&next=${encodeURIComponent(next)}`);
+  }
 
   // Crear o vincular ficha clínica automáticamente
   const existingPatient = await get<{ id: number }>(`SELECT id FROM patients WHERE rut = ?`, rut);
@@ -145,6 +152,7 @@ const ERR: Record<string, string> = {
   duplicate_rut: "Ya existe una cuenta registrada con ese RUT. Si es tuya, ingresa o recupera tu contraseña.",
   needs_activation: "Tu cuenta existe pero aún no la has activado. Te enviamos email para crear tu contraseña — revisa tu inbox (y spam).",
   rut_invalid: "RUT inválido. Verifica el dígito verificador.",
+  upload_failed: "Error al subir documentos. Intenta de nuevo o contacta soporte.",
 };
 
 export default async function RegisterPage({ searchParams }: { searchParams: { e?: string; next?: string; invitado?: string } }) {
@@ -227,39 +235,40 @@ export default async function RegisterPage({ searchParams }: { searchParams: { e
 
             <div>
               <label htmlFor="full_name" className="input-label">Nombre completo *</label>
-              <input id="full_name" name="full_name" required autoFocus className="input-editorial" placeholder="Como aparece en tu cédula" />
+              <input id="full_name" name="full_name" type="text" required className="input-field" />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-7">
-              <div>
-                <label htmlFor="rut" className="input-label">RUT *</label>
-                <input id="rut" name="rut" required className="input-editorial nums-lining" placeholder="12.345.678-9" />
-              </div>
-              <div>
-                <label htmlFor="phone" className="input-label">Teléfono / WhatsApp *</label>
-                <input id="phone" name="phone" type="tel" required className="input-editorial" placeholder="+56 9 XXXX XXXX" />
-              </div>
+            <div>
+              <label htmlFor="rut" className="input-label">RUT *</label>
+              <input id="rut" name="rut" type="text" required placeholder="12.345.678-9" className="input-field" />
+              <p className="mt-1 text-xs text-ink-muted">Ej: 12.345.678‑9 (con guion)</p>
+            </div>
+
+            <div>
+              <label htmlFor="phone" className="input-label">Teléfono *</label>
+              <input id="phone" name="phone" type="tel" required placeholder="+56 9 1234 5678" className="input-field" />
             </div>
 
             <div>
               <label htmlFor="email" className="input-label">Email *</label>
-              <input id="email" name="email" type="email" required autoComplete="email" className="input-editorial" placeholder="tu@correo.cl" />
+              <input id="email" name="email" type="email" required placeholder="tu@email.com" className="input-field" />
             </div>
 
             <div>
               <label htmlFor="password" className="input-label">Contraseña *</label>
-              <input id="password" name="password" type="password" required minLength={6} autoComplete="new-password" className="input-editorial" placeholder="Mínimo 6 caracteres" />
+              <input id="password" name="password" type="password" required minLength={6} className="input-field" />
+              <p className="mt-1 text-xs text-ink-muted">Mínimo 6 caracteres</p>
             </div>
 
             <div className="hairline" />
 
-            <p className="eyebrow">— Documentos requeridos</p>
-            <p className="text-xs text-ink-muted -mt-5">Sube los 5 archivos en formato PDF, JPG o PNG (máx 8 MB c/u).</p>
+            <p className="eyebrow">Documentos requeridos</p>
+            <p className="text-sm text-ink-muted mb-5">Cada uno debe ser un archivo individual (PDF, JPG o PNG) · máx 8 MB</p>
 
+            <FileUploadField name="prescription" label="Receta médica (foto o PDF)" required />
             <FileUploadField name="id_front" label="Foto carnet por delante" required />
             <FileUploadField name="id_back" label="Foto carnet por detrás" required />
             <FileUploadField name="criminal_record" label="Antecedentes penales (captura o PDF)" required />
-            <FileUploadField name="prescription" label="Receta médica (foto o PDF)" required />
             <FileUploadField name="rights_assignment" label="Cesión de derechos firmada (foto o PDF)" required />
 
             <div className="hairline" />
