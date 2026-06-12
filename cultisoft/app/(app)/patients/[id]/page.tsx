@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { requireStaff } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { all, get, run } from "@/lib/db";
 import { calcAge, formatCLP, formatDate, formatDateTime, formatNumber } from "@/lib/format";
 import { logAudit } from "@/lib/audit";
@@ -29,7 +29,7 @@ interface PatientDispensation {
 
 async function updateStatus(formData: FormData) {
   "use server";
-  const staff = await requireStaff();
+  const staff = await requireRole("admin", "superadmin", "pharmacist");
   const id = Number(formData.get("id"));
   const status = String(formData.get("status"));
   if (!id || !["active", "pending", "suspended"].includes(status)) return;
@@ -48,7 +48,7 @@ async function updateStatus(formData: FormData) {
 }
 
 export default async function PatientDetailPage({ params }: { params: { id: string } }) {
-  await requireStaff();
+  await requireRole("admin", "superadmin", "pharmacist");
   const id = parseInt(params.id, 10);
   if (!id) notFound();
 

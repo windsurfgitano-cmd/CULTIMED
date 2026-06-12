@@ -13,7 +13,7 @@ async function uploadAction(formData: FormData) {
   if (!file || file.size === 0) redirect("/mi-cuenta/recetas?e=missing");
   if (file.size > 8 * 1024 * 1024) redirect("/mi-cuenta/recetas?e=too_big");
 
-  const url = await saveUploadedFile(file, `prescriptions/${customer.id}`);
+  const url = await saveUploadedFile(file, "prescriptions", String(customer.id), "receta");
   await run(
     `UPDATE customer_accounts
      SET prescription_url = ?, prescription_status = 'pending',

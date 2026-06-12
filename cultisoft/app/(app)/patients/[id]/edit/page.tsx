@@ -1,7 +1,7 @@
 // Edición de datos del paciente. Cualquier admin (admin o superadmin) puede editar.
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { requireStaff, isAdminOrAbove } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { get, run } from "@/lib/db";
 import { isValidRut, formatRut, cleanRut } from "@/lib/rut";
 import { logAudit } from "@/lib/audit";
@@ -29,9 +29,7 @@ interface Patient {
 
 async function updatePatient(formData: FormData) {
   "use server";
-  const staff = await requireStaff();
-  if (!isAdminOrAbove(staff)) redirect("/patients");
-
+  const staff = await requireRole("admin", "superadmin");
   const id = Number(formData.get("id"));
   if (!id) redirect("/patients");
 
@@ -97,8 +95,7 @@ export default async function EditPatientPage({
   params: { id: string };
   searchParams: { e?: string };
 }) {
-  const staff = await requireStaff();
-  if (!isAdminOrAbove(staff)) redirect("/patients");
+  const staff = await requireRole("admin", "superadmin");
 
   const id = parseInt(params.id, 10);
   if (!id) notFound();

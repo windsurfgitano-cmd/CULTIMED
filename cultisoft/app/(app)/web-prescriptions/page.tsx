@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireStaff } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { all } from "@/lib/db";
 import { formatDateTime, formatNumber } from "@/lib/format";
 import PageHeader from "@/components/PageHeader";
@@ -15,6 +15,10 @@ interface WebRx {
   phone: string | null;
   prescription_status: "none" | "pending" | "aprobada" | "rechazada";
   prescription_url: string | null;
+  id_front_url: string | null;
+  id_back_url: string | null;
+  criminal_record_url: string | null;
+  rights_assignment_url: string | null;
   prescription_uploaded_at: string | null;
   prescription_reviewed_at: string | null;
   reviewer_name: string | null;
@@ -32,7 +36,7 @@ export default async function WebPrescriptionsPage({
 }: {
   searchParams: { status?: string };
 }) {
-  await requireStaff();
+  await requireRole("admin", "superadmin", "pharmacist");
   const status = searchParams.status || "pending";
 
   const where: string[] = [];
@@ -46,6 +50,7 @@ export default async function WebPrescriptionsPage({
   const rows = await all<WebRx>(
     `SELECT c.id, c.email, c.full_name, c.rut, c.phone,
        c.prescription_status, c.prescription_url,
+       c.id_front_url, c.id_back_url, c.criminal_record_url, c.rights_assignment_url,
        c.prescription_uploaded_at, c.prescription_reviewed_at,
        s.full_name as reviewer_name
      FROM customer_accounts c
@@ -120,6 +125,7 @@ export default async function WebPrescriptionsPage({
               <tr className="border-b border-rule bg-paper-dim/40">
                 <th className="text-left px-5 py-3 eyebrow text-ink-subtle">Paciente</th>
                 <th className="text-left px-5 py-3 eyebrow text-ink-subtle">Contacto</th>
+                <th className="text-left px-5 py-3 eyebrow text-ink-subtle">Documentos</th>
                 <th className="text-left px-5 py-3 eyebrow text-ink-subtle">Subida</th>
                 <th className="text-left px-5 py-3 eyebrow text-ink-subtle">Revisor</th>
                 <th className="text-left px-5 py-3 eyebrow text-ink-subtle">Estado</th>
@@ -138,6 +144,9 @@ export default async function WebPrescriptionsPage({
                     <td className="px-5 py-4">
                       <div className="text-[12px] text-ink-muted font-mono">{r.email}</div>
                       {r.phone && <div className="text-[11px] text-ink-subtle font-mono mt-0.5">{r.phone}</div>}
+                    </td>
+                    <td className="px-5 py-4">
+                      {[r.id_front_url, r.id_back_url, r.criminal_record_url, r.prescription_url, r.rights_assignment_url].filter(Boolean).length}/5
                     </td>
                     <td className="px-5 py-4">
                       {r.prescription_uploaded_at ? (

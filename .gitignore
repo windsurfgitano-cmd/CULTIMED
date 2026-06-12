@@ -80,3 +80,5 @@ cultimed-webapp-*.zip
 yarn.lock
 pnpm-lock.yaml
 .migration-secret.txt
+.vercel
+.env*.local

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { requireStaff } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { all, get } from "@/lib/db";
 import { formatCLP, formatDateTime } from "@/lib/format";
 import { logAudit } from "@/lib/audit";
@@ -47,7 +47,7 @@ interface ConvDetail {
 
 async function cancelConvAction(formData: FormData) {
   "use server";
-  const staff = await requireStaff();
+  const staff = await requireRole("admin", "superadmin");
   const id = Number(formData.get("conv_id"));
   const ambId = Number(formData.get("amb_id"));
   const reason = String(formData.get("reason") || "Cancelado por administrador").trim();
@@ -64,7 +64,7 @@ async function cancelConvAction(formData: FormData) {
 }
 
 export default async function AmbassadorDetailPage({ params }: { params: { id: string } }) {
-  await requireStaff();
+  await requireRole("admin", "superadmin");
   const id = parseInt(params.id, 10);
   if (!id) notFound();
 

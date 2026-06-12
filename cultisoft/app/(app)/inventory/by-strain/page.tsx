@@ -3,7 +3,7 @@
 // Muestra stock total en gramos, distribución por formato, lotes activos.
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { requireStaff, isSuperadmin } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { all } from "@/lib/db";
 import { formatNumber, formatCLP } from "@/lib/format";
 import PageHeader from "@/components/PageHeader";
@@ -68,9 +68,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 export default async function InventoryByStrainPage() {
-  const me = await requireStaff();
-  // Vista superadmin only — info consolidada estratégica
-  if (!isSuperadmin(me)) redirect("/inventory");
+  await requireRole("admin", "superadmin");
 
   const rows = await all<VariantRow & { active_batches: number; nearest_expiry: string | null }>(
     `SELECT p.id as product_id, p.sku, p.name, p.category, p.strain_key,

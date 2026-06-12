@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireStaff, isSuperadmin } from "@/lib/auth";
+import { requireRole, isSuperadmin } from "@/lib/auth";
 import { all, get } from "@/lib/db";
 import { formatCLP, formatDate, daysUntil, formatNumber } from "@/lib/format";
 import PageHeader from "@/components/PageHeader";
@@ -48,7 +48,7 @@ export default async function InventoryPage({
 }: {
   searchParams: { q?: string; filter?: string; category?: string };
 }) {
-  const me = await requireStaff();
+  const me = await requireRole("admin", "superadmin", "pharmacist");
   const showStrainView = isSuperadmin(me);
   const q = (searchParams.q || "").trim();
   const filter = searchParams.filter || "";

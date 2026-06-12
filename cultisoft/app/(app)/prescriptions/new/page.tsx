@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { requireStaff } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { all, run, transaction } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import PageHeader from "@/components/PageHeader";
@@ -11,7 +11,7 @@ interface ProductOption { id: number; sku: string; name: string; requires_prescr
 
 async function createPrescription(formData: FormData) {
   "use server";
-  const staff = await requireStaff();
+  const staff = await requireRole("admin", "superadmin", "pharmacist");
   const patientId = Number(formData.get("patient_id"));
   const doctorId = Number(formData.get("doctor_id"));
   const diagnosis = String(formData.get("diagnosis") || "").trim();
@@ -66,7 +66,7 @@ const ERR: Record<string, string> = {
 };
 
 export default async function NewPrescriptionPage({ searchParams }: { searchParams: { e?: string; patient?: string } }) {
-  await requireStaff();
+  await requireRole("admin", "superadmin", "pharmacist");
   const patients = await all<PatientOption>(`SELECT id, rut, full_name FROM patients ORDER BY full_name LIMIT 500`);
   const doctors = await all<DoctorOption>(`SELECT id, full_name, professional_license FROM doctors WHERE is_active = 1 ORDER BY full_name`);
   const products = await all<ProductOption>(`SELECT id, sku, name, requires_prescription, is_controlled FROM products WHERE is_active = 1 AND requires_prescription = 1 ORDER BY name`);

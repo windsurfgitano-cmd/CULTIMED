@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { requireStaff } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { all, get } from "@/lib/db";
 import { formatCLP, formatDateTime, formatNumber } from "@/lib/format";
 import { logAudit } from "@/lib/audit";
@@ -30,7 +30,7 @@ interface PendingPayout {
 
 async function createPayoutAction(formData: FormData) {
   "use server";
-  const staff = await requireStaff();
+  const staff = await requireRole("admin", "superadmin");
   const ambassadorId = Number(formData.get("ambassador_id"));
   if (!ambassadorId) return;
 
@@ -53,7 +53,7 @@ export default async function AmbassadorsAdminPage({
 }: {
   searchParams: { ok?: string; e?: string; total?: string };
 }) {
-  await requireStaff();
+  await requireRole("admin", "superadmin");
 
   const board = await getLeaderboard();
   const pendingPayouts = await all<PendingPayout>(

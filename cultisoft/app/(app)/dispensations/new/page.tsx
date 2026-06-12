@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { requireStaff } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { all, get, run, transaction } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { formatCLP } from "@/lib/format";
@@ -30,7 +30,7 @@ export interface RxLite {
 
 async function createDispensation(formData: FormData) {
   "use server";
-  const staff = await requireStaff();
+  const staff = await requireRole("admin", "superadmin", "pharmacist");
 
   const patientId = Number(formData.get("patient_id"));
   const prescriptionId = Number(formData.get("prescription_id")) || null;
@@ -128,7 +128,7 @@ export default async function NewDispensationPage({
 }: {
   searchParams: { patient?: string; prescription?: string; e?: string };
 }) {
-  await requireStaff();
+  await requireRole("admin", "superadmin", "pharmacist");
 
   const patients = await all<PatientLite>(
     `SELECT id, rut, full_name, membership_status, allergies, chronic_conditions

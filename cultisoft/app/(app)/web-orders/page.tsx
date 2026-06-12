@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireStaff } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { all } from "@/lib/db";
 import { formatCLP, formatDateTime, formatNumber } from "@/lib/format";
 import PageHeader from "@/components/PageHeader";
@@ -40,7 +40,7 @@ export default async function WebOrdersPage({
 }: {
   searchParams: { status?: string };
 }) {
-  await requireStaff();
+  await requireRole("admin", "superadmin", "pharmacist");
   const status = searchParams.status || "proof_uploaded";
 
   const where: string[] = [];

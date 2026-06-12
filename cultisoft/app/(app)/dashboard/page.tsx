@@ -17,6 +17,12 @@ interface Counts {
   pendingRx: number;
   totalLowStock: number;
   totalExpiringSoon: number;
+  pendingWebRx: number;
+}
+
+interface DocCompleteness {
+  label: string;
+  count: number;
 }
 
 interface RecentDispensation {
@@ -58,7 +64,30 @@ export default async function DashboardPage({
     pendingRx: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM prescriptions WHERE status = 'pending'`))?.c ?? 0,
     totalLowStock: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM batches WHERE status = 'available' AND quantity_current > 0 AND quantity_current <= 5`))?.c ?? 0,
     totalExpiringSoon: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM batches WHERE status = 'available' AND expiry_date IS NOT NULL AND expiry_date <= CURRENT_DATE + INTERVAL '60 days'`))?.c ?? 0,
+    pendingWebRx: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM customer_accounts WHERE prescription_status = 'pending'`))?.c ?? 0,
   } as Counts;
+
+  const docStats = await all<{ status: string; n: number }>(
+    `SELECT
+       CASE
+         WHEN id_front_url IS NOT NULL AND id_back_url IS NOT NULL
+              AND criminal_record_url IS NOT NULL AND prescription_url IS NOT NULL
+              AND rights_assignment_url IS NOT NULL THEN 'complete'
+         WHEN id_front_url IS NULL AND id_back_url IS NULL
+              AND criminal_record_url IS NULL AND prescription_url IS NULL
+              AND rights_assignment_url IS NULL THEN 'none'
+         ELSE 'partial'
+       END as status,
+       COUNT(*) as n
+     FROM customer_accounts
+     GROUP BY status`
+  );
+  const docStatsMap = docStats.reduce((acc, r) => ({ ...acc, [r.status]: r.n }), {} as Record<string, number>);
+  const docCompleteness: DocCompleteness[] = [
+    { label: "5/5 documentos", count: docStatsMap.complete || 0 },
+    { label: "Parcial",        count: docStatsMap.partial || 0 },
+    { label: "Sin documentos", count: docStatsMap.none || 0 },
+  ];
 
   const recent = await all<RecentDispensation>(`
     SELECT d.id, d.folio, d.dispensed_at, d.total_amount,
@@ -120,6 +149,28 @@ export default async function DashboardPage({
           </Link>
         }
       />
+
+      {/* ─── QF Review ─── */}
+      {counts.pendingWebRx > 0 && (
+        <section className="mb-10">
+          <Link
+            href="/web-prescriptions?status=pending"
+            className="group flex items-center gap-4 p-5 bg-warning-container/40 border-l-2 border-brass hover:bg-warning-container/60 transition-colors"
+          >
+            <span className="editorial-numeral text-base text-brass-dim/60 shrink-0">— QF</span>
+            <div className="flex-1 min-w-0">
+              <p className="eyebrow text-brass-dim">Validación QF pendiente</p>
+              <p className="font-display text-xl mt-1 leading-tight">
+                <span className="font-light">{counts.pendingWebRx}</span>{" "}
+                <span className="italic text-base text-ink-muted">
+                  {counts.pendingWebRx === 1 ? "paciente espera revisión de documentos" : "pacientes esperan revisión de documentos"}
+                </span>
+              </p>
+            </div>
+            <span className="text-ink-muted group-hover:translate-x-1 transition-transform shrink-0" aria-hidden>→</span>
+          </Link>
+        </section>
+      )}
 
       {/* ─── Alerts ─── */}
       {(counts.totalLowStock > 0 || counts.pendingRx > 0 || counts.totalExpiringSoon > 0) && (
@@ -283,10 +334,35 @@ export default async function DashboardPage({
             </div>
           </div>
 
+          {/* Documentos pacientes */}
+          <div>
+            <div className="flex items-baseline gap-4 mb-5">
+              <span className="editorial-numeral text-base text-ink-subtle">— III</span>
+              <span className="eyebrow">Documentos de pacientes</span>
+            </div>
+            <div className="border-y border-rule-soft divide-y divide-rule-soft">
+              {docCompleteness.map((d) => (
+                <div key={d.label} className="flex items-center justify-between py-3">
+                  <span className="text-sm text-ink-muted">{d.label}</span>
+                  <span className={`font-mono text-sm tabular-nums ${
+                    d.label === "5/5 documentos" ? "text-forest" :
+                    d.label === "Sin documentos" ? "text-ink-subtle" : "text-brass-dim"
+                  }`}>{d.count}</span>
+                </div>
+              ))}
+            </div>
+            <Link
+              href="/web-prescriptions?status=all"
+              className="inline-block mt-3 text-[11px] font-mono uppercase tracking-widest text-ink-muted hover:text-ink transition-colors"
+            >
+              Ver todos →
+            </Link>
+          </div>
+
           {lowStock.length > 0 && (
             <div>
               <div className="flex items-baseline gap-4 mb-5">
-                <span className="editorial-numeral text-base text-ink-subtle">— III</span>
+                <span className="editorial-numeral text-base text-ink-subtle">— IV</span>
                 <span className="eyebrow">Lotes con menor stock</span>
               </div>
               <ul className="border-y border-rule-soft divide-y divide-rule-soft">

@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { requireStaff } from "@/lib/auth";
 import { all, get } from "@/lib/db";
 import { calcAge, formatDate, formatNumber } from "@/lib/format";
@@ -36,9 +36,8 @@ export default async function PatientsPage({
   const where: string[] = [];
   const params: any[] = [];
   if (q) {
-    where.push(`(p.full_name LIKE ? OR p.rut LIKE ? OR p.email LIKE ?)`);
-    params.push(`%${q}%`, `%${q}%`, `%${q}%`);
-  }
+    where.push(`(p.full_name ILIKE ? OR p.rut ILIKE ? OR p.email ILIKE ? OR p.phone ILIKE ?)`);
+    params.push(`%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`);
   if (status) {
     where.push(`p.membership_status = ?`);
     params.push(status);
@@ -66,7 +65,7 @@ export default async function PatientsPage({
     <>
       <PageHeader
         title="Pacientes"
-        subtitle={`${formatNumber(total)} registros · base activa de socios Cultimed`}
+        subtitle={`${formatNumber(total)} registros Â· base activa de socios Cultimed`}
         actions={
           <>
             <a href="/api/patients/export" className="btn-secondary" download>
@@ -83,7 +82,7 @@ export default async function PatientsPage({
 
       {/* Filters */}
       <div className="mb-6 flex flex-wrap gap-3 items-center">
-        <SearchInput placeholder="Buscar por nombre, RUT, email…" />
+        <SearchInput placeholder="Buscar por nombre, RUT, emailâ€¦" />
         <div className="flex gap-1.5 text-xs flex-wrap">
           {[
             { v: "", l: "Todos" },
@@ -114,7 +113,7 @@ export default async function PatientsPage({
         <EmptyState
           icon="group_off"
           title="No se encontraron pacientes"
-          message={q ? `No hay coincidencias para “${q}”.` : "Aún no hay pacientes registrados."}
+          message={q ? `No hay coincidencias para â€œ${q}â€.` : "AÃºn no hay pacientes registrados."}
           action={
             <Link href="/patients/new" className="btn-primary">
               <span className="material-symbols-outlined text-base">person_add</span>
@@ -146,12 +145,12 @@ export default async function PatientsPage({
                   </td>
                   <td className="font-mono text-[12px] text-on-surface-variant">{r.rut}</td>
                   <td className="text-on-surface-variant">
-                    {calcAge(r.date_of_birth) !== null ? `${calcAge(r.date_of_birth)} años` : "—"}
+                    {calcAge(r.date_of_birth) !== null ? `${calcAge(r.date_of_birth)} aÃ±os` : "â€”"}
                   </td>
                   <td>
                     {r.email && <div className="text-[12px]">{r.email}</div>}
                     {r.phone && <div className="text-[11px] text-on-surface-variant font-mono">{r.phone}</div>}
-                    {!r.email && !r.phone && <span className="text-on-surface-variant">—</span>}
+                    {!r.email && !r.phone && <span className="text-on-surface-variant">â€”</span>}
                   </td>
                   <td>
                     <StatusBadge status={r.membership_status} />

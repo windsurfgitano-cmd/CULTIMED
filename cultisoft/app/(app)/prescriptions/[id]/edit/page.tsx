@@ -3,7 +3,7 @@
 // NO permite cambiar items dispensados ni paciente/doctor (esos requieren receta nueva).
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { requireStaff, isAdminOrAbove } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { get, run } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import PageHeader from "@/components/PageHeader";
@@ -26,9 +26,7 @@ interface RxRow {
 
 async function updateAction(formData: FormData) {
   "use server";
-  const staff = await requireStaff();
-  if (!isAdminOrAbove(staff)) redirect("/prescriptions");
-
+  const staff = await requireRole("admin", "superadmin");
   const id = Number(formData.get("id"));
   if (!id) redirect("/prescriptions");
 
@@ -67,8 +65,7 @@ export default async function EditPrescriptionPage({
   params: { id: string };
   searchParams: { e?: string };
 }) {
-  const staff = await requireStaff();
-  if (!isAdminOrAbove(staff)) redirect("/prescriptions");
+  const staff = await requireRole("admin", "superadmin");
 
   const id = parseInt(params.id, 10);
   if (!id) notFound();

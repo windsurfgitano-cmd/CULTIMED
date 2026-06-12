@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { requireStaff, isAdminOrAbove } from "@/lib/auth";
+import { requireRole, isAdminOrAbove } from "@/lib/auth";
 import { all, get, run, transaction } from "@/lib/db";
 import { formatCLP, formatDateTime } from "@/lib/format";
 import { logAudit } from "@/lib/audit";
@@ -94,9 +94,8 @@ const EVENT_LABEL: Record<string, string> = {
  */
 async function adminUploadProofAction(formData: FormData) {
   "use server";
-  const staff = await requireStaff();
+  const staff = await requireRole("admin", "superadmin");
   const id = Number(formData.get("id"));
-  if (!isAdminOrAbove(staff)) redirect(`/web-orders/${id}?e=forbidden`);
   const file = formData.get("proof") as File | null;
   const channel = String(formData.get("channel") || "manual").trim(); // "whatsapp", "email", "in-person", etc.
   const notes = String(formData.get("notes") || "").trim();
@@ -114,7 +113,7 @@ async function adminUploadProofAction(formData: FormData) {
     redirect(`/web-orders/${id}?e=wrong_status`);
   }
 
-  const url = await saveUploadedFile(file, `payment-proofs/${order!.customer_account_id}-${id}`);
+  const url = await saveUploadedFile(file, "payment-proofs", `${order!.customer_account_id}-${id}`, "comprobante");
 
   await run(
     `UPDATE customer_orders
@@ -147,7 +146,7 @@ async function adminUploadProofAction(formData: FormData) {
 
 async function transitionAction(formData: FormData) {
   "use server";
-  const staff = await requireStaff();
+  const staff = await requireRole("admin", "superadmin", "pharmacist");
   const id = Number(formData.get("id"));
   const action = String(formData.get("action") || "");
   const message = String(formData.get("message") || "").trim();
@@ -218,6 +217,36 @@ async function transitionAction(formData: FormData) {
 
   await transaction(async (tx) => {
     if (action === "confirm_payment") {
+      // Deducir stock de lotes (FIFO: lote más antiguo primero)
+      const items = await tx.all<{ id: number; product_id: number; quantity: number }>(
+        `SELECT id, product_id, quantity FROM customer_order_items WHERE order_id = ?`,
+        id
+      );
+      for (const item of items) {
+        const batches = await tx.all<{ id: number; qty: number }>(
+          `SELECT id, quantity_current as qty FROM batches
+           WHERE product_id = ? AND status = 'available' AND quantity_current > 0
+           ORDER BY created_at ASC, expiry_date ASC`,
+          item.product_id
+        );
+        let remaining = item.quantity;
+        for (const batch of batches) {
+          if (remaining <= 0) break;
+          const take = Math.min(remaining, batch.qty);
+          await tx.run(
+            `UPDATE batches SET quantity_current = quantity_current - ?,
+               status = CASE WHEN quantity_current - ? <= 0 THEN 'depleted' ELSE status END
+             WHERE id = ?`,
+            take, take, batch.id
+          );
+          await tx.run(
+            `INSERT INTO inventory_movements (batch_id, movement_type, quantity, reference_type, reference_id, staff_id, reason)
+             VALUES (?, 'out', ?, 'customer_order', ?, ?, 'Venta web')`,
+            batch.id, -take, id, staff.id
+          );
+          remaining -= take;
+        }
+      }
       await tx.run(
         `UPDATE customer_orders
          SET status = ?, payment_confirmed_by = ?, payment_confirmed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
@@ -290,7 +319,7 @@ export default async function WebOrderDetail({
   params: { id: string };
   searchParams: { ok?: string; e?: string };
 }) {
-  await requireStaff();
+  await requireRole("admin", "superadmin", "pharmacist");
   const id = parseInt(params.id, 10);
   if (!id) notFound();
 

@@ -57,6 +57,9 @@ export default async function AccountPage() {
             </h1>
           </div>
           <div className="col-span-12 lg:col-span-3 lg:pb-3 flex flex-col gap-2">
+            <Link href="/mi-cuenta/perfil" className="btn-link text-ink-muted">
+              Mi perfil →
+            </Link>
             <Link href="/mi-cuenta/cambiar-contrasena" className="btn-link text-ink-muted">
               Cambiar contraseña →
             </Link>

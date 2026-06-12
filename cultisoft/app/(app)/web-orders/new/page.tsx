@@ -2,7 +2,7 @@
 // presencial en consulta, etc. Admin selecciona customer + productos + total.
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { requireStaff, isAdminOrAbove } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { all, get, run, transaction } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { formatCLP } from "@/lib/format";
@@ -31,8 +31,7 @@ interface ProductOption {
 
 async function createOrderAction(formData: FormData) {
   "use server";
-  const staff = await requireStaff();
-  if (!isAdminOrAbove(staff)) redirect("/web-orders/new?e=forbidden");
+  const staff = await requireRole("admin", "superadmin");
 
   const customerAccountId = Number(formData.get("customer_account_id"));
   if (!customerAccountId) redirect("/web-orders/new?e=no_customer");
@@ -126,14 +125,7 @@ export default async function NewWebOrderPage({
 }: {
   searchParams: { e?: string; customer?: string };
 }) {
-  const staff = await requireStaff();
-  if (!isAdminOrAbove(staff)) {
-    return (
-      <div className="p-8 border-l-2 border-sangria bg-sangria/5">
-        <p className="text-sm text-ink">Solo administradores pueden crear pedidos manuales.</p>
-      </div>
-    );
-  }
+  const staff = await requireRole("admin", "superadmin");
 
   // Customers con receta aprobada (los únicos que pueden comprar)
   const customers = await all<CustomerOption>(

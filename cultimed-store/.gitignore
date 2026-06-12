@@ -9,3 +9,5 @@ public/uploads/*
 
 # PII migration data - en Supabase Storage privado
 data/migration-customers.json
+
+.vercel

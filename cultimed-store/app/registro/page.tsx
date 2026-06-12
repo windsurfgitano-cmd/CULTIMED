@@ -9,8 +9,10 @@ import {
   REFERRAL_COOKIE_NAME,
 } from "@/lib/referrals";
 import { get, run } from "@/lib/db";
+import { saveUploadedFile } from "@/lib/uploads";
 import { createCustomerResetToken } from "@/lib/password-reset";
 import { sendEmail, emailLayout } from "@/lib/email";
+import FileUploadField from "@/components/FileUploadField";
 
 async function registerAction(formData: FormData) {
   "use server";
@@ -19,30 +21,40 @@ async function registerAction(formData: FormData) {
   const fullName = String(formData.get("full_name") || "").trim();
   const rutRaw = String(formData.get("rut") || "").trim();
   const phone = String(formData.get("phone") || "").trim();
-  const dateOfBirth = String(formData.get("date_of_birth") || "").trim();
-  const gender = String(formData.get("gender") || "").trim() || null;
   const next = String(formData.get("next") || "/mi-cuenta");
 
-  if (!email || !password || !fullName || !rutRaw || !dateOfBirth || !phone) {
+  if (!email || !password || !fullName || !rutRaw || !phone) {
     redirect("/registro?e=missing&next=" + encodeURIComponent(next));
   }
   if (!isValidRut(rutRaw)) {
     redirect("/registro?e=rut_invalid&next=" + encodeURIComponent(next));
   }
-  // Validar mayoría de edad (18 años)
-  const birthDate = new Date(dateOfBirth);
-  const today = new Date();
-  let age = today.getFullYear() - birthDate.getFullYear();
-  const m = today.getMonth() - birthDate.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
-  if (age < 18) {
-    redirect("/registro?e=underage&next=" + encodeURIComponent(next));
-  }
   const rut = formatRut(cleanRut(rutRaw));
 
-  const result = await registerCustomer({ email, password, full_name: fullName, rut, phone, dateOfBirth, gender });
+  // Subir documentos primero
+  const docFields = [
+    { key: "prescription", column: "prescription_url", docType: "receta" },
+    { key: "id_front", column: "id_front_url", docType: "carnet-frente" },
+    { key: "id_back", column: "id_back_url", docType: "carnet-dorso" },
+    { key: "criminal_record", column: "criminal_record_url", docType: "antecedentes" },
+    { key: "rights_assignment", column: "rights_assignment_url", docType: "cesion" },
+  ] as const;
+
+  const docUrls: Record<string, string> = {};
+  for (const doc of docFields) {
+    const file = formData.get(doc.key) as File | null;
+    if (!file || file.size === 0) {
+      redirect("/registro?e=missing_docs&next=" + encodeURIComponent(next));
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      redirect("/registro?e=file_too_big&next=" + encodeURIComponent(next));
+    }
+    // Necesitamos el ID del customer para la ruta — primero creamos cuenta, luego actualizamos
+    docUrls[doc.key] = ""; // placeholder, se sube después de crear cuenta
+  }
+
+  const result = await registerCustomer({ email, password, full_name: fullName, rut, phone });
   if ("error" in result) {
-    // Caso especial: usuario migrado que intenta registrarse — dispara email de activación auto
     if (result.error === "needs_activation") {
       const ip = headers().get("x-forwarded-for") || headers().get("x-real-ip") || null;
       const reset = await createCustomerResetToken({ email, ip: ip || undefined });
@@ -66,40 +78,58 @@ async function registerAction(formData: FormData) {
     redirect(`/registro?e=${result.error}&next=${encodeURIComponent(next)}`);
   }
 
-  // Crear o vincular ficha clínica automáticamente. Si ya existe por RUT
-  // (carga admin/importación), no duplicamos: completamos datos básicos.
+  const customerId = result.id;
+
+  // Subir cada documento con el customer ID real
+  const updates: string[] = [];
+  const params: any[] = [];
+  for (const doc of docFields) {
+    const file = formData.get(doc.key) as File;
+    const url = await saveUploadedFile(file, "documents", String(customerId), doc.docType);
+    updates.push(`${doc.column} = ?`);
+    params.push(url);
+  }
+  // Marcar prescription_status = pending automáticamente
+  updates.push("prescription_status = ?");
+  params.push("pending");
+  params.push(customerId);
+
+  await run(
+    `UPDATE customer_accounts SET ${updates.join(", ")}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+    ...params
+  );
+
+  // Crear o vincular ficha clínica automáticamente
   const existingPatient = await get<{ id: number }>(`SELECT id FROM patients WHERE rut = ?`, rut);
   let patientId = existingPatient?.id || 0;
   if (patientId) {
     await run(
       `UPDATE patients
          SET full_name = COALESCE(NULLIF(full_name, ''), ?),
-             date_of_birth = COALESCE(date_of_birth, ?),
-             gender = COALESCE(gender, ?),
              email = COALESCE(email, ?),
              phone = COALESCE(phone, ?),
              updated_at = CURRENT_TIMESTAMP
        WHERE id = ?`,
-      fullName, dateOfBirth, gender, email, phone, patientId
+      fullName, email, phone, patientId
     );
   } else {
     const patientRes = await run(
-      `INSERT INTO patients (rut, full_name, date_of_birth, gender, email, phone, membership_status, membership_started_at)
-       VALUES (?, ?, ?, ?, ?, ?, 'active', CURRENT_TIMESTAMP)
+      `INSERT INTO patients (rut, full_name, email, phone, membership_status, membership_started_at)
+       VALUES (?, ?, ?, ?, 'active', CURRENT_TIMESTAMP)
        RETURNING id`,
-      rut, fullName, dateOfBirth, gender, email, phone
+      rut, fullName, email, phone
     );
     patientId = Number(patientRes.lastInsertRowid);
   }
   await run(
     `UPDATE customer_accounts SET patient_id = ? WHERE id = ?`,
-    patientId, result.id
+    patientId, customerId
   );
 
-  // Tracking de referral: si hay cookie con código válido, asociar conversión.
+  // Tracking de referral
   const refCode = cookies().get(REFERRAL_COOKIE_NAME)?.value;
   if (refCode) {
-    await attachReferralOnRegister({ newAccountId: result.id, refCode });
+    await attachReferralOnRegister({ newAccountId: customerId, refCode });
     cookies().delete(REFERRAL_COOKIE_NAME);
   }
 
@@ -108,12 +138,13 @@ async function registerAction(formData: FormData) {
 
 const ERR: Record<string, string> = {
   missing: "Completa todos los campos obligatorios.",
+  missing_docs: "Debes subir los 5 documentos requeridos.",
+  file_too_big: "Uno de los archivos supera 8 MB. Comprímelo o usa otro formato.",
   weak_password: "La contraseña debe tener al menos 6 caracteres.",
   duplicate_email: "Ya existe una cuenta con ese email. Intenta ingresar.",
   duplicate_rut: "Ya existe una cuenta registrada con ese RUT. Si es tuya, ingresa o recupera tu contraseña.",
   needs_activation: "Tu cuenta existe pero aún no la has activado. Te enviamos email para crear tu contraseña — revisa tu inbox (y spam).",
   rut_invalid: "RUT inválido. Verifica el dígito verificador.",
-  underage: "Debes ser mayor de 18 años para registrarte.",
 };
 
 export default async function RegisterPage({ searchParams }: { searchParams: { e?: string; next?: string; invitado?: string } }) {
@@ -121,7 +152,6 @@ export default async function RegisterPage({ searchParams }: { searchParams: { e
   const error = searchParams.e ? ERR[searchParams.e] : null;
   const next = searchParams.next || "/mi-cuenta";
 
-  // ¿Vino con un código de referido válido?
   const refCode = cookies().get(REFERRAL_COOKIE_NAME)?.value;
   let inviter: { name: string | null } | null = null;
   if (refCode) {
@@ -150,7 +180,7 @@ export default async function RegisterPage({ searchParams }: { searchParams: { e
         </div>
       )}
       <div className="grid grid-cols-12 gap-x-6 gap-y-12">
-        {/* Left — Editorial promise */}
+        {/* Left — Editorial steps */}
         <div className="col-span-12 lg:col-span-5 lg:sticky lg:top-32 self-start">
           <div className="flex items-baseline gap-6 mb-6">
             <span className="editorial-numeral text-2xl text-ink-subtle">— 01</span>
@@ -167,8 +197,8 @@ export default async function RegisterPage({ searchParams }: { searchParams: { e
           </p>
           <div className="space-y-4">
             {[
-              { n: "I", t: "Registro", d: "Identidad básica + RUT chileno" },
-              { n: "II", t: "Receta", d: "Carga PDF/imagen de tu receta vigente" },
+              { n: "I", t: "Datos personales", d: "Nombre completo, RUT, teléfono y email" },
+              { n: "II", t: "Documentos requeridos", d: "Carnet, receta médica, antecedentes y cesión de derechos" },
               { n: "III", t: "Validación", d: "Nuestro QF revisa y aprueba (24h hábiles)" },
               { n: "IV", t: "Acceso", d: "Catálogo completo desbloqueado" },
             ].map((s) => (
@@ -192,7 +222,7 @@ export default async function RegisterPage({ searchParams }: { searchParams: { e
             </div>
           )}
 
-          <form action={registerAction} className="space-y-7">
+          <form action={registerAction} className="space-y-7" encType="multipart/form-data">
             <input type="hidden" name="next" value={next} />
 
             <div>
@@ -206,23 +236,8 @@ export default async function RegisterPage({ searchParams }: { searchParams: { e
                 <input id="rut" name="rut" required className="input-editorial nums-lining" placeholder="12.345.678-9" />
               </div>
               <div>
-                <label htmlFor="date_of_birth" className="input-label">Fecha de nacimiento *</label>
-                <input id="date_of_birth" name="date_of_birth" type="date" required className="input-editorial" />
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-7">
-              <div>
                 <label htmlFor="phone" className="input-label">Teléfono / WhatsApp *</label>
                 <input id="phone" name="phone" type="tel" required className="input-editorial" placeholder="+56 9 XXXX XXXX" />
-              </div>
-              <div>
-                <label htmlFor="gender" className="input-label">Género</label>
-                <select id="gender" name="gender" className="input-editorial">
-                  <option value="">— Seleccionar —</option>
-                  <option value="F">Femenino</option>
-                  <option value="M">Masculino</option>
-                  <option value="X">Otro / Prefiere no decir</option>
-                </select>
               </div>
             </div>
 
@@ -235,6 +250,17 @@ export default async function RegisterPage({ searchParams }: { searchParams: { e
               <label htmlFor="password" className="input-label">Contraseña *</label>
               <input id="password" name="password" type="password" required minLength={6} autoComplete="new-password" className="input-editorial" placeholder="Mínimo 6 caracteres" />
             </div>
+
+            <div className="hairline" />
+
+            <p className="eyebrow">— Documentos requeridos</p>
+            <p className="text-xs text-ink-muted -mt-5">Sube los 5 archivos en formato PDF, JPG o PNG (máx 8 MB c/u).</p>
+
+            <FileUploadField name="id_front" label="Foto carnet por delante" required />
+            <FileUploadField name="id_back" label="Foto carnet por detrás" required />
+            <FileUploadField name="criminal_record" label="Antecedentes penales (captura o PDF)" required />
+            <FileUploadField name="prescription" label="Receta médica (foto o PDF)" required />
+            <FileUploadField name="rights_assignment" label="Cesión de derechos firmada (foto o PDF)" required />
 
             <div className="hairline" />
 

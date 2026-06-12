@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { requireStaff } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import PageHeader from "@/components/PageHeader";
 import PrintButton from "@/components/PrintButton";
 
 export default async function ManualPage() {
-  await requireStaff();
+  await requireRole("admin", "superadmin");
 
   return (
     <article className="max-w-[920px] mx-auto">

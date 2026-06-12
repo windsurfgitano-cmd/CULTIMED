@@ -1,7 +1,7 @@
 // Búsqueda global para Cmd+K. Search across pacientes, recetas, dispensaciones,
 // pedidos web, productos. Solo staff autenticado.
 import { NextResponse, type NextRequest } from "next/server";
-import { requireStaff } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { all } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +16,7 @@ interface SearchResult {
 }
 
 export async function GET(req: NextRequest) {
-  await requireStaff();
+  await requireRole("admin", "superadmin", "pharmacist");
   const url = new URL(req.url);
   const q = (url.searchParams.get("q") || "").trim();
   if (q.length < 2) return NextResponse.json({ results: [], q });

@@ -79,7 +79,8 @@ CREATE TABLE IF NOT EXISTS products (
   is_preorder SMALLINT NOT NULL DEFAULT 0,
   shopify_status TEXT,
   is_active SMALLINT NOT NULL DEFAULT 1,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS batches (
@@ -198,6 +199,11 @@ CREATE TABLE IF NOT EXISTS customer_accounts (
   prescription_reviewed_at TIMESTAMPTZ,
   prescription_reviewer_notes TEXT,
   age_gate_accepted_at TIMESTAMPTZ,
+  -- Documentos de registro
+  id_front_url TEXT,
+  id_back_url TEXT,
+  criminal_record_url TEXT,
+  rights_assignment_url TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -341,6 +347,8 @@ CREATE INDEX IF NOT EXISTS idx_customer_orders_created ON customer_orders(create
 CREATE INDEX IF NOT EXISTS idx_customer_order_items_order ON customer_order_items(order_id);
 CREATE INDEX IF NOT EXISTS idx_customer_order_events_order ON customer_order_events(order_id);
 CREATE INDEX IF NOT EXISTS idx_customer_accounts_email ON customer_accounts(email);
+CREATE INDEX IF NOT EXISTS idx_customer_accounts_rut ON customer_accounts(rut);
+CREATE INDEX IF NOT EXISTS idx_customer_accounts_prescription_status ON customer_accounts(prescription_status);
 
 CREATE INDEX IF NOT EXISTS idx_referral_codes_code ON referral_codes(code);
 CREATE INDEX IF NOT EXISTS idx_referral_conversions_amb ON referral_conversions(ambassador_account_id);

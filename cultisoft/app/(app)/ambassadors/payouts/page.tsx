@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireStaff } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { all } from "@/lib/db";
 import { formatCLP, formatDateTime, formatNumber } from "@/lib/format";
 import PageHeader from "@/components/PageHeader";
@@ -24,7 +24,7 @@ interface PayoutRow {
 }
 
 export default async function PayoutsHistoryPage() {
-  await requireStaff();
+  await requireRole("admin", "superadmin");
 
   const payouts = await all<PayoutRow>(
     `SELECT p.*, ca.full_name AS ambassador_name, ca.email AS ambassador_email,

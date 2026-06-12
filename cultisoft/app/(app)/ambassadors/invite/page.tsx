@@ -5,7 +5,7 @@
 
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { requireStaff, isAdminOrAbove } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { get, run } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { sendEmail } from "@/lib/email";
@@ -48,8 +48,7 @@ const LOGO_IMAGE = "https://ibkhvopshhlbvjwrmuzm.supabase.co/storage/v1/object/p
 
 async function inviteAmbassadorAction(formData: FormData) {
   "use server";
-  const staff = await requireStaff();
-  if (!isAdminOrAbove(staff)) redirect("/ambassadors/invite?e=forbidden");
+  const staff = await requireRole("admin", "superadmin");
 
   const email = String(formData.get("email") || "").trim().toLowerCase();
   const fullName = String(formData.get("full_name") || "").trim();
@@ -221,14 +220,7 @@ export default async function InviteAmbassadorPage({
 }: {
   searchParams: { ok?: string; e?: string; email?: string };
 }) {
-  const staff = await requireStaff();
-  if (!isAdminOrAbove(staff)) {
-    return (
-      <div className="p-8 border-l-2 border-sangria bg-sangria/5">
-        <p className="text-sm text-ink">Solo administradores pueden invitar embajadores.</p>
-      </div>
-    );
-  }
+  const staff = await requireRole("admin", "superadmin");
 
   const errMessages: Record<string, string> = {
     bad_email: "Email inválido.",

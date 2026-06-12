@@ -3,7 +3,7 @@
 // NO cambia items/precios (eso requiere refund logic). Para eso: cancelar + crear pedido nuevo.
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { requireStaff, isAdminOrAbove } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { get, run } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { formatDateTime } from "@/lib/format";
@@ -29,8 +29,7 @@ interface OrderRow {
 
 async function updateOrderAction(formData: FormData) {
   "use server";
-  const staff = await requireStaff();
-  if (!isAdminOrAbove(staff)) redirect("/web-orders");
+  const staff = await requireRole("admin", "superadmin");
 
   const id = Number(formData.get("id"));
   if (!id) redirect("/web-orders");
@@ -74,8 +73,7 @@ export default async function EditWebOrderPage({
 }: {
   params: { id: string };
 }) {
-  const staff = await requireStaff();
-  if (!isAdminOrAbove(staff)) redirect("/web-orders");
+  const staff = await requireRole("admin", "superadmin");
 
   const id = parseInt(params.id, 10);
   if (!id) notFound();

@@ -4,15 +4,20 @@ import { uploadFile, buildStoragePath, type UploadBucket } from "./storage";
 
 /**
  * Sube un archivo a Supabase Storage.
- * subdir prefix determina el bucket:
- *   - "prescriptions/<id>" → bucket "prescriptions"
- *   - "payment-proofs/<id>" → bucket "payment-proofs"
+ *
+ * @param file - El archivo a subir
+ * @param bucket - Bucket destino ("prescriptions" | "payment-proofs" | "documents")
+ * @param userId - ID del usuario para la ruta
+ * @param docType - Tipo de documento (ej: "comprobante", "receta")
+ *
  * Retorna referencia "bucket://path" para guardar en BD.
  */
-export async function saveUploadedFile(file: File, subdir: string): Promise<string> {
-  const [folder, userId] = subdir.split("/");
-  const bucket: UploadBucket = folder === "payment-proofs" ? "payment-proofs" : "prescriptions";
-
+export async function saveUploadedFile(
+  file: File,
+  bucket: UploadBucket,
+  userId: string,
+  docType: string
+): Promise<string> {
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
 
@@ -21,7 +26,7 @@ export async function saveUploadedFile(file: File, subdir: string): Promise<stri
     return m ? m[0].toLowerCase() : ".bin";
   })();
 
-  const fileName = `comprobante${ext}`;
+  const fileName = `${docType}${ext}`;
   const result = await uploadFile({
     bucket,
     userId: userId || "anon",

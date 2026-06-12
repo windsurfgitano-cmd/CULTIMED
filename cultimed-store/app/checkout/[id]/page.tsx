@@ -43,7 +43,7 @@ async function uploadProofAction(formData: FormData) {
     redirect(`/checkout/${orderId}`);
   }
 
-  const url = await saveUploadedFile(file, `payment-proofs/${customer.id}-${orderId}`);
+  const url = await saveUploadedFile(file, "payment-proofs", `${customer.id}-${orderId}`, "comprobante");
   await run(
     `UPDATE customer_orders
      SET payment_proof_url = ?, payment_proof_uploaded_at = CURRENT_TIMESTAMP,
