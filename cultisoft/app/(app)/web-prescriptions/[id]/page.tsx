@@ -334,7 +334,7 @@ export default async function WebPrescriptionDetail({ params }: { params: { id: 
   );
 }
 
-function KV({ k, v }: { k: string; v: React.ReactNode }) {
+function KV({ k, v, mono = false }: { k: string; v: React.ReactNode; mono?: boolean }) {
   return (
     <div className="grid grid-cols-3 gap-3">
       <dt className="text-on-surface-variant text-[12px]">{k}</dt>
