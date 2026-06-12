@@ -1,4 +1,4 @@
-// Upload helper para cultisoft (admin-side).
+﻿// Upload helper para cultisoft (admin-side).
 // Reusa la misma lógica que cultimed-store/lib/uploads.ts.
 import { uploadFile, buildStoragePath, type UploadBucket } from "./storage";
 
@@ -6,7 +6,7 @@ import { uploadFile, buildStoragePath, type UploadBucket } from "./storage";
  * Sube un archivo a Supabase Storage.
  *
  * @param file - El archivo a subir
- * @param bucket - Bucket destino ("prescriptions" | "payment-proofs" | "documents")
+ * @param bucket - Bucket destino ("prescriptions" | "payment-proofs" | "documents" | "patient-documents")
  * @param userId - ID del usuario para la ruta
  * @param docType - Tipo de documento (ej: "comprobante", "receta")
  *

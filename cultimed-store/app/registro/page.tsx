@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { registerCustomer, getCurrentCustomer } from "@/lib/auth";
@@ -85,7 +85,7 @@ async function registerAction(formData: FormData) {
   const params: any[] = [];
   for (const doc of docFields) {
     const file = formData.get(doc.key) as File;
-    const url = await saveUploadedFile(file, "documents", String(customerId), doc.docType);
+    const url = await saveUploadedFile(file, "patient-documents", String(customerId), doc.docType);
     updates.push(`${doc.column} = ?`);
     params.push(url);
   }

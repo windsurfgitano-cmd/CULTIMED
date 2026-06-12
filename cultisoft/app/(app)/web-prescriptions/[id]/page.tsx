@@ -227,7 +227,7 @@ export default async function WebPrescriptionDetail({ params }: { params: { id: 
 
   function UploadForm({ docType, docLabel }: { docType: string; docLabel: string }) {
     return (
-      <form action={uploadDocumentAction} className="mb-2 p-3 border border-dashed border-outline-variant rounded-lg bg-surface-container-low">
+      <form action={uploadDocumentAction} encType="multipart/form-data" className="mb-2 p-3 border border-dashed border-outline-variant rounded-lg bg-surface-container-low">
         <input type="hidden" name="id" value={id} />
         <input type="hidden" name="docType" value={docType} />
         <div className="flex items-center gap-3">

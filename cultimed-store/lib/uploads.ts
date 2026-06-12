@@ -1,4 +1,4 @@
-// Upload helper. Ahora usa Supabase Storage en lugar del filesystem local
+﻿// Upload helper. Ahora usa Supabase Storage en lugar del filesystem local
 // (que no funciona en Vercel serverless).
 //
 // Devuelve una referencia "bucket://path" que se guarda en BD. Para mostrar
@@ -10,7 +10,7 @@ import { uploadFile, buildStoragePath, type UploadBucket } from "./storage";
  * Sube un archivo a Supabase Storage.
  *
  * @param file - El archivo a subir
- * @param bucket - Bucket destino ("prescriptions" | "payment-proofs" | "documents")
+ * @param bucket - Bucket destino ("prescriptions" | "payment-proofs" | "documents" | "patient-documents")
  * @param userId - ID del usuario para la ruta
  * @param docType - Tipo de documento (ej: "receta", "carnet-frente", "carnet-dorso", "antecedentes", "cesion")
  *
