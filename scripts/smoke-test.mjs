@@ -44,21 +44,27 @@ test("admin health", async () => {
   if (body.service !== "cultisoft") throw new Error(`service=${body.service}`);
 });
 
-const storePages = [
+const storePublic = [
   "/",
   "/productos",
   "/ingresar",
   "/registro",
   "/consulta",
   "/carrito",
-  "/checkout",
   "/embajadores",
   "/privacidad",
   "/terminos",
 ];
-for (const path of storePages) {
+for (const path of storePublic) {
   test(`store GET ${path}`, async () => {
     await expectGet(path, STORE, [200]);
+  });
+}
+
+const storeAuthGated = ["/checkout", "/mi-cuenta"];
+for (const path of storeAuthGated) {
+  test(`store GET ${path} sin sesión → redirect`, async () => {
+    await expectGet(path, STORE, [307, 308]);
   });
 }
 
