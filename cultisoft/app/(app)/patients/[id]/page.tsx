@@ -1,6 +1,6 @@
 ﻿import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { requireRole } from "@/lib/auth";
+import { requireRole, requireOpsRole } from "@/lib/auth";
 import { all, get, run } from "@/lib/db";
 import { calcAge, formatCLP, formatDate, formatDateTime, formatNumber } from "@/lib/format";
 import { resolveStorageUrl } from "@/lib/storage";
@@ -90,7 +90,7 @@ async function deletePatient(formData: FormData) {
 
 async function updateStatus(formData: FormData) {
   "use server";
-  const staff = await requireRole("admin", "superadmin", "pharmacist");
+  const staff = await requireOpsRole();
   const id = Number(formData.get("id"));
   const status = String(formData.get("status"));
   const reason = String(formData.get("reason") || "").trim();
@@ -124,7 +124,7 @@ async function updateStatus(formData: FormData) {
 }
 
 export default async function PatientDetailPage({ params, searchParams }: { params: { id: string }; searchParams?: { e?: string } }) {
-  await requireRole("admin", "superadmin", "pharmacist");
+  await requireOpsRole();
   const id = parseInt(params.id, 10);
   if (!id) notFound();
 

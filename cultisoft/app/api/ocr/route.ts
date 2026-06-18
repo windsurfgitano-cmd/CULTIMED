@@ -1,24 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole } from "@/lib/auth";
+import { requireRoleApi } from "@/lib/auth";
 import { all } from "@/lib/db";
 
 const RUT_RE = /(\d{1,2}\.?\d{3}\.?\d{3}[-]?[\dkK])/;
 
 export async function POST(req: NextRequest) {
+  const staff = await requireRoleApi("admin", "superadmin");
+  if (staff instanceof NextResponse) return staff;
+
+  const formData = await req.formData();
+  const file = formData.get("file") as File | null;
+  if (!file || file.size === 0) {
+    return NextResponse.json({ error: "Selecciona un archivo." }, { status: 400 });
+  }
+
+  const allowedTypes = ["image/png", "image/jpeg", "image/webp", "image/gif", "application/pdf"];
+  if (!allowedTypes.includes(file.type)) {
+    return NextResponse.json({ error: "Formato no soportado. Usa PNG, JPG o PDF." }, { status: 400 });
+  }
+
   try {
-    await requireRole("admin", "superadmin");
-
-    const formData = await req.formData();
-    const file = formData.get("file") as File | null;
-    if (!file || file.size === 0) {
-      return NextResponse.json({ error: "Selecciona un archivo." }, { status: 400 });
-    }
-
-    const allowedTypes = ["image/png", "image/jpeg", "image/webp", "image/gif", "application/pdf"];
-    if (!allowedTypes.includes(file.type)) {
-      return NextResponse.json({ error: "Formato no soportado. Usa PNG, JPG o PDF." }, { status: 400 });
-    }
-
     const Tesseract = await import("tesseract.js");
     const buffer = Buffer.from(await file.arrayBuffer());
     const { data } = await Tesseract.recognize(buffer, "spa", {

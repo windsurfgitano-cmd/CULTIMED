@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole } from "@/lib/auth";
+import { requireRoleApi } from "@/lib/auth";
 import { run } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 
 export async function POST(req: NextRequest) {
+  const staff = await requireRoleApi("admin", "superadmin");
+  if (staff instanceof NextResponse) return staff;
+
   try {
-    const staff = await requireRole("admin", "superadmin");
     const { account_id, rut } = await req.json();
     if (!account_id || !rut) {
       return NextResponse.json({ error: "Faltan datos." }, { status: 400 });

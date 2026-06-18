@@ -1,4 +1,4 @@
-// Schema extension para método de pago (transferencia con 10% off / MercadoPago).
+// Schema extension para método de pago (transferencia con 10% off).
 // Idempotente.
 const Database = require("better-sqlite3");
 const path = require("node:path");
@@ -28,13 +28,7 @@ function safeAlter(sql) {
   }
 }
 
-// Agregamos columnas para tracking del descuento por método de pago + IDs de MercadoPago.
 safeAlter(`ALTER TABLE customer_orders ADD COLUMN payment_discount_amount INTEGER NOT NULL DEFAULT 0`);
-safeAlter(`ALTER TABLE customer_orders ADD COLUMN mp_preference_id TEXT`);
-safeAlter(`ALTER TABLE customer_orders ADD COLUMN mp_payment_id TEXT`);
-safeAlter(`ALTER TABLE customer_orders ADD COLUMN mp_status TEXT`);
-// init_point lo guardamos para reusar el link de pago si el usuario abandona y vuelve
-safeAlter(`ALTER TABLE customer_orders ADD COLUMN mp_init_point TEXT`);
 
 console.log(`✓ Payments schema applied to ${abs}`);
 db.close();

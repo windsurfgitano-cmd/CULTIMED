@@ -15,7 +15,6 @@ export async function GET() {
       status: "ok",
       service: "cultimed-store",
       db: true,
-      mp: !!process.env.MP_ACCESS_TOKEN,
       timestamp: new Date().toISOString(),
     });
   } catch (e: any) {

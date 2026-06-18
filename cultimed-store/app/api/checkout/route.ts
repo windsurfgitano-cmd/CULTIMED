@@ -1,14 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { requireCustomer, canPurchase } from "@/lib/auth";
-import { run, transaction, get } from "@/lib/db";
+import { getCurrentCustomer, canPurchase } from "@/lib/auth";
+import { transaction, get } from "@/lib/db";
 import { getActiveConversionForReferred, REFERRED_DISCOUNT_BPS } from "@/lib/referrals";
-import {
-  PaymentMethod,
-  calcPaymentDiscount,
-  createMpPreference,
-  buildItemsDescription,
-  isMercadoPagoEnabled,
-} from "@/lib/payments";
+import { calcPaymentDiscount } from "@/lib/payments";
 import { calcShippingFee } from "@/lib/shipping";
 
 interface CheckoutPayload {
@@ -18,12 +12,14 @@ interface CheckoutPayload {
   shipping_region?: string;
   shipping_phone: string;
   notes?: string;
-  payment_method?: PaymentMethod; // default 'transfer'
   items: Array<{ productId: number; quantity: number; unitPrice: number }>;
 }
 
 export async function POST(req: NextRequest) {
-  const customer = await requireCustomer();
+  const customer = await getCurrentCustomer();
+  if (!customer) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
   if (!canPurchase(customer)) {
     return NextResponse.json({ error: "no_prescription" }, { status: 403 });
   }
@@ -34,8 +30,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "empty_cart" }, { status: 400 });
   }
 
-  // Retiro en farmacia deshabilitado: aún no tenemos farmacia física propia.
-  // Forzamos courier en backend incluso si el cliente lo intenta saltar.
   if (body.shipping_method !== "courier") {
     return NextResponse.json({ error: "pickup_disabled" }, { status: 400 });
   }
@@ -47,14 +41,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "missing_shipping_data" }, { status: 400 });
   }
 
-  const paymentMethod: PaymentMethod = body.payment_method === "mercadopago" ? "mercadopago" : "transfer";
-  if (paymentMethod === "mercadopago" && !isMercadoPagoEnabled()) {
-    return NextResponse.json({ error: "mp_disabled" }, { status: 400 });
-  }
+  const paymentMethod = "transfer" as const;
 
-  // Recompute totals server-side from products table to avoid client tampering.
-  // Además verificamos stock disponible: la suma de quantity_current de los lotes
-  // 'available' de cada producto debe cubrir la cantidad pedida — evita overselling.
   let subtotal = 0;
   const validatedItems: Array<{
     productId: number; qty: number; unitPrice: number; total: number; name: string;
@@ -101,19 +89,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "no_valid_items" }, { status: 400 });
   }
 
-  // Programa Embajadores: 5% off al referido en su primera compra (acumulable con descuento por método)
   const conversion = await getActiveConversionForReferred(customer.id);
   const eligibleForReferralDiscount = !!(conversion && !conversion.first_order_id);
   const referralDiscount = eligibleForReferralDiscount
     ? Math.round((subtotal * REFERRED_DISCOUNT_BPS) / 10000)
     : 0;
 
-  // Descuento por método de pago: 10% si transferencia, 0% si MercadoPago.
-  // El descuento por método se aplica sobre el subtotal (no sobre el subtotal-referral) para evitar
-  // doble descuento sobre el mismo monto.
   const paymentDiscount = calcPaymentDiscount(subtotal, paymentMethod);
   const shippingFee = calcShippingFee(subtotal, shippingCity, shippingRegion);
-
   const total = Math.max(0, subtotal - referralDiscount - paymentDiscount + shippingFee);
 
   const folio = `CM-${new Date().getFullYear()}-${Date.now().toString(36).toUpperCase()}`;
@@ -161,44 +144,6 @@ export async function POST(req: NextRequest) {
       `Orden creada${discountNote}${shippingNote}`
     );
   });
-
-  // Si es MercadoPago, crear preference y guardar IDs.
-  if (paymentMethod === "mercadopago") {
-    const proto = req.headers.get("x-forwarded-proto") || "http";
-    const host = req.headers.get("host") || "localhost:3000";
-    const publicBaseUrl = process.env.NEXT_PUBLIC_BASE_URL || `${proto}://${host}`;
-
-    try {
-      const pref = await createMpPreference({
-        orderId,
-        folio,
-        total,
-        customerEmail: customer.email,
-        itemsDescription: buildItemsDescription(
-          validatedItems.map((it) => ({ name: it.name, quantity: it.qty }))
-        ),
-        publicBaseUrl,
-      });
-
-      if (pref) {
-        await run(
-          `UPDATE customer_orders
-             SET mp_preference_id = ?, mp_init_point = ?, updated_at = CURRENT_TIMESTAMP
-           WHERE id = ?`,
-          pref.id, pref.init_point, orderId
-        );
-        return NextResponse.json({
-          orderId,
-          folio,
-          paymentMethod,
-          mpInitPoint: pref.init_point,
-        });
-      }
-    } catch (e) {
-      console.error("MP preference creation failed:", e);
-      // Caemos a flujo manual si MP falla
-    }
-  }
 
   return NextResponse.json({
     orderId,

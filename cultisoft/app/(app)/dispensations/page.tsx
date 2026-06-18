@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireRole } from "@/lib/auth";
+import { requireRole, requireOpsRole } from "@/lib/auth";
 import { all, get } from "@/lib/db";
 import { formatCLP, formatDateTime, formatNumber } from "@/lib/format";
 import PageHeader from "@/components/PageHeader";
@@ -23,7 +23,7 @@ export default async function DispensationsPage({
 }: {
   searchParams: { q?: string; status?: string; range?: string };
 }) {
-  await requireRole("admin", "superadmin", "pharmacist");
+  await requireOpsRole();
   const q = (searchParams.q || "").trim();
   const status = searchParams.status || "";
   const range = searchParams.range || "30";

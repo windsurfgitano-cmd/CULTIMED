@@ -6,6 +6,11 @@ import { requireStaff } from "@/lib/auth";
 import { get, run } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { generateSecret, generateOtpauthUrl, verifyToken } from "@/lib/totp";
+import {
+  setTotpCandidateSecret,
+  getTotpCandidateSecret,
+  clearTotpCandidateSecret,
+} from "@/lib/totp-enroll";
 import PageHeader from "@/components/PageHeader";
 import QRCode from "qrcode";
 import Link from "next/link";
@@ -16,19 +21,20 @@ async function enrollAction(formData: FormData) {
   "use server";
   const me = await requireStaff();
   const code = String(formData.get("code") || "").trim();
-  const candidateSecret = String(formData.get("candidate_secret") || "").trim();
+  const candidateSecret = getTotpCandidateSecret();
 
   if (!candidateSecret) redirect("/me/2fa?e=no_secret");
-  if (!/^\d{6}$/.test(code)) redirect(`/me/2fa?e=bad_code&s=${encodeURIComponent(candidateSecret)}`);
+  if (!/^\d{6}$/.test(code)) redirect("/me/2fa?e=bad_code");
 
   if (!verifyToken(code, candidateSecret)) {
-    redirect(`/me/2fa?e=invalid&s=${encodeURIComponent(candidateSecret)}`);
+    redirect("/me/2fa?e=invalid");
   }
 
   await run(
     `UPDATE staff SET totp_secret = ?, totp_enabled = 1, updated_at = NOW() WHERE id = ?`,
     candidateSecret, me.id
   );
+  clearTotpCandidateSecret();
   await logAudit({ staffId: me.id, action: "totp_enabled", entityType: "staff", entityId: me.id });
   redirect("/me/2fa?ok=enrolled");
 }
@@ -57,6 +63,13 @@ async function disableAction(formData: FormData) {
   redirect("/me/2fa?ok=disabled");
 }
 
+async function regenerateSecretAction() {
+  "use server";
+  await requireStaff();
+  clearTotpCandidateSecret();
+  redirect("/me/2fa");
+}
+
 const ERR: Record<string, string> = {
   no_secret: "Genera un nuevo secret e intenta de nuevo.",
   bad_code: "Ingresa exactamente 6 dígitos.",
@@ -67,7 +80,7 @@ const ERR: Record<string, string> = {
 export default async function TwoFactorEnrollPage({
   searchParams,
 }: {
-  searchParams: { e?: string; ok?: string; s?: string };
+  searchParams: { e?: string; ok?: string };
 }) {
   const me = await requireStaff();
 
@@ -77,7 +90,6 @@ export default async function TwoFactorEnrollPage({
   );
   const enabled = status?.totp_enabled === 1;
 
-  // Si ya está activado, muestra estado + form de desactivar.
   if (enabled) {
     const error = searchParams.e ? ERR[searchParams.e] : null;
     return (
@@ -135,8 +147,12 @@ export default async function TwoFactorEnrollPage({
     );
   }
 
-  // Enrolamiento: genera (o reusa) secret candidato + QR
-  const candidateSecret = searchParams.s || generateSecret();
+  let candidateSecret = getTotpCandidateSecret();
+  if (!candidateSecret) {
+    candidateSecret = generateSecret();
+    setTotpCandidateSecret(candidateSecret);
+  }
+
   const otpauthUrl = generateOtpauthUrl(me.email, candidateSecret);
   const qrDataUrl = await QRCode.toDataURL(otpauthUrl, {
     errorCorrectionLevel: "M",
@@ -183,6 +199,11 @@ export default async function TwoFactorEnrollPage({
             <summary className="text-[12px] text-on-surface-variant cursor-pointer hover:text-on-surface">¿No puedes escanear? Copia el código manualmente</summary>
             <p className="mt-2 font-mono text-xs bg-paper-dim/50 p-3 break-all">{candidateSecret}</p>
           </details>
+          <form action={regenerateSecretAction} className="mt-4">
+            <button type="submit" className="text-[12px] text-on-surface-variant hover:text-on-surface underline">
+              Generar nuevo QR
+            </button>
+          </form>
         </div>
 
         <div className="clinical-card p-6">
@@ -191,7 +212,6 @@ export default async function TwoFactorEnrollPage({
             Paso 2 · Confirma con un código
           </h2>
           <form action={enrollAction} className="space-y-4">
-            <input type="hidden" name="candidate_secret" value={candidateSecret} />
             <div>
               <label htmlFor="code" className="input-label">Código de 6 dígitos generado por la app</label>
               <input

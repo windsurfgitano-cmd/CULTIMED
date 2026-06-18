@@ -1,8 +1,8 @@
-﻿// Supabase Storage helper para uploads de pacientes (recetas + comprobantes).
-// Bucket: "uploads" (público, signed URLs para acceso controlado).
+// Supabase Storage helper para uploads de pacientes (recetas + comprobantes).
+// Bucket: "uploads" (publico, signed URLs para acceso controlado).
 //
 // Buckets a crear en Supabase Storage:
-//   - "prescriptions"  · privado, signed URL 1h. Recetas médicas.
+//   - "prescriptions"  · privado, signed URL 1h. Recetas medicas.
 //   - "payment-proofs" · privado, signed URL 1h. Comprobantes de transferencia.
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
@@ -29,7 +29,7 @@ export type UploadBucket = "prescriptions" | "payment-proofs" | "documents" | "p
 export interface UploadResult {
   /** Path interno del objeto, ej: "1/2026-04-30T20-00-00_receta.pdf" */
   path: string;
-  /** URL firmada con expiración para acceso seguro (1 hora). */
+  /** URL firmada con expiracion para acceso seguro (1 hora). */
   signedUrl: string;
 }
 
@@ -95,7 +95,6 @@ export async function deleteFile(bucket: UploadBucket, path: string): Promise<vo
 export async function resolveStorageUrl(stored: string | null): Promise<string | null> {
   if (!stored) return null;
 
-  // Formato nuevo: "prescriptions://1/2026-04-30T20-00-00_receta.pdf"
   const match = stored.match(/^(prescriptions|payment-proofs|patient-documents):\/\/(.+)$/);
   if (match) {
     const bucket = match[1] as UploadBucket;
@@ -107,13 +106,11 @@ export async function resolveStorageUrl(stored: string | null): Promise<string |
     }
   }
 
-  // Legacy filesystem: devolver tal cual (solo funciona en dev local)
   if (stored.startsWith("/uploads/") || stored.startsWith("/")) {
     const base = process.env.STORE_PUBLIC_BASE || process.env.NEXT_PUBLIC_BASE_URL || "";
     return `${base}${stored}`;
   }
 
-  // URL absoluta (http/https) — devolver tal cual
   return stored;
 }
 

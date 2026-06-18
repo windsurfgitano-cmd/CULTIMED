@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { requireRole } from "@/lib/auth";
+import { requireRole, requireOpsRole } from "@/lib/auth";
 import { all, run } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import PageHeader from "@/components/PageHeader";
@@ -9,7 +9,7 @@ interface ProductOption { id: number; sku: string; name: string; }
 
 async function createBatch(formData: FormData) {
   "use server";
-  const staff = await requireRole("admin", "superadmin", "pharmacist");
+  const staff = await requireOpsRole();
   const productId = Number(formData.get("product_id"));
   const batchNumber = String(formData.get("batch_number") || "").trim();
   const qty = Number(formData.get("quantity"));
@@ -51,7 +51,7 @@ const ERR: Record<string, string> = {
 };
 
 export default async function NewBatchPage({ searchParams }: { searchParams: { e?: string; product?: string } }) {
-  await requireRole("admin", "superadmin", "pharmacist");
+  await requireOpsRole();
   const products = await all<ProductOption>(`SELECT id, sku, name FROM products WHERE is_active = 1 ORDER BY name`);
   const error = searchParams.e ? ERR[searchParams.e] : null;
   const preselectId = searchParams.product ? Number(searchParams.product) : undefined;

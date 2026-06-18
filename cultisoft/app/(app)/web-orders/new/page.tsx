@@ -251,7 +251,6 @@ export default async function NewWebOrderPage({
               <select name="payment_method" className="input-field" defaultValue="transfer">
                 <option value="transfer">Transferencia bancaria</option>
                 <option value="cash">Efectivo</option>
-                <option value="mercadopago">MercadoPago</option>
                 <option value="other">Otro</option>
               </select>
             </div>

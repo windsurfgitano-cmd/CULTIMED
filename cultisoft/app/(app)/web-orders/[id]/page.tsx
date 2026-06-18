@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { requireRole, isAdminOrAbove } from "@/lib/auth";
+import { requireRole, isAdminOrAbove, requireOpsRole } from "@/lib/auth";
 import { all, get, run, transaction } from "@/lib/db";
 import { formatCLP, formatDateTime } from "@/lib/format";
 import { logAudit } from "@/lib/audit";
@@ -146,7 +146,7 @@ async function adminUploadProofAction(formData: FormData) {
 
 async function transitionAction(formData: FormData) {
   "use server";
-  const staff = await requireRole("admin", "superadmin", "pharmacist");
+  const staff = await requireOpsRole();
   const id = Number(formData.get("id"));
   const action = String(formData.get("action") || "");
   const message = String(formData.get("message") || "").trim();
@@ -215,6 +215,28 @@ async function transitionAction(formData: FormData) {
     redirect(`/web-orders/${id}?e=forbidden`);
   }
 
+  if (action === "confirm_payment") {
+    const items = await all<{ product_id: number; quantity: number; product_name: string }>(
+      `SELECT i.product_id, i.quantity, p.name as product_name
+       FROM customer_order_items i
+       JOIN products p ON p.id = i.product_id
+       WHERE i.order_id = ?`,
+      id
+    );
+    for (const item of items) {
+      const stock = await get<{ available: number }>(
+        `SELECT COALESCE(SUM(quantity_current), 0) as available FROM batches
+         WHERE product_id = ? AND status = 'available' AND quantity_current > 0`,
+        item.product_id
+      );
+      const available = stock?.available ?? 0;
+      if (available < item.quantity) {
+        redirect(`/web-orders/${id}?e=insufficient_stock&product=${encodeURIComponent(item.product_name)}&need=${item.quantity}&have=${available}`);
+      }
+    }
+  }
+
+  try {
   await transaction(async (tx) => {
     if (action === "confirm_payment") {
       // Deducir stock de lotes (FIFO: lote más antiguo primero)
@@ -245,6 +267,9 @@ async function transitionAction(formData: FormData) {
             batch.id, -take, id, staff.id
           );
           remaining -= take;
+        }
+        if (remaining > 0) {
+          throw new Error(`Stock insuficiente para producto ${item.product_id}`);
         }
       }
       await tx.run(
@@ -317,9 +342,9 @@ export default async function WebOrderDetail({
   searchParams,
 }: {
   params: { id: string };
-  searchParams: { ok?: string; e?: string };
+  searchParams: { ok?: string; e?: string; product?: string; need?: string; have?: string };
 }) {
-  await requireRole("admin", "superadmin", "pharmacist");
+  await requireOpsRole();
   const id = parseInt(params.id, 10);
   if (!id) notFound();
 
@@ -421,6 +446,15 @@ export default async function WebOrderDetail({
       {searchParams.e === "forbidden" && (
         <div className="mb-6 p-4 border-l-2 border-sangria bg-sangria/5">
           <p className="text-sm text-ink">No tienes permisos para esa acción. Confirmar pagos, rechazar y cancelar pedidos requiere rol administrador.</p>
+        </div>
+      )}
+      {searchParams.e === "insufficient_stock" && (
+        <div className="mb-6 p-4 border-l-2 border-sangria bg-sangria/5">
+          <p className="text-sm text-ink">
+            Stock insuficiente para confirmar el pago
+            {searchParams.product ? ` (${searchParams.product}: necesita ${searchParams.need ?? "?"}, disponible ${searchParams.have ?? "0"})` : ""}.
+            Revisa inventario antes de confirmar.
+          </p>
         </div>
       )}
 

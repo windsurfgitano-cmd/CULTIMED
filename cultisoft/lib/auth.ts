@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { NextResponse } from "next/server";
 import crypto from "node:crypto";
 import bcrypt from "bcryptjs";
 import { get, run } from "./db";
@@ -7,8 +8,9 @@ import { get, run } from "./db";
 const COOKIE_NAME = "cultisoft_session";
 const SECRET: string = (() => {
   if (process.env.SESSION_SECRET) return process.env.SESSION_SECRET;
-  console.warn("⚠️  SESSION_SECRET no configurado (cultisoft). Usando fallback dev (INSEGURO para producción).");
-  console.warn("   Configura SESSION_SECRET en variables de entorno de Vercel.");
+  const isProd = process.env.NODE_ENV === "production" || process.env.VERCEL_ENV === "production";
+  if (isProd) throw new Error("SESSION_SECRET es obligatorio en producción (cultisoft)");
+  console.warn("⚠️  SESSION_SECRET no configurado (cultisoft). Usando fallback dev (solo local).");
   return "dev-secret-change-in-production-please";
 })();
 const MAX_AGE_DAYS = 7;
@@ -166,6 +168,27 @@ export async function requireRole(...roles: StaffRole[]): Promise<StaffUser> {
   const staff = await requireStaff();
   if (!roles.includes(staff.role)) {
     redirect("/dashboard?denied=1");
+  }
+  return staff;
+}
+
+/** Roles con acceso operativo diario (pacientes, pedidos, inventario, etc.) */
+export const OPS_ROLES: StaffRole[] = ["admin", "superadmin", "pharmacist", "dispenser"];
+
+export async function requireOpsRole(): Promise<StaffUser> {
+  return requireRole(...OPS_ROLES);
+}
+
+/** Para API routes — retorna JSON en vez de redirect HTML. */
+export async function requireRoleApi(
+  ...roles: StaffRole[]
+): Promise<StaffUser | NextResponse> {
+  const staff = await getCurrentStaff();
+  if (!staff) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+  if (!roles.includes(staff.role)) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
   return staff;
 }

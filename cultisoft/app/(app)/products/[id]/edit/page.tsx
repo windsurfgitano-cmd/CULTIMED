@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { requireRole } from "@/lib/auth";
+import { requireRole, requireOpsRole } from "@/lib/auth";
 import { get, run } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import PageHeader from "@/components/PageHeader";
@@ -52,7 +52,7 @@ function optionalNumber(formData: FormData, key: string) {
 
 async function updateProduct(formData: FormData) {
   "use server";
-  const staff = await requireRole("admin", "superadmin", "pharmacist");
+  const staff = await requireOpsRole();
   const id = Number(formData.get("id"));
   const sku = String(formData.get("sku") || "").trim().toUpperCase();
   const name = String(formData.get("name") || "").trim();
@@ -107,7 +107,7 @@ const ERR: Record<string, string> = {
 };
 
 export default async function EditProductPage({ params, searchParams }: { params: { id: string }; searchParams: { e?: string } }) {
-  await requireRole("admin", "superadmin", "pharmacist");
+  await requireOpsRole();
   const id = Number(params.id);
   if (!id) notFound();
   const product = await get<ProductFull>(`SELECT * FROM products WHERE id = ?`, id);

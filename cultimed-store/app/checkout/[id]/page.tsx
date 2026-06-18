@@ -6,6 +6,7 @@ import { formatCLP, formatDateTime } from "@/lib/format";
 import { saveUploadedFile } from "@/lib/uploads";
 import { resolveStorageUrl } from "@/lib/storage";
 import OrderTimeline from "@/components/OrderTimeline";
+import { isOrderPaid, isOrderRejected } from "@/lib/order-status";
 import WhatsAppButton from "@/components/WhatsAppButton";
 
 export const dynamic = "force-dynamic";
@@ -94,8 +95,8 @@ export default async function OrderPaymentPage({ params, searchParams }: { param
 
   const isPending = order.status === "pending_payment";
   const isProofUploaded = order.status === "proof_uploaded";
-  const isConfirmed = ["payment_confirmed", "preparing", "shipped", "delivered"].includes(order.status);
-  const isRejected = !!order.payment_rejection_reason;
+  const isConfirmed = isOrderPaid(order.status);
+  const isRejected = isOrderRejected(order.status, order.payment_rejection_reason);
   const proofSignedUrl = await resolveStorageUrl(order.payment_proof_url);
 
   return (

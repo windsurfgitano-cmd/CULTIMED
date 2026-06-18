@@ -7,8 +7,9 @@ import { get, run } from "./db";
 const COOKIE_NAME = "cultimed_customer";
 const SECRET: string = (() => {
   if (process.env.SESSION_SECRET) return process.env.SESSION_SECRET;
-  console.warn("⚠️  SESSION_SECRET no configurado. Usando fallback dev (INSEGURO para producción).");
-  console.warn("   Configura SESSION_SECRET en variables de entorno de Vercel.");
+  const isProd = process.env.NODE_ENV === "production" || process.env.VERCEL_ENV === "production";
+  if (isProd) throw new Error("SESSION_SECRET es obligatorio en producción");
+  console.warn("⚠️  SESSION_SECRET no configurado. Usando fallback dev (solo local).");
   return "dev-secret-change-please";
 })();
 const MAX_AGE_DAYS = 14;

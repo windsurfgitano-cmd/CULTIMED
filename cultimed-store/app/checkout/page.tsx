@@ -1,13 +1,10 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { requireCustomer, canPurchase } from "@/lib/auth";
-import { isMercadoPagoEnabled } from "@/lib/payments";
 import CheckoutClient from "./CheckoutClient";
 
 export default async function CheckoutPage() {
   const customer = await requireCustomer();
   const allowed = canPurchase(customer);
-  const mpEnabled = isMercadoPagoEnabled();
 
   if (!allowed) {
     return (
@@ -39,5 +36,5 @@ export default async function CheckoutPage() {
     );
   }
 
-  return <CheckoutClient customer={customer} mpEnabled={mpEnabled} />;
+  return <CheckoutClient customer={customer} />;
 }

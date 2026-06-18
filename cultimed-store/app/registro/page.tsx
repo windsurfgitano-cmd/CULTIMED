@@ -1,6 +1,7 @@
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { registerCustomer, getCurrentCustomer } from "@/lib/auth";
+import { safeRedirectPath } from "@/lib/safe-redirect";
 import { isValidRut, formatRut, cleanRut } from "@/lib/rut";
 import {
   attachReferralOnRegister,
@@ -20,7 +21,7 @@ async function registerAction(formData: FormData) {
   const fullName = String(formData.get("full_name") || "").trim();
   const rutRaw = String(formData.get("rut") || "").trim();
   const phone = String(formData.get("phone") || "").trim();
-  const next = String(formData.get("next") || "/mi-cuenta");
+  const next = safeRedirectPath(String(formData.get("next") || ""));
 
   if (!email || !password || !fullName || !rutRaw || !phone) {
     redirect("/registro?e=missing&next=" + encodeURIComponent(next));

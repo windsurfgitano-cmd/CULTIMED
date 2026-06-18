@@ -6,6 +6,7 @@ const EVENT_LABEL: Record<string, string> = {
   created: "Orden creada",
   proof_uploaded: "Comprobante recibido",
   payment_confirmed: "Pago confirmado",
+  paid: "Pago confirmado",
   payment_rejected: "Comprobante rechazado",
   preparing: "En preparación",
   shipped: "Despachado",
@@ -15,10 +16,9 @@ const EVENT_LABEL: Record<string, string> = {
 };
 
 export default function OrderTimeline({ events, status }: { events: Event[]; status: string }) {
-  // Possible future steps to show as "next"
-  const knownSteps = ["created", "proof_uploaded", "payment_confirmed", "preparing", "shipped", "delivered"];
+  const knownSteps = ["created", "proof_uploaded", "paid", "preparing", "shipped", "delivered"];
   const completedTypes = new Set(events.map((e) => e.event_type));
-  const ghostSteps = knownSteps.filter((s) => !completedTypes.has(s) && !["delivered", "cancelled"].includes(status));
+  const ghostSteps = knownSteps.filter((s) => !completedTypes.has(s) && !["delivered", "cancelled", "rejected"].includes(status));
 
   return (
     <div className="border border-rule bg-paper-bright p-6 lg:p-7">

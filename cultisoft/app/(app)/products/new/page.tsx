@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { requireRole } from "@/lib/auth";
+import { requireRole, requireOpsRole } from "@/lib/auth";
 import { run } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import PageHeader from "@/components/PageHeader";
@@ -37,7 +37,7 @@ function optionalNumber(formData: FormData, key: string) {
 
 async function createProduct(formData: FormData) {
   "use server";
-  const staff = await requireRole("admin", "superadmin", "pharmacist");
+  const staff = await requireOpsRole();
 
   const sku = String(formData.get("sku") || "").trim().toUpperCase();
   const name = String(formData.get("name") || "").trim();
@@ -91,7 +91,7 @@ const ERR: Record<string, string> = {
 };
 
 export default async function NewProductPage({ searchParams }: { searchParams: { e?: string } }) {
-  await requireRole("admin", "superadmin", "pharmacist");
+  await requireOpsRole();
   const error = searchParams.e ? ERR[searchParams.e] : null;
 
   return (

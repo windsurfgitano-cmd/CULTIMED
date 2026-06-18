@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { loginCustomer, getCurrentCustomer } from "@/lib/auth";
+import { safeRedirectPath } from "@/lib/safe-redirect";
 
 async function loginAction(formData: FormData) {
   "use server";
   const email = String(formData.get("email") || "");
   const password = String(formData.get("password") || "");
-  const next = String(formData.get("next") || "/mi-cuenta");
+  const next = safeRedirectPath(String(formData.get("next") || ""));
   if (!email || !password) redirect("/ingresar?e=missing&next=" + encodeURIComponent(next));
   const result = await loginCustomer(email, password);
   if (!result.ok) {

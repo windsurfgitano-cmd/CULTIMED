@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { requireRole } from "@/lib/auth";
+import { requireRole, requireOpsRole } from "@/lib/auth";
 import { all, get, run, transaction } from "@/lib/db";
 import { formatCLP, formatDate, formatDateTime, daysUntil } from "@/lib/format";
 import { logAudit } from "@/lib/audit";
@@ -28,7 +28,7 @@ interface Movement {
 
 async function adjust(formData: FormData) {
   "use server";
-  const staff = await requireRole("admin", "superadmin", "pharmacist");
+  const staff = await requireOpsRole();
   const id = Number(formData.get("id"));
   const delta = Number(formData.get("delta"));
   const reason = String(formData.get("reason") || "").trim() || "Ajuste manual";
@@ -59,7 +59,7 @@ async function adjust(formData: FormData) {
 }
 
 export default async function BatchDetailPage({ params }: { params: { id: string } }) {
-  await requireRole("admin", "superadmin", "pharmacist");
+  await requireOpsRole();
   const id = parseInt(params.id, 10);
   if (!id) notFound();
 

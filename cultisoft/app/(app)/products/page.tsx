@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { requireRole } from "@/lib/auth";
+import { requireRole, requireOpsRole } from "@/lib/auth";
 import { all, run } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { formatCLP, formatNumber } from "@/lib/format";
@@ -40,7 +40,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 async function setWebStatus(formData: FormData) {
   "use server";
-  const staff = await requireRole("admin", "superadmin", "pharmacist");
+  const staff = await requireOpsRole();
   const id = Number(formData.get("id"));
   const mode = String(formData.get("mode") || "");
   if (!id || !["active", "archived"].includes(mode)) redirect("/products");
@@ -66,7 +66,7 @@ export default async function ProductsPage({
 }: {
   searchParams: { q?: string; status?: string; category?: string; updated?: string };
 }) {
-  await requireRole("admin", "superadmin", "pharmacist");
+  await requireOpsRole();
   const q = (searchParams.q || "").trim();
   const status = searchParams.status || "";
   const category = searchParams.category || "";

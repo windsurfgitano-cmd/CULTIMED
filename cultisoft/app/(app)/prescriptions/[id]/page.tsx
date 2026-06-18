@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { requireRole } from "@/lib/auth";
+import { requireRole, requireOpsRole } from "@/lib/auth";
 import { all, get, run } from "@/lib/db";
 import { calcAge, formatDate, formatDateTime, daysUntil } from "@/lib/format";
 import { logAudit } from "@/lib/audit";
@@ -30,7 +30,7 @@ interface RxItem {
 
 async function changeStatus(formData: FormData) {
   "use server";
-  const staff = await requireRole("admin", "superadmin", "pharmacist");
+  const staff = await requireOpsRole();
   const id = Number(formData.get("id"));
   const status = String(formData.get("status"));
   if (!id || !["pending", "active", "fulfilled", "rejected", "expired"].includes(status)) return;
@@ -55,7 +55,7 @@ async function changeStatus(formData: FormData) {
 }
 
 export default async function PrescriptionDetailPage({ params }: { params: { id: string } }) {
-  await requireRole("admin", "superadmin", "pharmacist");
+  await requireOpsRole();
   const id = parseInt(params.id, 10);
   if (!id) notFound();
 

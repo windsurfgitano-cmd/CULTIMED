@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireRole } from "@/lib/auth";
+import { requireRole, requireOpsRole } from "@/lib/auth";
 import { all, get } from "@/lib/db";
 import { formatCLP, formatDateTime } from "@/lib/format";
 import PageHeader from "@/components/PageHeader";
@@ -39,7 +39,7 @@ export default async function DispensationDetailPage({
   params: { id: string };
   searchParams: { success?: string };
 }) {
-  await requireRole("admin", "superadmin", "pharmacist");
+  await requireOpsRole();
   const id = parseInt(params.id, 10);
   if (!id) notFound();
 

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import clsx from "clsx";
+import { canAccessNav } from "@/lib/permissions";
+import type { StaffRole } from "@/lib/auth";
 
 const NAV = [
   { n: "01", href: "/dashboard",         label: "Dashboard" },
@@ -22,13 +24,14 @@ const SYSTEM = [
   { n: "11", href: "/admin", label: "Super Admin", adminOnly: true },
 ];
 
-function NavList({ role, onNav }: { role: string; onNav?: () => void }) {
+function NavList({ role, onNav }: { role: StaffRole; onNav?: () => void }) {
   const pathname = usePathname() || "";
+  const visibleNav = NAV.filter((item) => canAccessNav(role, item.href));
   return (
     <nav className="flex flex-col py-6">
       <p className="px-6 mb-3 eyebrow text-ink-subtle">— Operación</p>
 
-      {NAV.map((item) => {
+      {visibleNav.map((item) => {
         const active = pathname === item.href || pathname.startsWith(item.href + "/");
         return (
           <Link
@@ -93,7 +96,7 @@ function NavList({ role, onNav }: { role: string; onNav?: () => void }) {
   );
 }
 
-export default function Sidebar({ role }: { role: string }) {
+export default function Sidebar({ role }: { role: StaffRole }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
@@ -153,7 +156,7 @@ export default function Sidebar({ role }: { role: string }) {
             <div className="mt-auto px-6 py-5 border-t border-rule-soft">
               <p className="editorial-numeral text-xs text-ink-subtle">— v1.0</p>
               <p className="text-[10px] uppercase tracking-widest text-ink-subtle font-mono mt-1">
-                Modo local · MVP
+                Cultimed · Operación clínica
               </p>
             </div>
           </aside>

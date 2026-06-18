@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireCustomer } from "@/lib/auth";
 import { all } from "@/lib/db";
 import { formatCLP, formatDate, formatDateTime } from "@/lib/format";
+import { ORDER_STATUS_LABEL } from "@/lib/order-status";
 
 export const dynamic = "force-dynamic";
 
@@ -10,14 +11,16 @@ interface OrderRow {
   item_count: number;
 }
 
-const STATUS_LABEL: Record<string, { label: string; tone: string }> = {
-  pending_payment:    { label: "Pago pendiente",      tone: "brass" },
-  proof_uploaded:     { label: "Verificando pago",    tone: "brass" },
-  payment_confirmed:  { label: "Pago confirmado",     tone: "forest" },
-  preparing:          { label: "En preparación",      tone: "forest" },
-  shipped:            { label: "Despachado",          tone: "forest" },
-  delivered:          { label: "Entregado",           tone: "forest" },
-  cancelled:          { label: "Cancelado",           tone: "sangria" },
+const STATUS_TONE: Record<string, string> = {
+  pending_payment: "brass",
+  proof_uploaded: "brass",
+  paid: "forest",
+  payment_confirmed: "forest",
+  preparing: "forest",
+  shipped: "forest",
+  delivered: "forest",
+  cancelled: "sangria",
+  rejected: "sangria",
 };
 
 const RX_STATUS: Record<string, { label: string; tone: string }> = {
@@ -221,7 +224,10 @@ export default async function AccountPage() {
           ) : (
             <ul className="divide-y divide-rule border-y border-rule">
               {orders.map((o) => {
-                const status = STATUS_LABEL[o.status] || { label: o.status, tone: "neutral" };
+                const status = {
+                  label: ORDER_STATUS_LABEL[o.status] || o.status,
+                  tone: STATUS_TONE[o.status] || "neutral",
+                };
                 const toneClass =
                   status.tone === "forest" ? "text-forest border-forest"
                   : status.tone === "brass" ? "text-brass-dim border-brass"

@@ -1,7 +1,7 @@
 // CSV export de pacientes para uso interno (BI, padron, contabilidad).
 // Solo accesible para admin/superadmin.
 import { NextResponse, type NextRequest } from "next/server";
-import { requireRole } from "@/lib/auth";
+import { requireRoleApi } from "@/lib/auth";
 import { all } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 
@@ -35,7 +35,8 @@ function csvEscape(v: any): string {
 }
 
 export async function GET(req: NextRequest) {
-  const staff = await requireRole("admin", "superadmin");
+  const staff = await requireRoleApi("admin", "superadmin");
+  if (staff instanceof NextResponse) return staff;
 
   const rows = await all<PatientRow>(
     `SELECT p.id, p.rut, p.full_name, p.date_of_birth, p.gender, p.email, p.phone,

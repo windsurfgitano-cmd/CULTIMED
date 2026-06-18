@@ -66,7 +66,7 @@ export default async function CatalogPage({
     `SELECT p.id, p.sku, p.name, p.category, p.presentation, p.default_price,
        p.thc_percentage, p.cbd_percentage, p.vendor, p.is_house_brand, p.description,
        p.image_url, p.strain_key, p.is_active, p.shopify_status,
-       COALESCE((SELECT SUM(quantity_current) FROM batches b WHERE b.product_id = p.id), 0) as total_stock
+       COALESCE((SELECT SUM(quantity_current) FROM batches b WHERE b.product_id = p.id AND b.status = 'available'), 0) as total_stock
      FROM products p
      WHERE ${where.join(" AND ")}
      ORDER BY ${order}

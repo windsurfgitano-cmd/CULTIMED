@@ -1,5 +1,6 @@
-﻿// Upload helper para cultisoft (admin-side).
-// Reusa la misma lógica que cultimed-store/lib/uploads.ts.
+// Upload helper para cultisoft (admin-side).
+// Usa Supabase Storage; devuelve "bucket://path" para guardar en BD.
+
 import { uploadFile, buildStoragePath, type UploadBucket } from "./storage";
 
 /**

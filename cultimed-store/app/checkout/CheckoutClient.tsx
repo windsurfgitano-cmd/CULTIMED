@@ -8,28 +8,20 @@ import { formatCLP } from "@/lib/format";
 import { calcShippingFee, FREE_SHIPPING_THRESHOLD, OUTLYING_SHIPPING_FEE, URBAN_SHIPPING_FEE } from "@/lib/shipping";
 import type { CustomerAccount } from "@/lib/auth";
 
-const TRANSFER_DISCOUNT_PCT = 10; // matches lib/payments.ts
+const TRANSFER_DISCOUNT_PCT = 10;
 
-export default function CheckoutClient({
-  customer,
-  mpEnabled,
-}: {
-  customer: CustomerAccount;
-  mpEnabled: boolean;
-}) {
+export default function CheckoutClient({ customer }: { customer: CustomerAccount }) {
   const router = useRouter();
   const { items, hydrated, subtotal, clear } = useCart();
   const [submitting, setSubmitting] = useState(false);
-  // Retiro en farmacia deshabilitado por ahora (aún no tenemos farmacia física propia).
-  const [shippingMethod, setShippingMethod] = useState<"pickup" | "courier">("courier");
+  const [shippingMethod] = useState<"courier">("courier");
   const [shippingCity, setShippingCity] = useState("");
   const [shippingRegion, setShippingRegion] = useState("RM");
-  const [paymentMethod, setPaymentMethod] = useState<"transfer" | "mercadopago">("transfer");
   const [error, setError] = useState<string | null>(null);
 
   const transferDiscount = Math.round((subtotal * TRANSFER_DISCOUNT_PCT) / 100);
-  const shippingFee = shippingMethod === "courier" ? calcShippingFee(subtotal, shippingCity, shippingRegion) : 0;
-  const finalTotal = Math.max(0, subtotal - (paymentMethod === "transfer" ? transferDiscount : 0) + shippingFee);
+  const shippingFee = calcShippingFee(subtotal, shippingCity, shippingRegion);
+  const finalTotal = Math.max(0, subtotal - transferDiscount + shippingFee);
   const shippingIsFree = shippingFee === 0;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -46,7 +38,6 @@ export default function CheckoutClient({
       shipping_region: String(fd.get("shipping_region") || ""),
       shipping_phone: String(fd.get("shipping_phone") || customer.phone || ""),
       notes: String(fd.get("notes") || ""),
-      payment_method: paymentMethod,
       items: items.map((i) => ({
         productId: i.productId,
         quantity: i.quantity,
@@ -61,8 +52,11 @@ export default function CheckoutClient({
         body: JSON.stringify(payload),
       });
       const json = await res.json();
+      if (res.status === 401) {
+        router.push("/ingresar?next=" + encodeURIComponent("/checkout"));
+        return;
+      }
       if (!res.ok || !json.orderId) {
-        // Stock insuficiente: mostramos el detalle por producto
         if (json.error === "out_of_stock" && Array.isArray(json.detail)) {
           throw new Error(
             "Algunos productos ya no tienen stock suficiente:\n" + json.detail.join("\n") +
@@ -72,13 +66,6 @@ export default function CheckoutClient({
         throw new Error(json.error || "Error");
       }
       clear();
-
-      // Si MercadoPago, redirigimos al checkout de MP
-      if (paymentMethod === "mercadopago" && json.mpInitPoint) {
-        window.location.href = json.mpInitPoint;
-        return;
-      }
-
       router.push(`/checkout/${json.orderId}`);
     } catch (err: any) {
       setError(err.message || "No pudimos crear tu pedido. Intenta de nuevo.");
@@ -97,12 +84,11 @@ export default function CheckoutClient({
 
   return (
     <>
-      {/* Stepper */}
       <section className="max-w-[1440px] mx-auto px-6 lg:px-12 pt-12 lg:pt-16 pb-8">
         <ol className="flex items-baseline gap-6 lg:gap-12">
           <Step n="01" label="Información" active />
           <span className="hairline flex-1" />
-          <Step n="02" label={paymentMethod === "transfer" ? "Transferencia" : "MercadoPago"} />
+          <Step n="02" label="Transferencia" />
           <span className="hairline flex-1" />
           <Step n="03" label="Confirmación" />
         </ol>
@@ -118,82 +104,45 @@ export default function CheckoutClient({
         </div>
 
         {error && (
-          <div className="mb-8 p-5 bg-sangria/10 border-l-2 border-sangria">
-            <p className="text-sm text-ink whitespace-pre-line">{error}</p>
+          <div className="mb-8 p-5 bg-sangria/10 border-l-2 border-sangria whitespace-pre-line">
+            <p className="eyebrow text-sangria mb-1">— Error</p>
+            <p className="text-sm text-ink">{error}</p>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="grid grid-cols-12 gap-x-6 gap-y-12">
+        <form onSubmit={handleSubmit} className="grid grid-cols-12 gap-x-6 gap-y-10">
           <div className="col-span-12 lg:col-span-7 space-y-10">
-            {/* Shipping method */}
             <div>
               <p className="eyebrow mb-4 flex items-baseline gap-3">
                 <span className="editorial-numeral text-base text-ink-subtle">— A</span>
-                <span>Método de entrega</span>
+                <span>Dirección de despacho</span>
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Option
-                  selected={shippingMethod === "courier"}
-                  onSelect={() => setShippingMethod("courier")}
-                  title="Despacho a domicilio"
-                  body="Courier privado · 24–72h hábiles desde la dispensación"
-                  cost={shippingIsFree ? "Despacho gratis" : `${formatCLP(shippingFee)} · gratis sobre ${formatCLP(FREE_SHIPPING_THRESHOLD)}`}
-                />
-                <DisabledOption
-                  title="Retiro en farmacia"
-                  body="Estamos habilitando nuestra farmacia física. Por ahora todos los pedidos se entregan por courier privado."
-                />
-              </div>
-              <div className="mt-4 border-l-2 border-brass-dim bg-brass-dim/5 px-4 py-3">
-                <p className="eyebrow text-brass-dim mb-1">— Precios de envío</p>
-                <p className="text-xs font-mono leading-relaxed text-ink-muted">
-                  Santiago urbano {formatCLP(URBAN_SHIPPING_FEE)} · zonas fuera de Santiago urbano {formatCLP(OUTLYING_SHIPPING_FEE)} · gratis en compras sobre {formatCLP(FREE_SHIPPING_THRESHOLD)}.
-                </p>
+              <div className="space-y-4">
+                <input name="shipping_address" required className="input-editorial" placeholder="Calle, número, depto." />
+                <div className="grid grid-cols-2 gap-4">
+                  <input
+                    name="shipping_city"
+                    required
+                    className="input-editorial"
+                    placeholder="Comuna"
+                    value={shippingCity}
+                    onChange={(e) => setShippingCity(e.currentTarget.value)}
+                  />
+                  <input
+                    name="shipping_region"
+                    required
+                    className="input-editorial"
+                    placeholder="RM"
+                    value={shippingRegion}
+                    onChange={(e) => setShippingRegion(e.currentTarget.value)}
+                  />
+                </div>
               </div>
             </div>
 
-            {/* Address (only for courier) */}
-            {shippingMethod === "courier" && (
-              <div className="space-y-7 animate-fade-up">
-                <p className="eyebrow flex items-baseline gap-3">
-                  <span className="editorial-numeral text-base text-ink-subtle">— B</span>
-                  <span>Dirección de entrega</span>
-                </p>
-                <div>
-                  <label className="input-label">Calle, número y depto</label>
-                  <input name="shipping_address" required className="input-editorial" placeholder="Av. Providencia 1234, Dpto 502" />
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-7">
-                  <div>
-                    <label className="input-label">Comuna</label>
-                    <input
-                      name="shipping_city"
-                      required
-                      className="input-editorial"
-                      placeholder="Providencia"
-                      value={shippingCity}
-                      onChange={(e) => setShippingCity(e.currentTarget.value)}
-                    />
-                  </div>
-                  <div>
-                    <label className="input-label">Región</label>
-                    <input
-                      name="shipping_region"
-                      required
-                      className="input-editorial"
-                      placeholder="RM"
-                      value={shippingRegion}
-                      onChange={(e) => setShippingRegion(e.currentTarget.value)}
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Phone */}
             <div>
               <p className="eyebrow mb-4 flex items-baseline gap-3">
-                <span className="editorial-numeral text-base text-ink-subtle">— C</span>
+                <span className="editorial-numeral text-base text-ink-subtle">— B</span>
                 <span>Teléfono · WhatsApp</span>
               </p>
               <input
@@ -204,54 +153,30 @@ export default function CheckoutClient({
                 className="input-editorial"
                 placeholder="+56 9 XXXX XXXX"
               />
-              <p className="text-[11px] font-mono text-ink-muted mt-2">
-                Te avisaremos por WhatsApp cuando confirmemos tu pago y cuando el pedido esté listo.
-              </p>
             </div>
 
-            {/* PAYMENT METHOD */}
             <div>
               <p className="eyebrow mb-4 flex items-baseline gap-3">
-                <span className="editorial-numeral text-base text-ink-subtle">— D</span>
-                <span>Método de pago</span>
+                <span className="editorial-numeral text-base text-ink-subtle">— C</span>
+                <span>Pago por transferencia</span>
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Option
-                  selected={paymentMethod === "transfer"}
-                  onSelect={() => setPaymentMethod("transfer")}
-                  title="Transferencia bancaria"
-                  body="Pago directo, mejor precio. Subes tu comprobante después y confirmamos en 4h hábiles."
-                  cost={`–${TRANSFER_DISCOUNT_PCT}% off`}
-                  highlight
-                />
-                {mpEnabled ? (
-                  <Option
-                    selected={paymentMethod === "mercadopago"}
-                    onSelect={() => setPaymentMethod("mercadopago")}
-                    title="MercadoPago"
-                    body="Tarjeta débito o crédito. Confirmación instantánea, sin esperar."
-                    cost="Precio normal"
-                  />
-                ) : (
-                  <DisabledOption
-                    title="MercadoPago"
-                    body="Próximamente · pago automático con tarjeta."
-                  />
-                )}
+              <div className="border border-ink bg-ink/5 p-5">
+                <p className="font-display text-xl mb-2">Transferencia bancaria</p>
+                <p className="text-xs text-ink-muted leading-relaxed">
+                  Pago directo con <strong>{TRANSFER_DISCOUNT_PCT}% de descuento</strong>. Subes tu comprobante después y confirmamos en 4h hábiles.
+                </p>
               </div>
             </div>
 
-            {/* Notes */}
             <div>
               <p className="eyebrow mb-4 flex items-baseline gap-3">
-                <span className="editorial-numeral text-base text-ink-subtle">— {shippingMethod === "courier" ? "E" : "D"}</span>
+                <span className="editorial-numeral text-base text-ink-subtle">— D</span>
                 <span>Notas (opcional)</span>
               </p>
               <textarea name="notes" rows={3} className="input-editorial resize-none" placeholder="Indicaciones especiales, horarios..." />
             </div>
           </div>
 
-          {/* Summary */}
           <aside className="col-span-12 lg:col-span-4 lg:col-start-9">
             <div className="lg:sticky lg:top-32 border border-rule bg-paper-bright p-7">
               <p className="eyebrow mb-5">— Tu orden</p>
@@ -274,7 +199,7 @@ export default function CheckoutClient({
                   <span className="text-ink-muted">Subtotal</span>
                   <span className="font-mono nums-lining tabular-nums">{formatCLP(subtotal)}</span>
                 </div>
-                {paymentMethod === "transfer" && transferDiscount > 0 && (
+                {transferDiscount > 0 && (
                   <div className="flex justify-between items-baseline text-sm text-forest">
                     <span>– {TRANSFER_DISCOUNT_PCT}% transferencia</span>
                     <span className="font-mono nums-lining tabular-nums">−{formatCLP(transferDiscount)}</span>
@@ -297,14 +222,10 @@ export default function CheckoutClient({
                 disabled={submitting || items.length === 0}
                 className="btn-brass w-full disabled:opacity-50"
               >
-                {submitting
-                  ? (paymentMethod === "mercadopago" ? "Conectando con MercadoPago..." : "Creando orden...")
-                  : (paymentMethod === "mercadopago" ? "Pagar con MercadoPago →" : "Generar orden de pago →")}
+                {submitting ? "Creando orden…" : "Generar orden de pago →"}
               </button>
               <p className="text-[11px] font-mono leading-relaxed text-ink-muted mt-5">
-                {paymentMethod === "transfer"
-                  ? `Al continuar generamos tu folio y te mostramos los datos para transferir. Despacho urbano ${formatCLP(URBAN_SHIPPING_FEE)}; zonas fuera de Santiago urbano ${formatCLP(OUTLYING_SHIPPING_FEE)}; gratis sobre ${formatCLP(FREE_SHIPPING_THRESHOLD)}.`
-                  : `Te redirigiremos a MercadoPago para completar el pago. Despacho urbano ${formatCLP(URBAN_SHIPPING_FEE)}; zonas fuera de Santiago urbano ${formatCLP(OUTLYING_SHIPPING_FEE)}; gratis sobre ${formatCLP(FREE_SHIPPING_THRESHOLD)}.`}
+                Al continuar generamos tu folio y te mostramos los datos para transferir. Despacho urbano {formatCLP(URBAN_SHIPPING_FEE)}; zonas fuera de Santiago urbano {formatCLP(OUTLYING_SHIPPING_FEE)}; gratis sobre {formatCLP(FREE_SHIPPING_THRESHOLD)}.
               </p>
             </div>
           </aside>
@@ -322,58 +243,5 @@ function Step({ n, label, active = false }: { n: string; label: string; active?:
         {label}
       </span>
     </li>
-  );
-}
-
-function Option({
-  selected,
-  onSelect,
-  title,
-  body,
-  cost,
-  highlight = false,
-}: {
-  selected: boolean;
-  onSelect: () => void;
-  title: string;
-  body: string;
-  cost: string;
-  highlight?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className={
-        "text-left p-5 border transition-all duration-300 " +
-        (selected
-          ? "border-ink bg-ink/5"
-          : "border-rule hover:border-ink-muted")
-      }
-    >
-      <div className="flex items-baseline justify-between mb-1">
-        <p className="font-display text-xl">{title}</p>
-        <span className={"w-3.5 h-3.5 rounded-full border " + (selected ? "border-ink bg-ink" : "border-ink/30")} />
-      </div>
-      <p className="text-xs text-ink-muted mb-3 leading-relaxed">{body}</p>
-      <p className={
-        "text-[11px] uppercase tracking-widest font-mono " +
-        (highlight ? "text-forest font-semibold" : "text-ink-muted")
-      }>
-        {cost}
-      </p>
-    </button>
-  );
-}
-
-function DisabledOption({ title, body }: { title: string; body: string }) {
-  return (
-    <div className="text-left p-5 border border-rule-soft bg-paper-dim/30 cursor-not-allowed opacity-60">
-      <div className="flex items-baseline justify-between mb-1">
-        <p className="font-display text-xl">{title}</p>
-        <span className="text-[10px] font-mono uppercase tracking-widest text-ink-subtle">Próximamente</span>
-      </div>
-      <p className="text-xs text-ink-muted leading-relaxed">{body}</p>
-    </div>
   );
 }

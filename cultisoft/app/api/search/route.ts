@@ -1,7 +1,7 @@
 // Búsqueda global para Cmd+K. Search across pacientes, recetas, dispensaciones,
 // pedidos web, productos. Solo staff autenticado.
 import { NextResponse, type NextRequest } from "next/server";
-import { requireRole } from "@/lib/auth";
+import { OPS_ROLES, requireRoleApi } from "@/lib/auth";
 import { all } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +16,9 @@ interface SearchResult {
 }
 
 export async function GET(req: NextRequest) {
-  await requireRole("admin", "superadmin", "pharmacist");
+  const staff = await requireRoleApi(...OPS_ROLES);
+  if (staff instanceof NextResponse) return staff;
+
   const url = new URL(req.url);
   const q = (url.searchParams.get("q") || "").trim();
   if (q.length < 2) return NextResponse.json({ results: [], q });
@@ -24,7 +26,6 @@ export async function GET(req: NextRequest) {
   const like = `%${q}%`;
   const results: SearchResult[] = [];
 
-  // 1. Pacientes
   const patients = await all<{ id: number; rut: string; full_name: string; email: string | null; phone: string | null }>(
     `SELECT id, rut, full_name, email, phone FROM patients
      WHERE full_name ILIKE ? OR rut ILIKE ? OR email ILIKE ? OR phone ILIKE ?
@@ -41,7 +42,6 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  // 2. Recetas internas
   const prescriptions = await all<{ id: number; folio: string; patient_name: string; status: string }>(
     `SELECT r.id, r.folio, p.full_name as patient_name, r.status
      FROM prescriptions r
@@ -61,7 +61,6 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  // 3. Pedidos web
   const orders = await all<{ id: number; folio: string; full_name: string; status: string; total: number }>(
     `SELECT o.id, o.folio, c.full_name, o.status, o.total
      FROM customer_orders o
@@ -81,7 +80,6 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  // 4. Recetas web (pacientes con receta subida)
   const webRx = await all<{ id: number; full_name: string; email: string; status: string }>(
     `SELECT id, full_name, email, prescription_status as status
      FROM customer_accounts
@@ -101,7 +99,6 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  // 5. Productos
   const products = await all<{ id: number; sku: string; name: string }>(
     `SELECT id, sku, name FROM products
      WHERE is_active=1 AND (name ILIKE ? OR sku ILIKE ?)
@@ -118,7 +115,6 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  // 6. Embajadores (customer_accounts con is_ambassador=1)
   const ambassadors = await all<{ id: number; full_name: string; email: string; code: string | null }>(
     `SELECT c.id, c.full_name, c.email, rc.code
      FROM customer_accounts c
