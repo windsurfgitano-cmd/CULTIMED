@@ -17,29 +17,21 @@ const EVENT_LABEL: Record<string, string> = {
   whatsapp_sent: "WhatsApp enviado",
 };
 
-function fulfillmentSteps(shippingMethod: string, eventTypes: Set<string>): string[] {
-  const pickupPath = eventTypes.has("ready_for_pickup") || shippingMethod === "pickup";
-  const shipPath = eventTypes.has("shipped") || (!pickupPath && shippingMethod === "courier");
-  if (pickupPath && !shipPath) return ["ready_for_pickup", "delivered"];
-  if (shipPath && !pickupPath) return ["shipped", "delivered"];
-  return ["ready_for_pickup", "shipped", "delivered"];
-}
+/** Solo courier por ahora — retiro en farmacia deshabilitado. */
+const COURIER_STEPS = ["created", "proof_uploaded", "paid", "preparing", "shipped", "delivered"];
 
 export default function OrderTimeline({
   events,
   status,
-  shippingMethod = "courier",
 }: {
   events: Event[];
   status: string;
   shippingMethod?: string;
 }) {
   const completedTypes = new Set(events.map((e) => e.event_type));
-  const baseSteps = ["created", "proof_uploaded", "paid", "preparing"];
-  const knownSteps = [...baseSteps, ...fulfillmentSteps(shippingMethod, completedTypes)];
   const ghostSteps = isOrderTerminal(status)
     ? []
-    : knownSteps.filter((s) => !completedTypes.has(s));
+    : COURIER_STEPS.filter((s) => !completedTypes.has(s));
 
   return (
     <div className="border border-rule bg-paper-bright p-6 lg:p-7">

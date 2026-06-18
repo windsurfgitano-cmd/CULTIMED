@@ -269,7 +269,7 @@ export default async function OrderPaymentPage({ params, searchParams }: { param
               <span className="font-display text-2xl nums-lining tabular-nums">{formatCLP(order.total)}</span>
             </div>
             <div className="mt-5 pt-5 border-t border-rule-soft text-xs text-ink-muted space-y-1">
-              <p><span className="text-ink-muted">Entrega:</span> {order.shipping_method === "pickup" ? "Retiro en farmacia" : "Despacho a domicilio"}</p>
+              <p><span className="text-ink-muted">Entrega:</span> Despacho a domicilio (courier)</p>
               {order.shipping_address && (
                 <p>{order.shipping_address}, {order.shipping_city}</p>
               )}

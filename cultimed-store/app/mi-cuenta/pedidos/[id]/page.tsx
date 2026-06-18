@@ -81,7 +81,7 @@ export default async function OrderDetailPage({ params }: { params: { id: string
           </div>
 
           <div className="mt-6 text-sm text-ink-muted space-y-1">
-            <p><strong>Despacho:</strong> {order.shipping_method === "pickup" ? "Retiro" : "Courier"}</p>
+            <p><strong>Despacho:</strong> Courier a domicilio</p>
             {order.shipping_address && (
               <p>{order.shipping_address}, {order.shipping_city} ({order.shipping_region})</p>
             )}

@@ -54,6 +54,10 @@ const storePublic = [
   "/embajadores",
   "/privacidad",
   "/terminos",
+  "/trazabilidad",
+  "/derechos-paciente",
+  "/compliance",
+  "/recuperar",
 ];
 for (const path of storePublic) {
   test(`store GET ${path}`, async () => {
@@ -61,7 +65,7 @@ for (const path of storePublic) {
   });
 }
 
-const storeAuthGated = ["/checkout", "/mi-cuenta"];
+const storeAuthGated = ["/checkout", "/mi-cuenta", "/mi-cuenta/pedidos", "/mi-cuenta/recetas"];
 for (const path of storeAuthGated) {
   test(`store GET ${path} sin sesión → redirect`, async () => {
     await expectGet(path, STORE, [307, 308]);
@@ -75,7 +79,17 @@ for (const path of adminPublic) {
   });
 }
 
-const adminProtected = ["/dashboard", "/patients", "/web-orders", "/reports"];
+const adminProtected = [
+  "/dashboard",
+  "/patients",
+  "/web-orders",
+  "/web-prescriptions",
+  "/reports",
+  "/inventory",
+  "/products",
+  "/dispensations",
+  "/ambassadors",
+];
 for (const path of adminProtected) {
   test(`admin GET ${path} sin sesión → redirect`, async () => {
     await expectGet(path, ADMIN, [307, 308]);
@@ -97,6 +111,16 @@ test("admin ocr API sin auth → 401", async () => {
   if (res.status !== 401) throw new Error(`expected 401, got ${res.status}`);
 });
 
+test("admin ocr/link API sin auth → 401", async () => {
+  const res = await fetch(`${ADMIN}/api/ocr/link`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: "{}",
+    redirect: "manual",
+  });
+  if (res.status !== 401) throw new Error(`expected 401, got ${res.status}`);
+});
+
 test("store checkout API sin auth → 401", async () => {
   const res = await fetch(`${STORE}/api/checkout`, {
     method: "POST",
@@ -107,8 +131,30 @@ test("store checkout API sin auth → 401", async () => {
   if (res.status !== 401) throw new Error(`expected 401, got ${res.status}`);
 });
 
+test("store checkout API pickup rechazado implícito (solo courier)", async () => {
+  const res = await fetch(`${STORE}/api/checkout`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      shipping_method: "pickup",
+      shipping_address: "x",
+      shipping_city: "x",
+      shipping_region: "RM",
+      shipping_phone: "+56900000000",
+      items: [{ productId: 1, quantity: 1, unitPrice: 1000 }],
+    }),
+    redirect: "manual",
+  });
+  if (res.status !== 401) throw new Error(`expected 401 (no session), got ${res.status}`);
+});
+
 test("store cron stock-low sin token → 401", async () => {
   const res = await fetch(`${STORE}/api/cron/stock-low`, { redirect: "manual" });
+  if (res.status !== 401) throw new Error(`expected 401, got ${res.status}`);
+});
+
+test("store cron receta-expiry sin token → 401", async () => {
+  const res = await fetch(`${STORE}/api/cron/receta-expiry`, { redirect: "manual" });
   if (res.status !== 401) throw new Error(`expected 401, got ${res.status}`);
 });
 

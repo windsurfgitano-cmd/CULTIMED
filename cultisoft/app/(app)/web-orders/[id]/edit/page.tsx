@@ -38,7 +38,7 @@ async function updateOrderAction(formData: FormData) {
   const city = String(formData.get("shipping_city") || "").trim() || null;
   const region = String(formData.get("shipping_region") || "").trim() || null;
   const phone = String(formData.get("shipping_phone") || "").trim() || null;
-  const method = String(formData.get("shipping_method") || "courier");
+  const method = "courier";
   const tracking = String(formData.get("shipping_tracking") || "").trim() || null;
   const notes = String(formData.get("notes") || "").trim() || null;
 
@@ -146,10 +146,8 @@ export default async function EditWebOrderPage({
             </div>
             <div>
               <label className="input-label">Método de envío</label>
-              <select name="shipping_method" className="input-field" defaultValue={order.shipping_method}>
-                <option value="courier">Courier privado</option>
-                <option value="pickup">Retiro en farmacia</option>
-              </select>
+              <input type="hidden" name="shipping_method" value="courier" />
+              <p className="input-field bg-paper-dim/30 text-ink-muted cursor-default">Courier privado (único disponible)</p>
             </div>
           </div>
         </section>

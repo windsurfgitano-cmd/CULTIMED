@@ -239,7 +239,7 @@ CREATE TABLE IF NOT EXISTS customer_orders (
   shipping_city TEXT,
   shipping_region TEXT,
   shipping_phone TEXT,
-  shipping_method TEXT DEFAULT 'pickup',
+  shipping_method TEXT DEFAULT 'courier',
   shipping_tracking TEXT,
   notes TEXT,
   payment_method TEXT DEFAULT 'transfer',

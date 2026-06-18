@@ -45,7 +45,7 @@ async function createOrderAction(formData: FormData) {
   const shippingCity = String(formData.get("shipping_city") || "").trim() || null;
   const shippingRegion = String(formData.get("shipping_region") || "").trim() || null;
   const shippingPhone = String(formData.get("shipping_phone") || "").trim() || null;
-  const shippingMethod = String(formData.get("shipping_method") || "courier");
+  const shippingMethod = "courier";
   const paymentMethod = String(formData.get("payment_method") || "transfer");
   const initialStatus = String(formData.get("initial_status") || "pending_payment");
   const notes = String(formData.get("notes") || "").trim() || null;
@@ -231,10 +231,8 @@ export default async function NewWebOrderPage({
             </div>
             <div>
               <label className="input-label">Método de envío</label>
-              <select name="shipping_method" className="input-field" defaultValue="courier">
-                <option value="courier">Courier privado</option>
-                <option value="pickup">Retiro en farmacia</option>
-              </select>
+              <input type="hidden" name="shipping_method" value="courier" />
+              <p className="input-field bg-paper-dim/30 text-ink-muted cursor-default">Courier privado (único disponible)</p>
             </div>
           </div>
         </section>

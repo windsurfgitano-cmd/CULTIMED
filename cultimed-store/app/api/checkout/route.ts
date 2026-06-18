@@ -6,7 +6,7 @@ import { calcPaymentDiscount } from "@/lib/payments";
 import { calcShippingFee } from "@/lib/shipping";
 
 interface CheckoutPayload {
-  shipping_method: "pickup" | "courier";
+  shipping_method?: "courier";
   shipping_address?: string;
   shipping_city?: string;
   shipping_region?: string;
@@ -30,9 +30,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "empty_cart" }, { status: 400 });
   }
 
-  if (body.shipping_method !== "courier") {
-    return NextResponse.json({ error: "pickup_disabled" }, { status: 400 });
-  }
+  const shippingMethod = "courier" as const;
   const shippingAddress = (body.shipping_address || "").trim();
   const shippingCity = (body.shipping_city || "").trim();
   const shippingRegion = (body.shipping_region || "").trim();
@@ -110,7 +108,7 @@ export async function POST(req: NextRequest) {
          payment_method, payment_discount_amount)
        VALUES (?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       folio, customer.id, subtotal, total,
-      body.shipping_method,
+      shippingMethod,
       shippingAddress,
       shippingCity,
       shippingRegion,
