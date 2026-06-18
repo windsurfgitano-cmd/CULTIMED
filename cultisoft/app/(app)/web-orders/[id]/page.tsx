@@ -305,6 +305,12 @@ async function transitionAction(formData: FormData) {
       id, rule.event, message || rule.defaultMsg, staff.id
     );
   });
+  } catch {
+    if (action === "confirm_payment") {
+      redirect(`/web-orders/${id}?e=insufficient_stock`);
+    }
+    throw new Error("transition failed");
+  }
 
   // Programa Embajadores: al confirmar pago, calcular comisión correspondiente (10% primera o 1% histórica).
   // Idempotente: UNIQUE(order_id, type) evita doble cálculo.
