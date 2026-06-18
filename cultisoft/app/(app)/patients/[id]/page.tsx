@@ -6,13 +6,16 @@ import { run } from "@/lib/db";
 import { calcAge, formatCLP, formatDate, formatDateTime, formatNumber } from "@/lib/format";
 import { logAudit } from "@/lib/audit";
 import { loadPatientRecord } from "@/lib/patient-record";
+import { loadPatientCompliance } from "@/lib/patient-compliance";
 import PageHeader from "@/components/PageHeader";
+import PatientCompliancePanel from "@/components/PatientCompliancePanel";
 import StatusBadge from "@/components/StatusBadge";
 import ConfirmSubmitForm from "@/components/ConfirmSubmitForm";
 
 export const dynamic = "force-dynamic";
 
 const SECTIONS = [
+  { id: "revision", label: "Revisión" },
   { id: "resumen", label: "Resumen" },
   { id: "datos", label: "Datos" },
   { id: "documentos", label: "Documentos" },
@@ -213,6 +216,11 @@ export default async function PatientDetailPage({
   const { patient: p, prescriptions: rxs, dispensations, accounts, webOrders, timeline, audits, totals } =
     record;
 
+  const accountIds = accounts.map((a) => a.id);
+  const compliance = await loadPatientCompliance(id, accountIds);
+  const primaryAccountId =
+    accounts.find((a) => a.link_source === "patient_id")?.id ?? accounts[0]?.id ?? null;
+
   const canAdmin = isAdminOrAbove(staff);
   const canOps = OPS_ROLES.includes(staff.role);
   const canRx = PRESCRIPTIONS_ROLES.includes(staff.role);
@@ -305,6 +313,13 @@ export default async function PatientDetailPage({
           ))}
         </div>
       </nav>
+
+      <PatientCompliancePanel
+        compliance={compliance}
+        canRunOcr={canRx}
+        patientId={p.id}
+        primaryAccountId={primaryAccountId}
+      />
 
       {/* Resumen */}
       <section id="resumen" className="scroll-mt-28 mb-8">
