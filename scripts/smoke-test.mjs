@@ -28,13 +28,13 @@ async function fetchJson(url, opts = {}) {
 test("store health", async () => {
   const { res, body } = await fetchJson(`${STORE}/api/health`);
   if (res.status !== 200) throw new Error(`status ${res.status}`);
-  if (!body.ok || body.db !== true) throw new Error(JSON.stringify(body));
+  if (body.status !== "ok" || body.db !== true) throw new Error(JSON.stringify(body));
 });
 
 test("admin health", async () => {
   const { res, body } = await fetchJson(`${ADMIN}/api/health`);
   if (res.status !== 200) throw new Error(`status ${res.status}`);
-  if (!body.ok || body.db !== true) throw new Error(JSON.stringify(body));
+  if (body.status !== "ok" || body.db !== true) throw new Error(JSON.stringify(body));
 });
 
 const storePages = ["/", "/productos", "/ingresar", "/registro", "/consulta"];
@@ -60,7 +60,7 @@ test("admin search API sin auth → 401", async () => {
 });
 
 test("admin patients export sin auth → 401", async () => {
-  const { res } = await fetch(`${ADMIN}/api/patients/export`, { redirect: "manual" });
+  const res = await fetch(`${ADMIN}/api/patients/export`, { redirect: "manual" });
   if (res.status !== 401) throw new Error(`expected 401, got ${res.status}`);
 });
 
