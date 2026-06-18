@@ -1,7 +1,7 @@
 // Búsqueda global para Cmd+K. Search across pacientes, recetas, dispensaciones,
 // pedidos web, productos. Solo staff autenticado.
 import { NextResponse, type NextRequest } from "next/server";
-import { OPS_ROLES, requireRoleApi } from "@/lib/auth";
+import { PATIENTS_ROLES, requireRoleApi } from "@/lib/auth";
 import { all } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +16,7 @@ interface SearchResult {
 }
 
 export async function GET(req: NextRequest) {
-  const staff = await requireRoleApi(...OPS_ROLES);
+  const staff = await requireRoleApi(...PATIENTS_ROLES);
   if (staff instanceof NextResponse) return staff;
 
   const url = new URL(req.url);

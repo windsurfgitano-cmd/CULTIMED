@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { requireRole, requireOpsRole } from "@/lib/auth";
+import { requirePatientsRole } from "@/lib/auth";
 import { run } from "@/lib/db";
 import { isValidRut, formatRut, cleanRut } from "@/lib/rut";
 import { logAudit } from "@/lib/audit";
@@ -8,7 +8,7 @@ import PageHeader from "@/components/PageHeader";
 
 async function createPatient(formData: FormData) {
   "use server";
-  const staff = await requireOpsRole();
+  const staff = await requirePatientsRole();
 
   const rutRaw = String(formData.get("rut") || "").trim();
   const fullName = String(formData.get("full_name") || "").trim();
@@ -64,7 +64,7 @@ const ERR_MSG: Record<string, string> = {
 };
 
 export default async function NewPatientPage({ searchParams }: { searchParams: { e?: string } }) {
-  await requireOpsRole();
+  await requirePatientsRole();
   const error = searchParams.e ? ERR_MSG[searchParams.e] : null;
 
   return (

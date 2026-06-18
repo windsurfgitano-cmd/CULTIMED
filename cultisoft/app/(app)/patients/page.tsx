@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireRole, requireOpsRole } from "@/lib/auth";
+import { requirePatientsRole } from "@/lib/auth";
 import { all, get } from "@/lib/db";
 import { calcAge, formatDate, formatNumber } from "@/lib/format";
 import PageHeader from "@/components/PageHeader";
@@ -29,7 +29,7 @@ export default async function PatientsPage({
 }: {
   searchParams: { q?: string; status?: string; page?: string };
 }) {
-  await requireOpsRole();
+  await requirePatientsRole();
   const q = (searchParams.q || "").trim();
   const status = (searchParams.status || "").trim();
   const page = Math.max(1, parseInt(searchParams.page || "1", 10) || 1);

@@ -172,11 +172,24 @@ export async function requireRole(...roles: StaffRole[]): Promise<StaffUser> {
   return staff;
 }
 
-/** Roles con acceso operativo diario (pacientes, pedidos, inventario, etc.) */
-export const OPS_ROLES: StaffRole[] = ["admin", "superadmin", "pharmacist", "dispenser"];
+export {
+  OPS_ROLES,
+  PATIENTS_ROLES,
+  PRESCRIPTIONS_ROLES,
+} from "./permissions";
+
+import { OPS_ROLES, PATIENTS_ROLES, PRESCRIPTIONS_ROLES } from "./permissions";
 
 export async function requireOpsRole(): Promise<StaffUser> {
   return requireRole(...OPS_ROLES);
+}
+
+export async function requirePatientsRole(): Promise<StaffUser> {
+  return requireRole(...PATIENTS_ROLES);
+}
+
+export async function requirePrescriptionsRole(): Promise<StaffUser> {
+  return requireRole(...PRESCRIPTIONS_ROLES);
 }
 
 /** Para API routes — retorna JSON en vez de redirect HTML. */

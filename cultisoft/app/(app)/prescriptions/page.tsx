@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireRole, requireOpsRole } from "@/lib/auth";
+import { requirePrescriptionsRole } from "@/lib/auth";
 import { all } from "@/lib/db";
 import { formatDate, daysUntil, formatNumber } from "@/lib/format";
 import PageHeader from "@/components/PageHeader";
@@ -23,7 +23,7 @@ export default async function PrescriptionsPage({
 }: {
   searchParams: { q?: string; status?: string };
 }) {
-  await requireOpsRole();
+  await requirePrescriptionsRole();
   const q = (searchParams.q || "").trim();
   const status = searchParams.status || "";
 

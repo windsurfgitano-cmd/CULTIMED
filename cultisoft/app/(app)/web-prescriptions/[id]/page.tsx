@@ -1,6 +1,6 @@
 ﻿import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { requireRole, requireOpsRole } from "@/lib/auth";
+import { requireRole, requirePrescriptionsRole } from "@/lib/auth";
 import { get, run } from "@/lib/db";
 import { formatDateTime } from "@/lib/format";
 import { logAudit } from "@/lib/audit";
@@ -44,7 +44,7 @@ const STATUS_META: Record<string, { label: string; cls: string }> = {
 
 async function reviewAction(formData: FormData) {
   "use server";
-  const staff = await requireOpsRole();
+  const staff = await requirePrescriptionsRole();
   const id = Number(formData.get("id"));
   const decision = String(formData.get("decision"));
   const notes = String(formData.get("notes") || "").trim();
@@ -125,7 +125,7 @@ async function reviewAction(formData: FormData) {
 
 async function uploadDocumentAction(formData: FormData) {
   "use server";
-  const staff = await requireOpsRole();
+  const staff = await requirePrescriptionsRole();
   const id = Number(formData.get("id"));
   const docType = String(formData.get("docType"));
   const file = formData.get("file") as File;
@@ -156,7 +156,7 @@ async function uploadDocumentAction(formData: FormData) {
 }
 
 export default async function WebPrescriptionDetail({ params }: { params: { id: string } }) {
-  await requireOpsRole();
+  await requirePrescriptionsRole();
   const id = parseInt(params.id, 10);
   if (!id) notFound();
 
