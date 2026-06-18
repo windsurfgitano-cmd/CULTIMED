@@ -95,6 +95,19 @@ export async function deleteFile(bucket: UploadBucket, path: string): Promise<vo
 export async function resolveStorageUrl(stored: string | null): Promise<string | null> {
   if (!stored) return null;
 
+  const legacyBucket = stored.match(
+    /^bucket:\/\/(prescriptions|payment-proofs|patient-documents)\/(.+)$/
+  );
+  if (legacyBucket) {
+    const bucket = legacyBucket[1] as UploadBucket;
+    const objectPath = legacyBucket[2];
+    try {
+      return await getSignedUrl(bucket, objectPath);
+    } catch {
+      return null;
+    }
+  }
+
   const match = stored.match(/^(prescriptions|payment-proofs|patient-documents):\/\/(.+)$/);
   if (match) {
     const bucket = match[1] as UploadBucket;
