@@ -1,7 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { PatientLite, BatchLite, RxLite } from "./page";
+
+interface GuardState {
+  allowed: boolean;
+  blocked: boolean;
+  reasons: string[];
+  warnings: string[];
+  cartGrams: number;
+  projectedMonthlyGrams: number;
+  monthlyLimit: number;
+  canOverride: boolean;
+}
 
 interface CartItem {
   batchId: number;
@@ -32,6 +43,7 @@ export default function NewDispensationClient({
   prescriptions,
   preselectPatient,
   preselectRx,
+  canOverrideCompliance,
   onSubmit,
 }: {
   patients: PatientLite[];
@@ -39,6 +51,7 @@ export default function NewDispensationClient({
   prescriptions: (RxLite & { patient_id: number })[];
   preselectPatient: number | null;
   preselectRx: number | null;
+  canOverrideCompliance: boolean;
   onSubmit: (formData: FormData) => Promise<void>;
 }) {
   const [step, setStep] = useState<1 | 2 | 3>(preselectPatient ? 2 : 1);
@@ -50,6 +63,9 @@ export default function NewDispensationClient({
   const [rxId, setRxId] = useState<number | null>(preselectRx);
   const [paymentMethod, setPaymentMethod] = useState("efectivo");
   const [notes, setNotes] = useState("");
+  const [guard, setGuard] = useState<GuardState | null>(null);
+  const [guardLoading, setGuardLoading] = useState(false);
+  const [forceOverride, setForceOverride] = useState(false);
 
   const patient = useMemo(() => patients.find((p) => p.id === patientId) || null, [patients, patientId]);
   const patientRxOptions = useMemo(
@@ -86,6 +102,36 @@ export default function NewDispensationClient({
   const total = useMemo(() => cart.reduce((s, it) => s + it.price * it.quantity, 0), [cart]);
   const hasControlled = cart.some((it) => it.isControlled === 1);
   const hasRxRequired = cart.some((it) => it.requiresRx === 1);
+
+  const complianceBlocked =
+    guard?.blocked && !(forceOverride && canOverrideCompliance);
+
+  useEffect(() => {
+    if (!patientId) {
+      setGuard(null);
+      return;
+    }
+    const controller = new AbortController();
+    setGuardLoading(true);
+    fetch(`/api/patients/${patientId}/dispensation-check`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        prescription_id: rxId,
+        items: cart.map((it) => ({
+          presentation: it.presentation,
+          name: it.name,
+          quantity: it.quantity,
+        })),
+      }),
+      signal: controller.signal,
+    })
+      .then((r) => r.json())
+      .then((data) => setGuard(data as GuardState))
+      .catch(() => {})
+      .finally(() => setGuardLoading(false));
+    return () => controller.abort();
+  }, [patientId, cart, rxId]);
 
   function addToCart(b: BatchLite) {
     setCart((cur) => {
@@ -216,6 +262,10 @@ export default function NewDispensationClient({
             )}
           </ul>
         </div>
+      )}
+
+      {patient && step >= 2 && (
+        <ComplianceBanner guard={guard} loading={guardLoading} />
       )}
 
       {/* STEP 2: Product selection */}
@@ -384,7 +434,11 @@ export default function NewDispensationClient({
 
               <button
                 type="button"
-                disabled={cart.length === 0 || (hasRxRequired && !rxId)}
+                disabled={
+                  cart.length === 0 ||
+                  (hasRxRequired && !rxId) ||
+                  complianceBlocked
+                }
                 onClick={() => setStep(3)}
                 className="btn-primary w-full mt-4"
               >
@@ -518,8 +572,40 @@ export default function NewDispensationClient({
                   </dd>
                 </div>
               </dl>
+              {complianceBlocked && (
+                <div className="mb-4 p-3 bg-error-container/40 border-l-4 border-error rounded-r-lg text-sm">
+                  <p className="font-semibold text-error">Dispensación bloqueada (SANNA)</p>
+                  <ul className="mt-1 text-xs text-on-surface-variant list-disc pl-4">
+                    {guard?.reasons.map((r) => (
+                      <li key={r}>{r}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {canOverrideCompliance && guard?.blocked && (
+                <label className="flex items-start gap-2 mb-3 text-xs text-on-surface-variant cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={forceOverride}
+                    onChange={(e) => setForceOverride(e.target.checked)}
+                    className="mt-0.5"
+                  />
+                  <span>
+                    Forzar dispensación (solo admin) — queda registrado en auditoría
+                  </span>
+                </label>
+              )}
+
               <div className="flex flex-col gap-2 mt-5">
-                <button type="submit" className="btn-primary w-full">
+                {forceOverride && canOverrideCompliance && (
+                  <input type="hidden" name="force_override" value="1" />
+                )}
+                <button
+                  type="submit"
+                  disabled={complianceBlocked}
+                  className="btn-primary w-full"
+                >
                   <span className="material-symbols-outlined text-base">check_circle</span>
                   Confirmar dispensación
                 </button>
@@ -531,6 +617,59 @@ export default function NewDispensationClient({
             </div>
           </aside>
         </form>
+      )}
+    </div>
+  );
+}
+
+function ComplianceBanner({
+  guard,
+  loading,
+}: {
+  guard: GuardState | null;
+  loading: boolean;
+}) {
+  if (loading && !guard) {
+    return (
+      <div className="mb-4 p-3 clinical-card text-sm text-on-surface-variant">
+        Verificando compliance SANNA…
+      </div>
+    );
+  }
+  if (!guard) return null;
+
+  const tone = guard.blocked
+    ? "border-error bg-error-container/30"
+    : guard.warnings.length
+      ? "border-warning bg-warning-container/30"
+      : "border-success bg-success-container/20";
+
+  return (
+    <div className={`mb-4 p-4 border-l-4 rounded-r-lg ${tone}`}>
+      <div className="flex flex-wrap gap-4 text-sm">
+        <span>
+          <strong>Gramos mes:</strong> {guard.projectedMonthlyGrams} / {guard.monthlyLimit} g
+          {guard.cartGrams > 0 && ` (+${guard.cartGrams} g carrito)`}
+        </span>
+        {guard.blocked ? (
+          <span className="text-error font-semibold">Bloqueado</span>
+        ) : (
+          <span className="text-success font-semibold">OK para dispensar</span>
+        )}
+      </div>
+      {guard.reasons.length > 0 && (
+        <ul className="mt-2 text-xs text-error list-disc pl-4">
+          {guard.reasons.map((r) => (
+            <li key={r}>{r}</li>
+          ))}
+        </ul>
+      )}
+      {guard.warnings.length > 0 && (
+        <ul className="mt-2 text-xs text-warning list-disc pl-4">
+          {guard.warnings.map((w) => (
+            <li key={w}>{w}</li>
+          ))}
+        </ul>
       )}
     </div>
   );

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { requireRole, requireOpsRole } from "@/lib/auth";
+import { requireRole, requireOpsRole, isAdminOrAbove } from "@/lib/auth";
+import { validateDispensation } from "@/lib/dispensation-guard";
 import { all, get, run, transaction } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { formatCLP } from "@/lib/format";
@@ -61,6 +62,36 @@ async function createDispensation(formData: FormData) {
   }
   if (items.length === 0) redirect("/dispensations/new?e=missing");
 
+  const forceOverride = formData.get("force_override") === "1";
+  const allowOverride = forceOverride && isAdminOrAbove(staff);
+
+  const batchMeta = await all<{ id: number; presentation: string | null; name: string }>(
+    `SELECT b.id, pr.presentation, pr.name
+     FROM batches b JOIN products pr ON pr.id = b.product_id
+     WHERE b.id IN (${items.map(() => "?").join(",")})`,
+    ...items.map((it) => it.batchId)
+  );
+  const metaByBatch = new Map(batchMeta.map((b) => [b.id, b]));
+
+  const guard = await validateDispensation({
+    patientId,
+    prescriptionId,
+    items: items.map((it) => {
+      const m = metaByBatch.get(it.batchId);
+      return {
+        presentation: m?.presentation ?? null,
+        name: m?.name ?? "",
+        quantity: it.quantity,
+      };
+    }),
+    allowOverride,
+  });
+
+  if (guard.blocked) {
+    const code = encodeURIComponent(guard.reasons[0]?.slice(0, 120) || "compliance");
+    redirect(`/dispensations/new?patient=${patientId}&e=compliance&msg=${code}`);
+  }
+
   const folio = `DISP-${new Date().getFullYear()}-${Date.now().toString(36).toUpperCase()}`;
   let total = 0;
   for (const it of items) total += it.price * it.quantity;
@@ -115,9 +146,18 @@ async function createDispensation(formData: FormData) {
   });
 
   await logAudit({
-    staffId: staff.id, action: "dispensation_created",
-    entityType: "dispensation", entityId: dispId,
-    details: { folio, items: items.length, total, prescriptionId },
+    staffId: staff.id,
+    action: allowOverride ? "dispensation_created_override" : "dispensation_created",
+    entityType: "dispensation",
+    entityId: dispId,
+    details: {
+      folio,
+      items: items.length,
+      total,
+      prescriptionId,
+      complianceOverride: allowOverride,
+      guardWarnings: guard.warnings,
+    },
   });
 
   redirect(`/dispensations/${dispId}?success=1`);
@@ -126,9 +166,10 @@ async function createDispensation(formData: FormData) {
 export default async function NewDispensationPage({
   searchParams,
 }: {
-  searchParams: { patient?: string; prescription?: string; e?: string };
+  searchParams: { patient?: string; prescription?: string; e?: string; msg?: string };
 }) {
-  await requireOpsRole();
+  const staff = await requireOpsRole();
+  const canOverrideCompliance = isAdminOrAbove(staff);
 
   const patients = await all<PatientLite>(
     `SELECT id, rut, full_name, membership_status, allergies, chronic_conditions
@@ -155,7 +196,14 @@ export default async function NewDispensationPage({
 
   const preselectPatient = searchParams.patient ? Number(searchParams.patient) : null;
   const preselectRx = searchParams.prescription ? Number(searchParams.prescription) : null;
-  const errMsg = searchParams.e === "missing" ? "Selecciona un paciente y al menos un producto." : null;
+  const errMsg =
+    searchParams.e === "missing"
+      ? "Selecciona un paciente y al menos un producto."
+      : searchParams.e === "compliance"
+        ? decodeURIComponent(searchParams.msg || "Bloqueo de compliance SANNA.")
+        : searchParams.e === "bad_items"
+          ? "Datos del carrito inválidos."
+          : null;
 
   return (
     <>
@@ -176,6 +224,7 @@ export default async function NewDispensationPage({
         prescriptions={prescriptions as any}
         preselectPatient={preselectPatient}
         preselectRx={preselectRx}
+        canOverrideCompliance={canOverrideCompliance}
         onSubmit={createDispensation}
       />
     </>
