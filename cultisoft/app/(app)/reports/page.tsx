@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireStaff } from "@/lib/auth";
+import { requireReportsRole } from "@/lib/auth";
 import { all, get } from "@/lib/db";
 import { formatCLP, formatNumber, formatDate } from "@/lib/format";
 import PageHeader from "@/components/PageHeader";
@@ -27,7 +27,7 @@ export default async function ReportsPage({
 }: {
   searchParams: { range?: string };
 }) {
-  await requireStaff();
+  await requireReportsRole();
   const days = Math.min(365, Math.max(7, parseInt(searchParams.range || "30", 10) || 30));
 
   const dateFilter = `d.dispensed_at >= NOW() - (INTERVAL '1 day' * ${days}) AND d.status = 'completed'`;

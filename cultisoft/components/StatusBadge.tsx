@@ -30,6 +30,14 @@ const MAP: Record<string, { label: string; cls: string }> = {
   paid:          { label: "Pagado",        cls: "pill-success" },
   failed:        { label: "Fallido",       cls: "pill-error" },
   refunded:      { label: "Reembolsado",   cls: "pill-warning" },
+
+  // web orders
+  pending_payment:  { label: "Pago pendiente",    cls: "pill-neutral" },
+  proof_uploaded:   { label: "Comprobante recibido", cls: "pill-warning" },
+  preparing:        { label: "En preparación",    cls: "pill-tertiary" },
+  ready_for_pickup: { label: "Lista retiro",      cls: "pill-success" },
+  shipped:          { label: "Despachada",        cls: "pill-success" },
+  delivered:        { label: "Entregada",         cls: "pill-success" },
 };
 
 export default function StatusBadge({ status }: { status: string }) {

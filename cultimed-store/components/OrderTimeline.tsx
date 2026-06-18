@@ -1,4 +1,5 @@
 import { formatDateTime } from "@/lib/format";
+import { isOrderTerminal } from "@/lib/order-status";
 
 interface Event { event_type: string; message: string | null; created_at: string; }
 
@@ -9,16 +10,36 @@ const EVENT_LABEL: Record<string, string> = {
   paid: "Pago confirmado",
   payment_rejected: "Comprobante rechazado",
   preparing: "En preparación",
+  ready_for_pickup: "Lista para retiro",
   shipped: "Despachado",
   delivered: "Entregado",
   cancelled: "Cancelado",
   whatsapp_sent: "WhatsApp enviado",
 };
 
-export default function OrderTimeline({ events, status }: { events: Event[]; status: string }) {
-  const knownSteps = ["created", "proof_uploaded", "paid", "preparing", "shipped", "delivered"];
+function fulfillmentSteps(shippingMethod: string, eventTypes: Set<string>): string[] {
+  const pickupPath = eventTypes.has("ready_for_pickup") || shippingMethod === "pickup";
+  const shipPath = eventTypes.has("shipped") || (!pickupPath && shippingMethod === "courier");
+  if (pickupPath && !shipPath) return ["ready_for_pickup", "delivered"];
+  if (shipPath && !pickupPath) return ["shipped", "delivered"];
+  return ["ready_for_pickup", "shipped", "delivered"];
+}
+
+export default function OrderTimeline({
+  events,
+  status,
+  shippingMethod = "courier",
+}: {
+  events: Event[];
+  status: string;
+  shippingMethod?: string;
+}) {
   const completedTypes = new Set(events.map((e) => e.event_type));
-  const ghostSteps = knownSteps.filter((s) => !completedTypes.has(s) && !["delivered", "cancelled", "rejected"].includes(status));
+  const baseSteps = ["created", "proof_uploaded", "paid", "preparing"];
+  const knownSteps = [...baseSteps, ...fulfillmentSteps(shippingMethod, completedTypes)];
+  const ghostSteps = isOrderTerminal(status)
+    ? []
+    : knownSteps.filter((s) => !completedTypes.has(s));
 
   return (
     <div className="border border-rule bg-paper-bright p-6 lg:p-7">

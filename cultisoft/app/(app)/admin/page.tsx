@@ -42,12 +42,14 @@ interface InviteRow {
 }
 
 const ROLE_LABEL: Record<string, string> = {
+  superadmin: "Super Admin",
   admin: "Admin",
   doctor: "Médico",
   pharmacist: "Químico Farmacéutico",
   dispenser: "Dispensador",
 };
 const ROLE_COLOR: Record<string, string> = {
+  superadmin: "text-sangria",
   admin: "text-sangria",
   doctor: "text-forest",
   pharmacist: "text-brass",

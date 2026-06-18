@@ -90,7 +90,7 @@ export default async function OrderDetailPage({ params }: { params: { id: string
         </div>
 
         <div className="col-span-12 lg:col-span-5 space-y-6">
-          <OrderTimeline events={events} status={order.status} />
+          <OrderTimeline events={events} status={order.status} shippingMethod={order.shipping_method} />
           {needsPayment && !isOrderPaid(order.status) && (
             <Link href={`/checkout/${order.id}`} className="btn-brass w-full text-center">
               {order.status === "proof_uploaded" ? "Ver estado de pago →" : "Completar pago / subir comprobante →"}

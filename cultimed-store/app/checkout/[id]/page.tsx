@@ -279,7 +279,7 @@ export default async function OrderPaymentPage({ params, searchParams }: { param
 
           <WhatsAppButton order={{ id: order.id, folio: order.folio, total: order.total }} />
 
-          <OrderTimeline events={events} status={order.status} />
+          <OrderTimeline events={events} status={order.status} shippingMethod={order.shipping_method} />
         </aside>
       </section>
     </>

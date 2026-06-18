@@ -9,6 +9,9 @@ export const PATIENTS_ROLES: StaffRole[] = ["admin", "superadmin", "doctor", "ph
 /** Recetas internas y recetas web. */
 export const PRESCRIPTIONS_ROLES: StaffRole[] = ["admin", "superadmin", "doctor", "pharmacist"];
 
+/** Reportes financieros / BI interno. */
+export const REPORTS_ROLES: StaffRole[] = ["admin", "superadmin"];
+
 /** Rutas del sidebar y roles que pueden verlas. */
 export const NAV_ACCESS: Record<string, StaffRole[]> = {
   "/dashboard":         PATIENTS_ROLES,
@@ -19,7 +22,7 @@ export const NAV_ACCESS: Record<string, StaffRole[]> = {
   "/web-prescriptions": PRESCRIPTIONS_ROLES,
   "/products":          ["superadmin", "admin", "pharmacist"],
   "/inventory":         ["superadmin", "admin", "pharmacist"],
-  "/reports":           ["superadmin", "admin"],
+  "/reports":           REPORTS_ROLES,
   "/ambassadors":       ["superadmin", "admin"],
   "/admin":             ["superadmin"],
 };

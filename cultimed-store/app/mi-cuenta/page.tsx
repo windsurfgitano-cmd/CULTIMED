@@ -17,6 +17,7 @@ const STATUS_TONE: Record<string, string> = {
   paid: "forest",
   payment_confirmed: "forest",
   preparing: "forest",
+  ready_for_pickup: "forest",
   shipped: "forest",
   delivered: "forest",
   cancelled: "sangria",

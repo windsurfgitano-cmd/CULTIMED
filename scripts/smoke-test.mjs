@@ -25,32 +25,54 @@ async function fetchJson(url, opts = {}) {
   return { res, body };
 }
 
+async function expectGet(path, base, codes = [200]) {
+  const res = await fetch(`${base}${path}`, { redirect: "manual" });
+  if (!codes.includes(res.status)) throw new Error(`status ${res.status}`);
+}
+
 test("store health", async () => {
   const { res, body } = await fetchJson(`${STORE}/api/health`);
   if (res.status !== 200) throw new Error(`status ${res.status}`);
   if (body.status !== "ok" || body.db !== true) throw new Error(JSON.stringify(body));
+  if (body.service !== "cultimed-store") throw new Error(`service=${body.service}`);
 });
 
 test("admin health", async () => {
   const { res, body } = await fetchJson(`${ADMIN}/api/health`);
   if (res.status !== 200) throw new Error(`status ${res.status}`);
   if (body.status !== "ok" || body.db !== true) throw new Error(JSON.stringify(body));
+  if (body.service !== "cultisoft") throw new Error(`service=${body.service}`);
 });
 
-const storePages = ["/", "/productos", "/ingresar", "/registro", "/consulta"];
+const storePages = [
+  "/",
+  "/productos",
+  "/ingresar",
+  "/registro",
+  "/consulta",
+  "/carrito",
+  "/checkout",
+  "/embajadores",
+  "/privacidad",
+  "/terminos",
+];
 for (const path of storePages) {
   test(`store GET ${path}`, async () => {
-    const res = await fetch(`${STORE}${path}`, { redirect: "manual" });
-    if (res.status !== 200) throw new Error(`status ${res.status}`);
+    await expectGet(path, STORE, [200]);
   });
 }
 
-const adminPages = ["/login", "/dashboard"];
-for (const path of adminPages) {
+const adminPublic = ["/login"];
+for (const path of adminPublic) {
   test(`admin GET ${path}`, async () => {
-    const res = await fetch(`${ADMIN}${path}`, { redirect: "manual" });
-    // login=200, dashboard sin sesión redirige a login
-    if (![200, 307, 308].includes(res.status)) throw new Error(`status ${res.status}`);
+    await expectGet(path, ADMIN, [200]);
+  });
+}
+
+const adminProtected = ["/dashboard", "/patients", "/web-orders", "/reports"];
+for (const path of adminProtected) {
+  test(`admin GET ${path} sin sesión → redirect`, async () => {
+    await expectGet(path, ADMIN, [307, 308]);
   });
 }
 
@@ -64,6 +86,11 @@ test("admin patients export sin auth → 401", async () => {
   if (res.status !== 401) throw new Error(`expected 401, got ${res.status}`);
 });
 
+test("admin ocr API sin auth → 401", async () => {
+  const res = await fetch(`${ADMIN}/api/ocr`, { method: "POST", redirect: "manual" });
+  if (res.status !== 401) throw new Error(`expected 401, got ${res.status}`);
+});
+
 test("store checkout API sin auth → 401", async () => {
   const res = await fetch(`${STORE}/api/checkout`, {
     method: "POST",
@@ -72,6 +99,16 @@ test("store checkout API sin auth → 401", async () => {
     redirect: "manual",
   });
   if (res.status !== 401) throw new Error(`expected 401, got ${res.status}`);
+});
+
+test("store cron stock-low sin token → 401", async () => {
+  const res = await fetch(`${STORE}/api/cron/stock-low`, { redirect: "manual" });
+  if (res.status !== 401) throw new Error(`expected 401, got ${res.status}`);
+});
+
+test("store no expone mp-webhook", async () => {
+  const res = await fetch(`${STORE}/api/payments/mp-webhook`, { redirect: "manual" });
+  if (res.status !== 404) throw new Error(`expected 404, got ${res.status}`);
 });
 
 let passed = 0;

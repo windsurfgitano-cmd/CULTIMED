@@ -56,13 +56,12 @@ STORE_PUBLIC_BASE=http://localhost:3000
 DB_PATH=../cultisoft/data/cultisoft.db
 SESSION_SECRET=<random hex 32+ bytes — distinto del admin>
 NEXT_PUBLIC_BASE_URL=http://localhost:3000
-MP_ACCESS_TOKEN=<MercadoPago access token, prod>
-MP_PUBLIC_KEY=<MercadoPago public key, prod>
+# Datos bancarios públicos (checkout transferencia) — ver cultimed-store/.env.example
 ```
 
 ## Deploy
 
-Ver `DEPLOY.md` (TODO).
+Ver `DEPLOY.md`.
 
 ## Compliance
 

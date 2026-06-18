@@ -15,11 +15,14 @@ CREATE TABLE IF NOT EXISTS staff (
   email TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
   full_name TEXT NOT NULL,
-  role TEXT NOT NULL DEFAULT 'dispenser', -- 'admin' | 'doctor' | 'dispenser' | 'pharmacist'
+  role TEXT NOT NULL DEFAULT 'dispenser', -- 'superadmin' | 'admin' | 'doctor' | 'dispenser' | 'pharmacist'
   professional_license TEXT,
   is_active SMALLINT NOT NULL DEFAULT 1,
+  totp_secret TEXT,
+  totp_enabled SMALLINT NOT NULL DEFAULT 0,
   last_login_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS patients (
@@ -204,9 +207,26 @@ CREATE TABLE IF NOT EXISTS customer_accounts (
   id_back_url TEXT,
   criminal_record_url TEXT,
   rights_assignment_url TEXT,
+  is_ambassador SMALLINT NOT NULL DEFAULT 0,
+  ambassador_invited_by BIGINT REFERENCES staff(id),
+  ambassador_invited_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+  id BIGSERIAL PRIMARY KEY,
+  account_type TEXT NOT NULL,
+  account_id BIGINT NOT NULL,
+  token_hash TEXT NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  used_at TIMESTAMPTZ,
+  requested_ip TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_hash ON password_reset_tokens(token_hash);
+CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_account ON password_reset_tokens(account_type, account_id);
 
 CREATE TABLE IF NOT EXISTS customer_orders (
   id BIGSERIAL PRIMARY KEY,

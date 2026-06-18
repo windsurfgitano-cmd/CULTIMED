@@ -176,9 +176,10 @@ export {
   OPS_ROLES,
   PATIENTS_ROLES,
   PRESCRIPTIONS_ROLES,
+  REPORTS_ROLES,
 } from "./permissions";
 
-import { OPS_ROLES, PATIENTS_ROLES, PRESCRIPTIONS_ROLES } from "./permissions";
+import { OPS_ROLES, PATIENTS_ROLES, PRESCRIPTIONS_ROLES, REPORTS_ROLES } from "./permissions";
 
 export async function requireOpsRole(): Promise<StaffUser> {
   return requireRole(...OPS_ROLES);
@@ -190,6 +191,10 @@ export async function requirePatientsRole(): Promise<StaffUser> {
 
 export async function requirePrescriptionsRole(): Promise<StaffUser> {
   return requireRole(...PRESCRIPTIONS_ROLES);
+}
+
+export async function requireReportsRole(): Promise<StaffUser> {
+  return requireRole(...REPORTS_ROLES);
 }
 
 /** Para API routes — retorna JSON en vez de redirect HTML. */

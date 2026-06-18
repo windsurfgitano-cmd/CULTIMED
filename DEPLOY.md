@@ -71,9 +71,7 @@ El script lee tu SQLite local y replica todo (104 pacientes, 20 productos, recet
    NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
    SUPABASE_SERVICE_ROLE_KEY=eyJ...
    SESSION_SECRET=<openssl rand -hex 32>
-   NEXT_PUBLIC_BASE_URL=https://app.dispensariocultimed.cl
-   MP_ACCESS_TOKEN=  (vacío hasta tener keys)
-   MP_PUBLIC_KEY=    (vacío hasta tener keys)
+   NEXT_PUBLIC_BASE_URL=https://dispensariocultimed.cl
    NEXT_PUBLIC_BANK_NAME=BancoEstado
    NEXT_PUBLIC_BANK_ACCOUNT_TYPE=Cuenta Corriente
    NEXT_PUBLIC_BANK_ACCOUNT_NUMBER=00012345678
@@ -92,7 +90,7 @@ El script lee tu SQLite local y replica todo (104 pacientes, 20 productos, recet
    NEXT_PUBLIC_SUPABASE_URL=  (igual)
    SUPABASE_SERVICE_ROLE_KEY=  (igual)
    SESSION_SECRET=<DISTINTO al store, openssl rand -hex 32>
-   STORE_PUBLIC_BASE=https://app.dispensariocultimed.cl
+   STORE_PUBLIC_BASE=https://dispensariocultimed.cl
    ```
 4. Deploy.
 
@@ -125,32 +123,18 @@ El script lee tu SQLite local y replica todo (104 pacientes, 20 productos, recet
 ## 5. Smoke test producción
 
 ```bash
-curl -I https://app.dispensariocultimed.cl/api/health
-curl -I https://panel.cultimed.cl/api/health
+node scripts/smoke-test.mjs
 ```
 
 Después en navegador:
-1. Storefront: `https://app.dispensariocultimed.cl`
+1. Storefront: `https://dispensariocultimed.cl`
    - Crear cuenta nueva → /mi-cuenta → subir receta → comprobar que llega a Supabase Storage (bucket prescriptions)
-2. Admin: `https://panel.cultimed.cl/login`
+2. Admin: `https://panel.dispensariocultimed.cl/login`
    - Login con un staff existente (ej `qf.morales@cultimed.cl`)
    - /web-prescriptions → ver la receta del paciente nuevo (signed URL desde Storage)
 3. Volver al storefront → catálogo → carrito → checkout transferencia → ver 10% off
 4. Subir comprobante → verificar en Supabase Storage bucket payment-proofs
 5. Admin → /web-orders → confirmar pago → comisión de embajadores se registra
-
----
-
-## 6. MercadoPago (cuando tengas las keys)
-
-1. `https://www.mercadopago.cl/developers` → tu app → Producción → Credenciales
-2. Vercel → Project store → Settings → Environment Variables → editar:
-   - `MP_ACCESS_TOKEN` = `APP_USR-...`
-   - `MP_PUBLIC_KEY` = `APP_USR-...`
-3. Settings → Deployments → "Redeploy"
-
-En MercadoPago, configurar el webhook URL:
-`https://app.dispensariocultimed.cl/api/payments/mp-webhook`
 
 ---
 
@@ -161,7 +145,6 @@ En MercadoPago, configurar el webhook URL:
 | Vercel Hobby (2 projects) | 100 GB bandwidth/mes | $0 |
 | Supabase Free | 500 MB Postgres + 1 GB Storage + 5 GB bandwidth | $0 |
 | Cloudflare DNS | ilimitado | $0 |
-| MercadoPago | comisión por venta (no fijo) | variable |
 | **TOTAL fijo** | — | **$0 USD/mes** |
 
 Cuando crezca la BD a >500MB pasamos a Supabase Pro ($25/mes con 8GB).
