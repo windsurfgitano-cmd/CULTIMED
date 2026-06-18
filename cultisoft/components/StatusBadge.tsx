@@ -16,6 +16,11 @@ const MAP: Record<string, { label: string; cls: string }> = {
   fulfilled:     { label: "Completada",    cls: "pill-tertiary" },
   rejected:      { label: "Rechazada",     cls: "pill-error" },
 
+  // customer web accounts
+  none:          { label: "Sin receta",    cls: "pill-neutral" },
+  aprobada:      { label: "Aprobada",      cls: "pill-success" },
+  rechazada:     { label: "Rechazada",     cls: "pill-error" },
+
   // dispensations
   completed:     { label: "Completada",    cls: "pill-success" },
   cancelled:     { label: "Cancelada",     cls: "pill-error" },

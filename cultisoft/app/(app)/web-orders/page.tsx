@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { requireRole } from "@/lib/auth";
 import { all } from "@/lib/db";
 import { formatCLP, formatDateTime, formatNumber } from "@/lib/format";
@@ -35,24 +35,47 @@ const STATUS_META: Record<string, { label: string; cls: string }> = {
   rejected:         { label: "Comprobante rechazado", cls: "pill-error" },
 };
 
+const FILTERS = [
+  { v: "active_workflow",  l: "Flujo activo" },
+  { v: "proof_uploaded",   l: "Por confirmar" },
+  { v: "paid",             l: "Pagados" },
+  { v: "preparing",        l: "En preparación" },
+  { v: "ready_for_pickup", l: "Listos retiro" },
+  { v: "shipped",          l: "Despachados" },
+  { v: "delivered",        l: "Entregados" },
+  { v: "rejected",         l: "Rechazados" },
+  { v: "all",              l: "Todos" },
+] as const;
+
+function activeWorkflowCount(counts: Record<string, number>) {
+  return (
+    (counts.pending_payment || 0) +
+    (counts.proof_uploaded || 0) +
+    (counts.paid || 0) +
+    (counts.preparing || 0) +
+    (counts.ready_for_pickup || 0)
+  );
+}
+
 export default async function WebOrdersPage({
   searchParams,
 }: {
   searchParams: { status?: string };
 }) {
   await requireRole("admin", "superadmin", "pharmacist");
-    const status = searchParams.status || "active_workflow";
+  const status = searchParams.status || "proof_uploaded";
 
   const where: string[] = [];
   const params: any[] = [];
-  if (status && status !== "all" && status !== "active_workflow") {
-    where.push(`o.status = ?`);
-    params.push(status);
-  } else if (status === "active_workflow") {
-    // Estados que requieren atención: pendientes de pago, con comprobante, pagados, en preparación
+
+  if (status === "active_workflow") {
     where.push(`o.status IN (?, ?, ?, ?, ?)`);
     params.push("pending_payment", "proof_uploaded", "paid", "preparing", "ready_for_pickup");
+  } else if (status !== "all") {
+    where.push(`o.status = ?`);
+    params.push(status);
   }
+
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
   const rows = await all<OrderRow>(
@@ -60,7 +83,8 @@ export default async function WebOrdersPage({
        o.shipping_method, o.shipping_phone,
        o.payment_proof_url, o.payment_proof_uploaded_at,
        o.created_at,
-       c.full_name as customer_name, c.email as customer_email,
+       COALESCE(NULLIF(c.full_name, ''), c.email) as customer_name,
+       c.email as customer_email,
        (SELECT COUNT(*) FROM customer_order_items i WHERE i.order_id = o.id) as item_count
      FROM customer_orders o
      JOIN customer_accounts c ON c.id = o.customer_account_id
@@ -71,9 +95,9 @@ export default async function WebOrdersPage({
          WHEN 'paid' THEN 2
          WHEN 'preparing' THEN 3
          WHEN 'ready_for_pickup' THEN 4
-         WHEN 'shipped' THEN 5
-         WHEN 'delivered' THEN 6
-         WHEN 'pending_payment' THEN 7
+         WHEN 'pending_payment' THEN 5
+         WHEN 'shipped' THEN 6
+         WHEN 'delivered' THEN 7
          ELSE 8
        END,
        o.created_at DESC`,
@@ -82,7 +106,7 @@ export default async function WebOrdersPage({
 
   const counts = (await all<{ status: string; n: number }>(
     `SELECT status, COUNT(*) as n FROM customer_orders GROUP BY status`
-  )).reduce((acc, r) => ({ ...acc, [r.status]: r.n }), {} as Record<string, number>);
+  )).reduce((acc, r) => ({ ...acc, [r.status]: Number(r.n) }), {} as Record<string, number>);
 
   const totalAll = Object.values(counts).reduce((a, b) => a + b, 0);
 
@@ -102,35 +126,22 @@ export default async function WebOrdersPage({
       />
 
       <div className="mb-8 flex flex-wrap gap-1.5 text-xs">
-        {[
-                    { v: "active_workflow",  l: "Flujo activo" },
-          { v: "proof_uploaded",   l: "Por confirmar" },
-          { v: "paid",             l: "Pagados" },
-          { v: "preparing",        l: "En preparación" },
-          { v: "ready_for_pickup", l: "Listos retiro" },
-          { v: "shipped",          l: "Despachados" },
-          { v: "delivered",        l: "Entregados" },
-          { v: "rejected",         l: "Rechazados" },
-          { v: "all",              l: "Todos" },
-        ].map((f) => {
+        {FILTERS.map((f) => {
           const sp = new URLSearchParams();
-          if (f.v && f.v !== "proof_uploaded") sp.set("status", f.v);
-                    const active = (f.v === "active_workflow" && status === "active_workflow") || 
-                         (f.v !== "active_workflow" && status === f.v);
-                    const n = f.v === "all" ? totalAll : 
-                    f.v === "active_workflow" ? 
-                    (counts["pending_payment"] || 0) + 
-                    (counts["proof_uploaded"] || 0) + 
-                    (counts["paid"] || 0) + 
-                    (counts["preparing"] || 0) + 
-                    (counts["ready_for_pickup"] || 0) : 
-                    (counts[f.v] || 0);
+          sp.set("status", f.v);
+          const n =
+            f.v === "all"
+              ? totalAll
+              : f.v === "active_workflow"
+                ? activeWorkflowCount(counts)
+                : counts[f.v] || 0;
+
           return (
             <Link
               key={f.v}
               href={`?${sp.toString()}`}
               className={
-                active
+                status === f.v
                   ? "px-3 py-1.5 bg-forest text-paper font-mono uppercase tracking-widest text-[11px]"
                   : "px-3 py-1.5 bg-paper-bright border border-rule text-ink-muted hover:text-ink hover:border-ink font-mono uppercase tracking-widest text-[11px]"
               }
@@ -147,69 +158,56 @@ export default async function WebOrdersPage({
           message="Cuando un paciente complete checkout y suba comprobante de transferencia aparecerá aquí."
         />
       ) : (
-        <div className="border border-rule bg-paper-bright overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className="clinical-card overflow-x-auto">
+          <table className="table-clinical">
             <thead>
-              <tr className="border-b border-rule bg-paper-dim/40">
-                <th className="text-left px-5 py-3 eyebrow text-ink-subtle">Folio</th>
-                <th className="text-left px-5 py-3 eyebrow text-ink-subtle">Paciente</th>
-                <th className="text-right px-5 py-3 eyebrow text-ink-subtle">Items</th>
-                <th className="text-right px-5 py-3 eyebrow text-ink-subtle">Total</th>
-                <th className="text-left px-5 py-3 eyebrow text-ink-subtle">Entrega</th>
-                <th className="text-left px-5 py-3 eyebrow text-ink-subtle">Subido</th>
-                <th className="text-left px-5 py-3 eyebrow text-ink-subtle">Estado</th>
-                <th className="px-5 py-3"></th>
+              <tr>
+                <th>Folio</th>
+                <th>Paciente</th>
+                <th className="text-right">Items</th>
+                <th className="text-right">Total</th>
+                <th>Entrega</th>
+                <th>Subido</th>
+                <th>Estado</th>
+                <th className="text-right">Acciones</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((r) => {
                 const meta = STATUS_META[r.status] ?? { label: r.status, cls: "pill-neutral" };
                 return (
-                  <tr key={r.id} className="border-b border-rule-soft hover:bg-paper-dim/30 transition-colors">
-                    <td className="px-5 py-4">
-                      <Link href={`/web-orders/${r.id}`} className="font-mono text-[11px] text-ink hover:text-brass underline-offset-2 hover:underline">
+                  <tr key={r.id}>
+                    <td>
+                      <Link href={`/web-orders/${r.id}`} className="font-mono text-[12px] text-primary hover:underline">
                         {r.folio}
                       </Link>
-                      <div className="text-[10px] text-ink-subtle font-mono mt-0.5">
+                      <div className="text-[10px] text-on-surface-variant font-mono mt-0.5">
                         {formatDateTime(r.created_at)}
                       </div>
                     </td>
-                    <td className="px-5 py-4">
-                      <div className="font-display italic text-base text-ink">{r.customer_name}</div>
-                      <div className="text-[11px] text-ink-subtle font-mono mt-0.5">{r.customer_email}</div>
+                    <td>
+                      <div className="font-semibold text-on-surface">{r.customer_name}</div>
+                      <div className="text-[11px] text-on-surface-variant font-mono mt-0.5">{r.customer_email}</div>
                     </td>
-                    <td className="px-5 py-4 text-right tabular-nums font-mono text-[12px]">
-                      {r.item_count}
-                    </td>
-                    <td className="px-5 py-4 text-right tabular-nums font-mono text-[13px] text-ink">
-                      {formatCLP(r.total)}
-                    </td>
-                    <td className="px-5 py-4">
-                      <span className="text-[11px] uppercase tracking-widest font-mono text-ink-muted">
+                    <td className="text-right tabular-nums">{r.item_count}</td>
+                    <td className="text-right tabular-nums font-semibold">{formatCLP(r.total)}</td>
+                    <td>
+                      <span className="text-[11px] uppercase tracking-widest font-mono text-on-surface-variant">
                         {r.shipping_method === "pickup" ? "Retiro" : "Despacho"}
                       </span>
                       {r.shipping_phone && (
-                        <div className="text-[10px] text-ink-subtle font-mono mt-0.5">{r.shipping_phone}</div>
+                        <div className="text-[10px] text-on-surface-variant font-mono mt-0.5">{r.shipping_phone}</div>
                       )}
                     </td>
-                    <td className="px-5 py-4">
-                      {r.payment_proof_uploaded_at ? (
-                        <span className="text-[11px] text-ink-muted font-mono">
-                          {formatDateTime(r.payment_proof_uploaded_at)}
-                        </span>
-                      ) : (
-                        <span className="text-[11px] text-ink-subtle">—</span>
-                      )}
+                    <td className="text-on-surface-variant text-xs whitespace-nowrap">
+                      {r.payment_proof_uploaded_at ? formatDateTime(r.payment_proof_uploaded_at) : "—"}
                     </td>
-                    <td className="px-5 py-4">
+                    <td>
                       <span className={`pill ${meta.cls}`}>{meta.label}</span>
                     </td>
-                    <td className="px-5 py-4 text-right">
-                      <Link
-                        href={`/web-orders/${r.id}`}
-                        className="font-mono text-[11px] uppercase tracking-widest text-ink hover:text-brass transition-colors"
-                      >
-                        Ver →
+                    <td className="text-right">
+                      <Link href={`/web-orders/${r.id}`} className="btn-secondary text-xs">
+                        Ver
                       </Link>
                     </td>
                   </tr>

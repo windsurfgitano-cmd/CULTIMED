@@ -35,7 +35,6 @@ interface PatientAccount {
   full_name: string;
   phone: string | null;
   prescription_status: string;
-  account_status: string;
   prescription_url: string | null;
   id_front_url: string | null;
   id_back_url: string | null;
@@ -65,9 +64,8 @@ async function deletePatient(formData: FormData) {
     redirect(`/patients/${id}?e=cannot_delete`);
   }
 
-  // Also check if has customer_accounts with account_status != 'deleted'
   const hasAccounts = await get<{ c: number }>(
-    `SELECT COUNT(*) as c FROM customer_accounts WHERE patient_id = ? AND account_status != 'deleted'`,
+    `SELECT COUNT(*) as c FROM customer_accounts WHERE patient_id = ?`,
     id
   );
   if (hasAccounts?.c && hasAccounts.c > 0) {
@@ -117,14 +115,8 @@ async function updateStatus(formData: FormData) {
       status, status, id
     );
   }
-  await run(
-    `UPDATE patients SET membership_status = ?,
-       membership_started_at = COALESCE(membership_started_at, CASE WHEN ? = 'active' THEN CURRENT_TIMESTAMP ELSE NULL END),
-       updated_at = CURRENT_TIMESTAMP
-     WHERE id = ?`,
-    status, status, id
-  );
-    await logAudit({
+
+  await logAudit({
     staffId: staff.id, action: "patient_status_changed",
     entityType: "patient", entityId: id, details: { newStatus: status, reason: reason || null },
   });
@@ -159,8 +151,8 @@ export default async function PatientDetailPage({ params, searchParams }: { para
     id
   );
 
-    const accounts = await all<PatientAccount>(
-    `SELECT id, email, full_name, phone, prescription_status, account_status,
+  const accounts = await all<PatientAccount>(
+    `SELECT id, email, full_name, phone, prescription_status,
         prescription_url, id_front_url, id_back_url, criminal_record_url, rights_assignment_url,
         created_at, updated_at
      FROM customer_accounts
@@ -327,6 +319,52 @@ export default async function PatientDetailPage({ params, searchParams }: { para
           </form>
         </div>
       </div>
+
+      {accountsWithDocs.length > 0 && (
+        <section className="mb-6">
+          <div className="flex items-end justify-between mb-3">
+            <h3 className="text-base font-bold text-on-surface">Cuentas web vinculadas</h3>
+            <Link href={`/web-prescriptions?patient=${p.id}`} className="text-sm font-semibold text-primary hover:underline">
+              Ver en recetas web →
+            </Link>
+          </div>
+          <div className="space-y-4">
+            {accountsWithDocs.map((acc) => (
+              <div key={acc.id} className="clinical-card p-6">
+                <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+                  <div>
+                    <p className="font-semibold text-on-surface">{acc.full_name || acc.email}</p>
+                    <p className="text-sm font-mono text-on-surface-variant mt-1">{acc.email}</p>
+                    {acc.phone && <p className="text-sm text-on-surface-variant mt-1">{acc.phone}</p>}
+                  </div>
+                  <StatusBadge status={acc.prescription_status} />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {acc.documents.map((doc) => (
+                    <div key={doc.key} className="rounded-lg border border-outline-variant/40 p-3">
+                      <p className="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant mb-2">
+                        {doc.label}
+                      </p>
+                      {doc.url ? (
+                        <a
+                          href={doc.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm font-semibold text-primary hover:underline"
+                        >
+                          Ver documento →
+                        </a>
+                      ) : (
+                        <span className="text-sm text-on-surface-variant">No subido</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Prescriptions */}
       <section className="mb-6">

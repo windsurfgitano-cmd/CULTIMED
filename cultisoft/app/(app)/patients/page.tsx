@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { requireRole } from "@/lib/auth";
 import { all, get } from "@/lib/db";
 import { calcAge, formatDate, formatNumber } from "@/lib/format";
@@ -11,7 +11,6 @@ export const dynamic = "force-dynamic";
 
 interface Row {
   id: number;
-  account_id: number | null;
   rut: string;
   full_name: string;
   email: string | null;
@@ -20,6 +19,7 @@ interface Row {
   membership_status: string;
   membership_started_at: string | null;
   total_dispensations: number;
+  prescription_status: string | null;
 }
 
 const PAGE_SIZE = 50;
@@ -34,51 +34,59 @@ export default async function PatientsPage({
   const status = (searchParams.status || "").trim();
   const page = Math.max(1, parseInt(searchParams.page || "1", 10) || 1);
 
-  const where: string[] = [];
+  const where: string[] = [`p.membership_status != 'deleted'`];
   const params: any[] = [];
-    if (q) {
+
+  if (q) {
     where.push(`(
-      p.full_name ILIKE ? OR 
-      p.rut ILIKE ? OR 
-      p.email ILIKE ? OR 
+      p.full_name ILIKE ? OR
+      p.rut ILIKE ? OR
+      p.email ILIKE ? OR
       p.phone ILIKE ? OR
       EXISTS (
-        SELECT 1 FROM customer_accounts ca 
-        WHERE ca.patient_id = p.id 
-        AND (ca.full_name ILIKE ? OR ca.email ILIKE ? OR ca.phone ILIKE ? OR ca.rut ILIKE ?)
+        SELECT 1 FROM customer_accounts ca
+        WHERE ca.patient_id = p.id
+          AND (
+            ca.full_name ILIKE ? OR ca.email ILIKE ? OR ca.phone ILIKE ? OR ca.rut ILIKE ?
+          )
       )
     )`);
-    params.push(`%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`);
-    params.push(`%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`);
+    const like = `%${q}%`;
+    params.push(like, like, like, like, like, like, like, like);
   }
   if (status) {
     where.push(`p.membership_status = ?`);
     params.push(status);
   }
-  const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
-  const total = (await get<{ c: number }>(`SELECT COUNT(*) as c FROM patients p
-     LEFT JOIN customer_accounts ca ON ca.patient_id = p.id AND ca.account_status != 'deleted'
-     ${whereSql}`, ...params))?.c ?? 0;
+  const whereSql = `WHERE ${where.join(" AND ")}`;
+
+  const total = (await get<{ c: number }>(
+    `SELECT COUNT(*) as c FROM patients p ${whereSql}`,
+    ...params
+  ))?.c ?? 0;
 
   const rows = await all<Row>(
-    `SELECT 
-       p.id, 
-       ca.id as account_id,
-       p.rut, 
-       COALESCE(p.full_name, ca.full_name) as full_name,
-       COALESCE(p.email, ca.email) as email,
-       COALESCE(p.phone, ca.phone) as phone,
+    `SELECT
+       p.id,
+       p.rut,
+       p.full_name,
+       p.email,
+       p.phone,
        p.date_of_birth,
-       p.membership_status, 
+       p.membership_status,
        p.membership_started_at,
        (SELECT COUNT(*) FROM dispensations d WHERE d.patient_id = p.id) as total_dispensations,
-       ca.prescription_status,
-       ca.account_status
+       (
+         SELECT ca.prescription_status
+         FROM customer_accounts ca
+         WHERE ca.patient_id = p.id
+         ORDER BY ca.updated_at DESC NULLS LAST, ca.id DESC
+         LIMIT 1
+       ) as prescription_status
      FROM patients p
-     LEFT JOIN customer_accounts ca ON ca.patient_id = p.id AND ca.account_status != 'deleted'
      ${whereSql}
-     ORDER BY COALESCE(p.full_name, ca.full_name) ASC
+     ORDER BY p.full_name ASC
      LIMIT ? OFFSET ?`,
     ...params,
     PAGE_SIZE,
@@ -106,7 +114,6 @@ export default async function PatientsPage({
         }
       />
 
-      {/* Filters */}
       <div className="mb-6 flex flex-wrap gap-3 items-center">
         <SearchInput placeholder="Buscar por nombre, RUT, email…" />
         <div className="flex gap-1.5 text-xs flex-wrap">
@@ -120,7 +127,7 @@ export default async function PatientsPage({
             const active = status === f.v;
             return (
               <Link
-                key={f.v}
+                key={f.v || "all"}
                 href={href}
                 className={
                   active
@@ -156,7 +163,8 @@ export default async function PatientsPage({
                 <th>RUT</th>
                 <th>Edad</th>
                 <th>Contacto</th>
-                <th>Estado</th>
+                <th>Membresía</th>
+                <th>Receta web</th>
                 <th className="text-right">Dispensaciones</th>
                 <th className="text-right">Ingreso</th>
               </tr>
@@ -180,6 +188,13 @@ export default async function PatientsPage({
                   </td>
                   <td>
                     <StatusBadge status={r.membership_status} />
+                  </td>
+                  <td>
+                    {r.prescription_status ? (
+                      <StatusBadge status={r.prescription_status} />
+                    ) : (
+                      <span className="text-on-surface-variant text-xs">Sin cuenta web</span>
+                    )}
                   </td>
                   <td className="text-right tabular-nums">{r.total_dispensations}</td>
                   <td className="text-right text-on-surface-variant text-xs whitespace-nowrap">
