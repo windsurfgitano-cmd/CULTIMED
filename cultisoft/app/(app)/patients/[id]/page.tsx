@@ -1,11 +1,13 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { all, get, run } from "@/lib/db";
 import { calcAge, formatCLP, formatDate, formatDateTime, formatNumber } from "@/lib/format";
+import { resolveStorageUrl } from "@/lib/storage";
 import { logAudit } from "@/lib/audit";
 import PageHeader from "@/components/PageHeader";
 import StatusBadge from "@/components/StatusBadge";
+import ConfirmSubmitForm from "@/components/ConfirmSubmitForm";
 
 export const dynamic = "force-dynamic";
 
@@ -27,12 +29,94 @@ interface PatientDispensation {
   product_count: number;
 }
 
+interface PatientAccount {
+  id: number;
+  email: string;
+  full_name: string;
+  phone: string | null;
+  prescription_status: string;
+  account_status: string;
+  prescription_url: string | null;
+  id_front_url: string | null;
+  id_back_url: string | null;
+  criminal_record_url: string | null;
+  rights_assignment_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+
+async function deletePatient(formData: FormData) {
+  "use server";
+  const staff = await requireRole("admin", "superadmin");
+  const id = Number(formData.get("id"));
+  if (!id) redirect("/patients");
+
+  // Check if patient has dispensations or prescriptions
+  const hasDeps = await get<{ c: number }>(
+    `SELECT COUNT(*) as c FROM (
+       SELECT 1 FROM dispensations WHERE patient_id = ?
+       UNION ALL
+       SELECT 1 FROM prescriptions WHERE patient_id = ?
+     )`,
+    id, id
+  );
+  if (hasDeps?.c && hasDeps.c > 0) {
+    redirect(`/patients/${id}?e=cannot_delete`);
+  }
+
+  // Also check if has customer_accounts with account_status != 'deleted'
+  const hasAccounts = await get<{ c: number }>(
+    `SELECT COUNT(*) as c FROM customer_accounts WHERE patient_id = ? AND account_status != 'deleted'`,
+    id
+  );
+  if (hasAccounts?.c && hasAccounts.c > 0) {
+    redirect(`/patients/${id}?e=cannot_delete_accounts`);
+  }
+
+  // Soft delete: set membership_status = 'deleted'
+  await run(
+    `UPDATE patients SET membership_status = 'deleted', updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+    id
+  );
+
+  await logAudit({
+    staffId: staff.id, action: "patient_deleted",
+    entityType: "patient", entityId: id, details: {},
+  });
+
+  redirect("/patients");
+}
+
+
+
 async function updateStatus(formData: FormData) {
   "use server";
   const staff = await requireRole("admin", "superadmin", "pharmacist");
   const id = Number(formData.get("id"));
   const status = String(formData.get("status"));
+  const reason = String(formData.get("reason") || "").trim();
   if (!id || !["active", "pending", "suspended"].includes(status)) return;
+  
+  // Update status and optionally add reason to notes
+  if (reason) {
+    await run(
+      `UPDATE patients SET membership_status = ?,
+         membership_started_at = COALESCE(membership_started_at, CASE WHEN ? = 'active' THEN CURRENT_TIMESTAMP ELSE NULL END),
+         notes = COALESCE(NULLIF(notes, '') || '\n\n', '') || ?,
+         updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      status, status, `[${new Date().toISOString().split('T')[0]} - Cambio estado a ${status}] ${reason}`, id
+    );
+  } else {
+    await run(
+      `UPDATE patients SET membership_status = ?,
+         membership_started_at = COALESCE(membership_started_at, CASE WHEN ? = 'active' THEN CURRENT_TIMESTAMP ELSE NULL END),
+         updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      status, status, id
+    );
+  }
   await run(
     `UPDATE patients SET membership_status = ?,
        membership_started_at = COALESCE(membership_started_at, CASE WHEN ? = 'active' THEN CURRENT_TIMESTAMP ELSE NULL END),
@@ -40,14 +124,14 @@ async function updateStatus(formData: FormData) {
      WHERE id = ?`,
     status, status, id
   );
-  await logAudit({
+    await logAudit({
     staffId: staff.id, action: "patient_status_changed",
-    entityType: "patient", entityId: id, details: { newStatus: status },
+    entityType: "patient", entityId: id, details: { newStatus: status, reason: reason || null },
   });
   redirect(`/patients/${id}`);
 }
 
-export default async function PatientDetailPage({ params }: { params: { id: string } }) {
+export default async function PatientDetailPage({ params, searchParams }: { params: { id: string }; searchParams?: { e?: string } }) {
   await requireRole("admin", "superadmin", "pharmacist");
   const id = parseInt(params.id, 10);
   if (!id) notFound();
@@ -75,6 +159,33 @@ export default async function PatientDetailPage({ params }: { params: { id: stri
     id
   );
 
+    const accounts = await all<PatientAccount>(
+    `SELECT id, email, full_name, phone, prescription_status, account_status,
+        prescription_url, id_front_url, id_back_url, criminal_record_url, rights_assignment_url,
+        created_at, updated_at
+     FROM customer_accounts
+     WHERE patient_id = ?
+     ORDER BY created_at DESC`,
+    id
+  );
+
+  // Resolve storage URLs for each account's documents
+  const accountsWithDocs = await Promise.all(
+    accounts.map(async (acc) => ({
+      ...acc,
+      documents: await Promise.all([
+        { key: "prescription", url: acc.prescription_url, label: "Receta médica" },
+        { key: "id_front", url: acc.id_front_url, label: "Carnet por delante" },
+        { key: "id_back", url: acc.id_back_url, label: "Carnet por detrás" },
+        { key: "criminal_record", url: acc.criminal_record_url, label: "Antecedentes penales" },
+        { key: "rights_assignment", url: acc.rights_assignment_url, label: "Comprobante de depósito" },
+      ].map(async (d) => ({
+        ...d,
+        url: d.url ? await resolveStorageUrl(d.url) : null,
+      })))
+    }))
+  );
+
   const totals = await get<{ total: number; count: number }>(
     `SELECT COALESCE(SUM(total_amount), 0) as total, COUNT(*) as count
      FROM dispensations WHERE patient_id = ? AND status = 'completed'`,
@@ -86,6 +197,19 @@ export default async function PatientDetailPage({ params }: { params: { id: stri
 
   return (
     <>
+      {searchParams?.e === "cannot_delete" && (
+        <div className="mb-4 p-4 bg-error/10 border-l-2 border-error">
+          <p className="text-sm font-semibold text-error">No se puede eliminar</p>
+          <p className="text-sm text-on-surface-variant mt-1">Este paciente tiene dispensaciones o recetas registradas. Debes archivar el perfil en lugar de eliminarlo.</p>
+        </div>
+      )}
+      {searchParams?.e === "cannot_delete_accounts" && (
+        <div className="mb-4 p-4 bg-error/10 border-l-2 border-error">
+          <p className="text-sm font-semibold text-error">No se puede eliminar</p>
+          <p className="text-sm text-on-surface-variant mt-1">Este paciente tiene cuentas activas vinculadas. Debes desvincular o desactivar las cuentas primero.</p>
+        </div>
+      )}
+
       <PageHeader
         title={p.full_name}
         actions={
@@ -94,10 +218,24 @@ export default async function PatientDetailPage({ params }: { params: { id: stri
               <span className="material-symbols-outlined text-base">arrow_back</span>
               Pacientes
             </Link>
-            <Link href={`/patients/${p.id}/edit`} className="btn-secondary">
-              <span className="material-symbols-outlined text-base">edit</span>
-              Editar datos
+                        <Link href={`/patients/${p.id}/edit`} className="btn-secondary">
+               <span className="material-symbols-outlined text-base">edit</span>
+               Editar datos
             </Link>
+                        <Link href={`/web-prescriptions?patient=${p.id}`} className="btn-secondary">
+               <span className="material-symbols-outlined text-base">description</span>
+               Ver documentos
+            </Link>
+            <ConfirmSubmitForm
+              action={deletePatient}
+              confirmMessage="¿Estás seguro de eliminar este perfil? Esta acción no se puede deshacer y solo es posible si el paciente no tiene dispensaciones, recetas ni cuentas activas."
+            >
+              <input type="hidden" name="id" value={p.id} />
+              <button type="submit" className="btn-error">
+                <span className="material-symbols-outlined text-base">delete</span>
+                Eliminar perfil
+              </button>
+            </ConfirmSubmitForm>
             <Link href={`/dispensations/new?patient=${p.id}`} className="btn-primary">
               <span className="material-symbols-outlined text-base">add</span>
               Nueva dispensación
@@ -167,17 +305,25 @@ export default async function PatientDetailPage({ params }: { params: { id: stri
             <KV k="Notas" v={p.notes || "—"} />
           </dl>
 
-          <form action={updateStatus} className="mt-5 pt-5 border-t border-outline-variant/40 flex items-end gap-3">
+                    <form action={updateStatus} className="mt-5 pt-5 border-t border-outline-variant/40 space-y-3">
             <input type="hidden" name="id" value={p.id} />
-            <div className="flex-1">
-              <label className="input-label">Cambiar estado de membresía</label>
-              <select name="status" defaultValue={p.membership_status} className="input-field">
-                <option value="active">Activo</option>
-                <option value="pending">Pendiente</option>
-                <option value="suspended">Suspendido</option>
-              </select>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="input-label">Cambiar estado de membresía</label>
+                <select name="status" defaultValue={p.membership_status} className="input-field">
+                  <option value="active">Activo</option>
+                  <option value="pending">Pendiente</option>
+                  <option value="suspended">Suspendido</option>
+                </select>
+              </div>
+              <div>
+                <label className="input-label">Motivo (opcional)</label>
+                <textarea name="reason" rows={2} className="input-field" placeholder="Razón del cambio de estado..." />
+              </div>
             </div>
-            <button type="submit" className="btn-primary whitespace-nowrap">Guardar</button>
+            <div className="flex justify-end">
+              <button type="submit" className="btn-primary whitespace-nowrap">Guardar cambios</button>
+            </div>
           </form>
         </div>
       </div>

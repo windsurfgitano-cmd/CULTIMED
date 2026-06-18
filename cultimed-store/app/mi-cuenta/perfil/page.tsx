@@ -27,7 +27,7 @@ const DOC_LABELS: { key: keyof AccountDocs; label: string }[] = [
   { key: "id_back_url", label: "Carnet por detrás" },
   { key: "criminal_record_url", label: "Antecedentes penales" },
   { key: "prescription_url", label: "Receta médica" },
-  { key: "rights_assignment_url", label: "Cesión de derechos" },
+  { key: "rights_assignment_url", label: "Comprobante de depósito" },
 ];
 
 const STATUS_META: Record<string, { label: string; cls: string }> = {

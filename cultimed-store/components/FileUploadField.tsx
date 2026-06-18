@@ -15,11 +15,13 @@ export default function FileUploadField({
   label,
   accept = ".pdf,.png,.jpg,.jpeg",
   required = false,
+  onFileChange,
 }: {
   name: string;
   label: string;
   accept?: string;
   required?: boolean;
+  onFileChange?: (hasFile: boolean) => void;
 }) {
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -28,17 +30,24 @@ export default function FileUploadField({
   function onChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0] ?? null;
     setError(null);
-    if (!f) { setFile(null); return; }
+    if (!f) {
+      if (file) onFileChange?.(false);
+      setFile(null);
+      return;
+    }
     if (f.size > MAX_BYTES) {
       setError(`El archivo supera 8 MB (${formatBytes(f.size)}).`);
+      if (file) onFileChange?.(false);
       setFile(null);
       if (inputRef.current) inputRef.current.value = "";
       return;
     }
+    if (!file) onFileChange?.(true);
     setFile(f);
   }
 
   function clearFile() {
+    if (file) onFileChange?.(false);
     setFile(null);
     setError(null);
     if (inputRef.current) inputRef.current.value = "";

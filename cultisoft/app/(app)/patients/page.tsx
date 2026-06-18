@@ -11,6 +11,7 @@ export const dynamic = "force-dynamic";
 
 interface Row {
   id: number;
+  account_id: number | null;
   rut: string;
   full_name: string;
   email: string | null;
@@ -35,8 +36,19 @@ export default async function PatientsPage({
 
   const where: string[] = [];
   const params: any[] = [];
-  if (q) {
-    where.push(`(p.full_name ILIKE ? OR p.rut ILIKE ? OR p.email ILIKE ? OR p.phone ILIKE ?)`);
+    if (q) {
+    where.push(`(
+      p.full_name ILIKE ? OR 
+      p.rut ILIKE ? OR 
+      p.email ILIKE ? OR 
+      p.phone ILIKE ? OR
+      EXISTS (
+        SELECT 1 FROM customer_accounts ca 
+        WHERE ca.patient_id = p.id 
+        AND (ca.full_name ILIKE ? OR ca.email ILIKE ? OR ca.phone ILIKE ? OR ca.rut ILIKE ?)
+      )
+    )`);
+    params.push(`%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`);
     params.push(`%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`);
   }
   if (status) {
@@ -45,15 +57,28 @@ export default async function PatientsPage({
   }
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
-  const total = (await get<{ c: number }>(`SELECT COUNT(*) as c FROM patients p ${whereSql}`, ...params))?.c ?? 0;
+  const total = (await get<{ c: number }>(`SELECT COUNT(*) as c FROM patients p
+     LEFT JOIN customer_accounts ca ON ca.patient_id = p.id AND ca.account_status != 'deleted'
+     ${whereSql}`, ...params))?.c ?? 0;
 
   const rows = await all<Row>(
-    `SELECT p.id, p.rut, p.full_name, p.email, p.phone, p.date_of_birth,
-        p.membership_status, p.membership_started_at,
-        (SELECT COUNT(*) FROM dispensations d WHERE d.patient_id = p.id) as total_dispensations
+    `SELECT 
+       p.id, 
+       ca.id as account_id,
+       p.rut, 
+       COALESCE(p.full_name, ca.full_name) as full_name,
+       COALESCE(p.email, ca.email) as email,
+       COALESCE(p.phone, ca.phone) as phone,
+       p.date_of_birth,
+       p.membership_status, 
+       p.membership_started_at,
+       (SELECT COUNT(*) FROM dispensations d WHERE d.patient_id = p.id) as total_dispensations,
+       ca.prescription_status,
+       ca.account_status
      FROM patients p
+     LEFT JOIN customer_accounts ca ON ca.patient_id = p.id AND ca.account_status != 'deleted'
      ${whereSql}
-     ORDER BY p.full_name ASC
+     ORDER BY COALESCE(p.full_name, ca.full_name) ASC
      LIMIT ? OFFSET ?`,
     ...params,
     PAGE_SIZE,

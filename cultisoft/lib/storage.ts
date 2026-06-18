@@ -96,7 +96,7 @@ export async function resolveStorageUrl(stored: string | null): Promise<string |
   if (!stored) return null;
 
   // Formato nuevo: "prescriptions://1/2026-04-30T20-00-00_receta.pdf"
-  const match = stored.match(/^(prescriptions|payment-proofs):\/\/(.+)$/);
+  const match = stored.match(/^(prescriptions|payment-proofs|patient-documents):\/\/(.+)$/);
   if (match) {
     const bucket = match[1] as UploadBucket;
     const path = match[2];

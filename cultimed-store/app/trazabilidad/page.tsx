@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 
 export default function TrazabilidadPage() {
   return (
@@ -13,7 +13,13 @@ export default function TrazabilidadPage() {
               <span className="font-light">documentada.</span>
             </h1>
           </div>
-          <div className="col-span-12 lg:col-span-4 lg:pb-4">
+                    <div className="col-span-12 lg:col-span-4 lg:pb-4">
+            <div className="mb-4 p-4 bg-brass/5 border-l-2 border-brass">
+              <p className="text-sm text-ink-muted">
+                Cultimed actúa como intermediario. La trazabilidad mostrada corresponde al ciclo completo
+                de los productos que intermediamos, gestionados por nuestros proveedores certificados.
+              </p>
+            </div>
             <p className="text-base text-ink-muted leading-relaxed">
               Cada gramo y cada gota tienen un origen documentado. Aquí explicamos cómo registramos
               el ciclo completo y cómo puedes consultarlo si ya eres paciente nuestro.

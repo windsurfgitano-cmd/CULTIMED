@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { requireRole } from "@/lib/auth";
 import { all } from "@/lib/db";
 import { formatCLP, formatDateTime, formatNumber } from "@/lib/format";
@@ -41,13 +41,17 @@ export default async function WebOrdersPage({
   searchParams: { status?: string };
 }) {
   await requireRole("admin", "superadmin", "pharmacist");
-  const status = searchParams.status || "proof_uploaded";
+    const status = searchParams.status || "active_workflow";
 
   const where: string[] = [];
   const params: any[] = [];
-  if (status && status !== "all") {
+  if (status && status !== "all" && status !== "active_workflow") {
     where.push(`o.status = ?`);
     params.push(status);
+  } else if (status === "active_workflow") {
+    // Estados que requieren atención: pendientes de pago, con comprobante, pagados, en preparación
+    where.push(`o.status IN (?, ?, ?, ?, ?)`);
+    params.push("pending_payment", "proof_uploaded", "paid", "preparing", "ready_for_pickup");
   }
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
@@ -99,6 +103,7 @@ export default async function WebOrdersPage({
 
       <div className="mb-8 flex flex-wrap gap-1.5 text-xs">
         {[
+                    { v: "active_workflow",  l: "Flujo activo" },
           { v: "proof_uploaded",   l: "Por confirmar" },
           { v: "paid",             l: "Pagados" },
           { v: "preparing",        l: "En preparación" },
@@ -110,8 +115,16 @@ export default async function WebOrdersPage({
         ].map((f) => {
           const sp = new URLSearchParams();
           if (f.v && f.v !== "proof_uploaded") sp.set("status", f.v);
-          const active = status === f.v;
-          const n = f.v === "all" ? totalAll : (counts[f.v] || 0);
+                    const active = (f.v === "active_workflow" && status === "active_workflow") || 
+                         (f.v !== "active_workflow" && status === f.v);
+                    const n = f.v === "all" ? totalAll : 
+                    f.v === "active_workflow" ? 
+                    (counts["pending_payment"] || 0) + 
+                    (counts["proof_uploaded"] || 0) + 
+                    (counts["paid"] || 0) + 
+                    (counts["preparing"] || 0) + 
+                    (counts["ready_for_pickup"] || 0) : 
+                    (counts[f.v] || 0);
           return (
             <Link
               key={f.v}

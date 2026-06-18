@@ -181,7 +181,7 @@ export default async function WebPrescriptionDetail({ params }: { params: { id: 
     { key: "id_back", url: r.id_back_url, label: "Carnet por detrás" },
     { key: "criminal_record", url: r.criminal_record_url, label: "Antecedentes penales" },
     { key: "prescription", url: r.prescription_url, label: "Receta médica" },
-    { key: "rights_assignment", url: r.rights_assignment_url, label: "Cesión de derechos" },
+    { key: "rights_assignment", url: r.rights_assignment_url, label: "Comprobante de depósito" },
   ] as const;
 
   const docUrls = await Promise.all(

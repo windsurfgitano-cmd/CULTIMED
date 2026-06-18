@@ -5,7 +5,12 @@ import bcrypt from "bcryptjs";
 import { get, run } from "./db";
 
 const COOKIE_NAME = "cultimed_customer";
-const SECRET = process.env.SESSION_SECRET || "dev-secret-change-please";
+const SECRET: string = (() => {
+  if (process.env.SESSION_SECRET) return process.env.SESSION_SECRET;
+  console.warn("⚠️  SESSION_SECRET no configurado. Usando fallback dev (INSEGURO para producción).");
+  console.warn("   Configura SESSION_SECRET en variables de entorno de Vercel.");
+  return "dev-secret-change-please";
+})();
 const MAX_AGE_DAYS = 14;
 
 export interface CustomerAccount {

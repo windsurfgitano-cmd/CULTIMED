@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 
 export default function CompliancePage() {
   return (
@@ -87,10 +87,10 @@ export default function CompliancePage() {
           </Block>
 
           <Block id="isp" n="06" title="Registro ISP · Certificación GMP">
-            Todos nuestros productos farmacéuticos están registrados ante el Instituto de Salud
-            Pública (ISP). El cultivo y procesamiento se realiza bajo estándares de Buenas Prácticas
-            de Manufactura (GMP). El número de registro sanitario aparece en cada ficha técnica de
-            producto.
+            Cultimed intermedia productos farmacéuticos registrados ante el Instituto de Salud
+            Pública (ISP). Los proveedores cumplen con estándares de Buenas Prácticas de Manufactura
+            (GMP) en cultivo y procesamiento. El número de registro sanitario aparece en cada ficha
+            técnica de producto.
           </Block>
         </article>
       </section>

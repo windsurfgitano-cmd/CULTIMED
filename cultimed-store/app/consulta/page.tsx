@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 export default function ConsultaPage() {
   const wa = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "56993177375";
   const consultaEmail = process.env.NEXT_PUBLIC_CONSULTA_EMAIL || "consulta@dispensariocultimed.cl";

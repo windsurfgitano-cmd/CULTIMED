@@ -5,8 +5,12 @@ import bcrypt from "bcryptjs";
 import { get, run } from "./db";
 
 const COOKIE_NAME = "cultisoft_session";
-const SECRET =
-  process.env.SESSION_SECRET || "dev-secret-change-in-production-please";
+const SECRET: string = (() => {
+  if (process.env.SESSION_SECRET) return process.env.SESSION_SECRET;
+  console.warn("⚠️  SESSION_SECRET no configurado (cultisoft). Usando fallback dev (INSEGURO para producción).");
+  console.warn("   Configura SESSION_SECRET en variables de entorno de Vercel.");
+  return "dev-secret-change-in-production-please";
+})();
 const MAX_AGE_DAYS = 7;
 
 export type StaffRole = "superadmin" | "admin" | "doctor" | "dispenser" | "pharmacist";
