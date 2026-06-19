@@ -32,6 +32,11 @@ products_export*.csv
 **/scripts/source-data/customers.csv
 **/scripts/source-data/products.csv
 
+# Auditorías con PII (generados localmente; .md de runbooks sí van al repo)
+!scripts/out/
+scripts/out/*
+!scripts/out/*.md
+
 # Backups de BD (locales, fuera de git)
 _backups/
 

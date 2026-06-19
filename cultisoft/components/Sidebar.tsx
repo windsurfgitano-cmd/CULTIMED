@@ -7,9 +7,23 @@ import clsx from "clsx";
 import { canAccessNav } from "@/lib/permissions";
 import type { StaffRole } from "@/lib/auth";
 
-const NAV = [
+type NavItem = {
+  n: string;
+  href: string;
+  label: string;
+  subItems?: { href: string; label: string; roles?: StaffRole[] }[];
+};
+
+const NAV: NavItem[] = [
   { n: "01", href: "/dashboard",         label: "Dashboard" },
-  { n: "02", href: "/patients",          label: "Pacientes" },
+  {
+    n: "02",
+    href: "/patients",
+    label: "Pacientes",
+    subItems: [
+      { href: "/patients/outreach", label: "Campaña datos", roles: ["admin", "superadmin"] },
+    ],
+  },
   { n: "03", href: "/dispensations",     label: "Dispensaciones" },
   { n: "04", href: "/web-orders",        label: "Pedidos web" },
   { n: "05", href: "/prescriptions",     label: "Recetas" },
@@ -33,33 +47,60 @@ function NavList({ role, onNav }: { role: StaffRole; onNav?: () => void }) {
 
       {visibleNav.map((item) => {
         const active = pathname === item.href || pathname.startsWith(item.href + "/");
+        const visibleSubItems = (item.subItems || []).filter(
+          (sub) => !sub.roles || sub.roles.includes(role)
+        );
         return (
-          <Link
-            key={item.href}
-            href={item.href}
-            onClick={onNav}
-            className={clsx(
-              "group flex items-baseline gap-4 px-6 py-2.5 transition-colors duration-200 border-l-2",
-              active
-                ? "bg-paper-bright border-ink text-ink"
-                : "border-transparent text-ink-muted hover:text-ink hover:bg-paper-bright/50"
-            )}
-          >
-            <span
+          <div key={item.href}>
+            <Link
+              href={item.href}
+              onClick={onNav}
               className={clsx(
-                "editorial-numeral text-xs w-7 shrink-0 transition-colors",
-                active ? "text-brass" : "text-ink-subtle group-hover:text-brass-dim"
+                "group flex items-baseline gap-4 px-6 py-2.5 transition-colors duration-200 border-l-2",
+                active
+                  ? "bg-paper-bright border-ink text-ink"
+                  : "border-transparent text-ink-muted hover:text-ink hover:bg-paper-bright/50"
               )}
             >
-              {item.n}
-            </span>
-            <span className={clsx(
-              "font-display tracking-tight",
-              active ? "text-base italic" : "text-base"
-            )}>
-              {item.label}
-            </span>
-          </Link>
+              <span
+                className={clsx(
+                  "editorial-numeral text-xs w-7 shrink-0 transition-colors",
+                  active ? "text-brass" : "text-ink-subtle group-hover:text-brass-dim"
+                )}
+              >
+                {item.n}
+              </span>
+              <span className={clsx(
+                "font-display tracking-tight",
+                active ? "text-base italic" : "text-base"
+              )}>
+                {item.label}
+              </span>
+            </Link>
+            {visibleSubItems.map((sub) => {
+              const subActive = pathname === sub.href || pathname.startsWith(sub.href + "/");
+              return (
+                <Link
+                  key={sub.href}
+                  href={sub.href}
+                  onClick={onNav}
+                  className={clsx(
+                    "group flex items-baseline gap-4 pl-12 pr-6 py-2 transition-colors duration-200 border-l-2 text-sm",
+                    subActive
+                      ? "bg-paper-bright border-ink text-ink"
+                      : "border-transparent text-ink-muted hover:text-ink hover:bg-paper-bright/50"
+                  )}
+                >
+                  <span className={clsx(
+                    "font-display tracking-tight",
+                    subActive ? "italic" : ""
+                  )}>
+                    {sub.label}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
         );
       })}
 

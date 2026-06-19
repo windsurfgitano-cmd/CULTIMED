@@ -16,6 +16,7 @@ export const REPORTS_ROLES: StaffRole[] = ["admin", "superadmin"];
 export const NAV_ACCESS: Record<string, StaffRole[]> = {
   "/dashboard":         PATIENTS_ROLES,
   "/patients":          PATIENTS_ROLES,
+  "/patients/outreach": ["superadmin", "admin"],
   "/dispensations":     OPS_ROLES,
   "/web-orders":        OPS_ROLES,
   "/prescriptions":     PRESCRIPTIONS_ROLES,

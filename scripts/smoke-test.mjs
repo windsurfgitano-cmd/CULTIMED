@@ -82,6 +82,7 @@ for (const path of adminPublic) {
 const adminProtected = [
   "/dashboard",
   "/patients",
+  "/patients/outreach",
   "/web-orders",
   "/web-prescriptions",
   "/reports",
