@@ -107,6 +107,16 @@ test("admin patients export sin auth → 401", async () => {
   if (res.status !== 401) throw new Error(`expected 401, got ${res.status}`);
 });
 
+test("admin outreach send API sin auth → 401", async () => {
+  const res = await fetch(`${ADMIN}/api/outreach/send`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ segment: "all", dryRun: true, limit: 1 }),
+    redirect: "manual",
+  });
+  if (res.status !== 401) throw new Error(`expected 401, got ${res.status}`);
+});
+
 test("admin ocr API sin auth → 401", async () => {
   const res = await fetch(`${ADMIN}/api/ocr`, { method: "POST", redirect: "manual" });
   if (res.status !== 401) throw new Error(`expected 401, got ${res.status}`);

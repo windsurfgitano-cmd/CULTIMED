@@ -6,6 +6,7 @@ import { formatNumber } from "@/lib/format";
 import PageHeader from "@/components/PageHeader";
 import KpiCard from "@/components/KpiCard";
 import StatusBadge from "@/components/StatusBadge";
+import OutreachEmailPanel from "@/components/OutreachEmailPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -301,6 +302,8 @@ export default async function PatientOutreachPage() {
           </a>
         }
       />
+
+      <OutreachEmailPanel />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-10">
         <KpiCard
