@@ -69,8 +69,8 @@ Opcionalmente: pausar la tienda en **Settings → Plan → Pause and build** (co
 
 - Resend dashboard: https://resend.com/dashboard
 - Vercel deployments: https://vercel.com/ozymandias1/cultimed
-- Cultisoft admin: https://panel.dispensariocultimed.cl (admin@cultimed.cl / admin123)
-- Cliente test: rincondeoz@gmail.com / caca123
+- Cultisoft admin: https://panel.dispensariocultimed.cl (usar credenciales operativas vigentes; no documentar passwords aquí)
+- Cliente test: usar cuenta E2E temporal vía `node scripts/e2e-full-flow-direct.mjs`
 
 ---
 

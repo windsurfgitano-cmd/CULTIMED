@@ -1,0 +1,86 @@
+<mxfile host="app.diagrams.net" modified="2026-06-22T14:35:00.000Z" agent="OscarBot Unchained" version="24.7.17" type="device">
+  <diagram id="cultimed-map" name="Cultimed System Map">
+    <mxGraphModel dx="1600" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="title" value="Cultimed / CultiSoft — mapa operativo verificado" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=28;fontStyle=1;fontColor=#1F3A2D" vertex="1" parent="1">
+          <mxGeometry x="320" y="30" width="960" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="patient" value="Paciente / Cliente\nRegistro · Docs · Compra" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F3ED;strokeColor=#1F3A2D;fontColor=#1F3A2D;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="60" y="170" width="190" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="staff" value="Staff / Admin\nQF · Operación · Inventario" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F4EBD9;strokeColor=#A98B5C;fontColor=#3B2C1B;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="60" y="500" width="190" height="90" as="geometry" />
+        </mxCell>
+
+        <mxCell id="store" value="cultimed-store\nNext.js App Router\nhttps://dispensariocultimed.cl" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF8E8;strokeColor=#A98B5C;fontColor=#2E2417;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="340" y="150" width="260" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="admin" value="cultisoft admin\nNext.js App Router\nhttps://panel.dispensariocultimed.cl" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF1F7;strokeColor=#536B9E;fontColor=#1D2C4A;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="340" y="480" width="260" height="120" as="geometry" />
+        </mxCell>
+
+        <mxCell id="db" value="Postgres / Supabase DB\npatients · customer_accounts · orders\nproducts · batches · inventory_movements" style="shape=cylinder3d;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#E9EDF5;strokeColor=#536B9E;fontColor=#1D2C4A;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="760" y="260" width="280" height="170" as="geometry" />
+        </mxCell>
+        <mxCell id="storage" value="Supabase Storage\npatient-documents\npayment-proofs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF7F4;strokeColor=#2C8C7A;fontColor=#12463C;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="760" y="500" width="280" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="email" value="Resend / Email\naprobación · rechazo · outreach" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F7EAEA;strokeColor=#9E5353;fontColor=#4A1D1D;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="760" y="120" width="280" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="qa" value="QA / Smoke automatizado\nscripts/smoke-test.mjs\nscripts/e2e-full-flow-direct.mjs\nscripts/qa-full-check.mjs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F0EAF7;strokeColor=#6A539E;fontColor=#2D1D4A;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="1160" y="230" width="310" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="inventory" value="Inventario duro vigente\nBourbon Street: 200g\nGaslight Purple Ghost: 200g\nAjustes auditados en inventory_movements" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F3ED;strokeColor=#1F3A2D;fontColor=#1F3A2D;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="1160" y="470" width="310" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="reports" value="Auditorías data clínica\naudit-users-db · audit-compliance-db\naudit-missing-docs · audit-no-valid-rx\naudit-prescription-urls" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF0E6;strokeColor=#C76B2E;fontColor=#59300F;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="1160" y="650" width="310" height="130" as="geometry" />
+        </mxCell>
+
+        <mxCell id="flow1" value="1 registrar + subir 5 docs" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#1F3A2D;fontColor=#1F3A2D" edge="1" parent="1" source="patient" target="store">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="flow2" value="cuenta/paciente/order" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#536B9E;fontColor=#536B9E" edge="1" parent="1" source="store" target="db">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="flow3" value="documentos" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#2C8C7A;fontColor=#2C8C7A" edge="1" parent="1" source="store" target="storage">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="flow4" value="2 revisar / aprobar" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#A98B5C;fontColor=#A98B5C" edge="1" parent="1" source="staff" target="admin">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="flow5" value="lee docs + actualiza status" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#536B9E;fontColor=#536B9E" edge="1" parent="1" source="admin" target="db">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="flow6" value="signed URLs" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#2C8C7A;fontColor=#2C8C7A" edge="1" parent="1" source="admin" target="storage">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="flow7" value="notifica aprobación/rechazo" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#9E5353;fontColor=#9E5353" edge="1" parent="1" source="admin" target="email">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="flow8" value="3 compra si status=aprobada" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#1F3A2D;fontColor=#1F3A2D" edge="1" parent="1" source="store" target="db">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="flow9" value="4 confirmar pago descuenta stock FIFO" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#536B9E;fontColor=#536B9E" edge="1" parent="1" source="admin" target="inventory">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="flow10" value="verifica end-to-end con rollback" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#6A539E;fontColor=#6A539E" edge="1" parent="1" source="qa" target="db">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="flow11" value="auditorías CSV" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#C76B2E;fontColor=#C76B2E" edge="1" parent="1" source="reports" target="db">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="status" value="Verificado: build store/admin OK · smoke 40/40 OK · E2E directo OK · rollback sin leaks · stock final 200g/200g" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1F3A2D;strokeColor=#1F3A2D;fontColor=#FFFFFF;fontStyle=1;fontSize=16" vertex="1" parent="1">
+          <mxGeometry x="250" y="850" width="1100" height="70" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
