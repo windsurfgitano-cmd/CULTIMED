@@ -29,14 +29,14 @@ export default async function HomePage() {
             {/* Headline (asymmetric, left-heavy) */}
             <h1 className="col-span-12 lg:col-span-9 font-display text-display-1 text-balance leading-[0.95]">
               <span className="block opacity-0 animate-fade-up" style={{ animationDelay: "0.25s" }}>
-                <span className="font-light">Cannabis</span>
+                <span className="font-light">Tratamientos</span>
               </span>
               <span className="block opacity-0 animate-fade-up" style={{ animationDelay: "0.4s" }}>
-                <span className="italic font-normal">medicinal</span>{" "}
+                <span className="italic font-normal">medicinales</span>{" "}
                 <span className="font-light">de</span>
               </span>
               <span className="block opacity-0 animate-fade-up" style={{ animationDelay: "0.55s" }}>
-                <span className="font-light">calidad mundial.</span>
+                <span className="font-light">precisión clínica.</span>
               </span>
             </h1>
 
@@ -44,9 +44,9 @@ export default async function HomePage() {
             <div className="col-span-12 lg:col-span-3 lg:col-start-10 lg:pb-3">
               <div className="opacity-0 animate-fade-up" style={{ animationDelay: "0.7s" }}>
                 <p className="text-sm leading-relaxed text-ink-muted mb-6 max-w-xs">
-                  Cannabis medicinal seleccionado bajo estándares farmacéuticos,
+                  Productos seleccionados bajo estándares farmacéuticos,
                   con trazabilidad por lote, análisis independiente y dispensación
-                  clínica para pacientes validados.
+                  clínica solo para pacientes validados.
                 </p>
                 <div className="flex flex-col gap-3">
                   {hasApprovedPrescription ? (
@@ -69,11 +69,11 @@ export default async function HomePage() {
                     </>
                   ) : (
                     <>
-                      <Link href="/consulta" className="btn-brass">
-                        Agenda tu consulta
+                      <Link href="/registro" className="btn-brass">
+                        Crear cuenta
                       </Link>
-                      <Link href="/productos" className="btn-link">
-                        Ver el catálogo →
+                      <Link href="/ingresar?next=/productos" className="btn-link">
+                        Ya tengo cuenta →
                       </Link>
                     </>
                   )}
@@ -177,8 +177,8 @@ export default async function HomePage() {
                   <Link href="/registro" className="btn-brass w-full">
                     Crear cuenta
                   </Link>
-                  <Link href="/consulta" className="btn-link w-full justify-center">
-                    ¿No tienes receta? Agendar consulta →
+                  <Link href="/mi-cuenta/recetas" className="btn-link w-full justify-center">
+                    Ya tengo receta · Cargar documento →
                   </Link>
                 </div>
               </>
@@ -187,7 +187,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ────────────────  SECTION 02 — CONSULTA  ──────────────── */}
+      {/* ────────────────  SECTION 02 — VALIDACIÓN  ──────────────── */}
       <section className="bg-forest text-paper py-24 lg:py-40 relative overflow-hidden">
         <div className="absolute inset-0 grain-overlay opacity-50" aria-hidden />
         <div className="relative max-w-[1440px] mx-auto px-6 lg:px-12">
@@ -195,25 +195,24 @@ export default async function HomePage() {
             <div className="col-span-12 lg:col-span-5">
               <div className="flex items-baseline gap-6 mb-6">
                 <span className="editorial-numeral text-2xl text-paper/50">— 02</span>
-                <span className="eyebrow text-paper/60">Consulta médica</span>
+                <span className="eyebrow text-paper/60">Validación de receta</span>
               </div>
               <h2 className="font-display text-display-2 leading-[1.0] text-balance">
-                <span className="font-light">¿No tienes</span>{" "}
+                <span className="font-light">¿Ya tienes</span>{" "}
                 <span className="italic font-normal">receta</span>{" "}
                 <span className="font-light">médica?</span>
               </h2>
             </div>
             <div className="col-span-12 lg:col-span-6 lg:col-start-7 lg:pt-4">
               <p className="font-display text-2xl lg:text-3xl leading-[1.3] text-balance text-paper mb-8">
-                Agenda una consulta con uno de nuestros médicos especialistas. Evaluación clínica,
-                titulación de dosis y receta digital — todo desde Chile.
+                Crea tu cuenta, carga tus documentos y nuestro equipo valida la receta antes de habilitar el catálogo.
               </p>
               <div className="space-y-3 mb-10">
                 {[
-                  "Consulta online de 30 minutos",
-                  "Médico colegiado especializado en cannabis medicinal",
-                  "Receta digital validada en el mismo dispensario",
-                  "Seguimiento mensual incluido",
+                  "Cuenta de paciente con RUT y contacto",
+                  "Carga segura de receta e identificación",
+                  "Revisión por químico farmacéutico",
+                  "Catálogo habilitado solo al quedar aprobado",
                 ].map((b, i) => (
                   <div key={i} className="flex items-center gap-4">
                     <span className="font-mono text-[10px] tracking-widest uppercase text-paper/40 w-8">
@@ -224,10 +223,10 @@ export default async function HomePage() {
                 ))}
               </div>
               <Link
-                href="/consulta"
+                href="/registro"
                 className="inline-flex items-center gap-3 px-8 py-3.5 bg-paper text-ink text-sm tracking-editorial font-medium hover:bg-brass-bright transition-colors duration-300"
               >
-                Agendar consulta
+                Crear cuenta y cargar documentos
                 <span aria-hidden>→</span>
               </Link>
             </div>
@@ -303,11 +302,11 @@ export default async function HomePage() {
               </h2>
             </div>
             <div className="col-span-12 lg:col-span-3 lg:col-start-10 lg:pb-3">
-              <Link href="/consulta" className="btn-brass w-full mb-3">
-                Agendar consulta médica
+              <Link href="/registro" className="btn-brass w-full mb-3">
+                Crear cuenta de paciente
               </Link>
-              <Link href="/registro" className="btn-link w-full justify-center">
-                Crear cuenta de paciente →
+              <Link href="/ingresar" className="btn-link w-full justify-center">
+                Ya tengo cuenta →
               </Link>
             </div>
           </div>
