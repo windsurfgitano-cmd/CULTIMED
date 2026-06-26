@@ -234,60 +234,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ────────────────  SECTION 03 — TRAZABILIDAD  ──────────────── */}
-      <section className="py-24 lg:py-40 max-w-[1440px] mx-auto px-6 lg:px-12">
-        <div className="grid grid-cols-12 gap-x-6 mb-16 lg:mb-24">
-          <div className="col-span-12 lg:col-span-7">
-            <div className="flex items-baseline gap-6 mb-6">
-              <span className="editorial-numeral text-2xl text-ink-subtle">— 03</span>
-              <span className="eyebrow">Trazabilidad</span>
-            </div>
-            <h2 className="font-display text-display-2 leading-[1.0] text-balance">
-              <span className="font-light">De la</span>{" "}
-              <span className="italic font-normal">semilla</span>{" "}
-              <span className="font-light">a tus manos.</span>
-            </h2>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-x-6 gap-y-12">
-          <div className="lg:col-span-5">
-            <p className="text-base lg:text-lg leading-relaxed text-ink-muted text-pretty mb-6">
-              Cada gramo en nuestro catálogo tiene una historia documentada: variedad, cosecha,
-              curado, análisis, lote. Te entregamos esa cadena completa, no solo el producto final.
-            </p>
-            <Link href="/trazabilidad" className="btn-link">
-              Cómo funciona la trazabilidad →
-            </Link>
-          </div>
-
-          <div className="lg:col-span-7">
-            <ol className="space-y-6">
-              {[
-                { n: "01", title: "Semilla", body: "Genética verificada y registrada con breeder de origen." },
-                { n: "02", title: "Cultivo", body: "Vegetación y floración con condiciones controladas y registradas." },
-                { n: "03", title: "Cosecha y curado", body: "Secado controlado, curado lento, peso y humedad verificados." },
-                { n: "04", title: "Laboratorio", body: "COA con cannabinoides, terpenos, contaminantes — independiente." },
-                { n: "05", title: "Envasado", body: "Identificación de lote, etiquetado clínico, hermético." },
-                { n: "06", title: "Dispensación", body: "Receta verificada, paciente identificado, lote asignado." },
-                { n: "07", title: "Despacho", body: "Courier privado con seguimiento. Retiro en farmacia próximamente." },
-              ].map((step, i) => (
-                <li key={step.n} className="grid grid-cols-12 gap-4 items-baseline group">
-                  <span className="col-span-2 lg:col-span-1 editorial-numeral text-lg text-ink-subtle group-hover:text-brass transition-colors">
-                    {step.n}
-                  </span>
-                  <div className="col-span-10 lg:col-span-11 pb-6 border-b border-rule">
-                    <h3 className="font-display text-2xl lg:text-3xl mb-1 group-hover:italic transition-all">
-                      {step.title}
-                    </h3>
-                    <p className="text-sm text-ink-muted leading-relaxed">{step.body}</p>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          </div>
-        </div>
-      </section>
 
       {/* ────────────────  CLOSING / CTA BAND  ──────────────── */}
       <section className="bg-paper-dim border-y border-rule">
