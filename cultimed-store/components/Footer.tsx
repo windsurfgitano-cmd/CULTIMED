@@ -10,7 +10,7 @@ export default function Footer() {
         {/* Top mark */}
         <div className="mb-16 lg:mb-24 flex items-end justify-between gap-12 flex-wrap">
           <div className="max-w-2xl">
-            <p className="eyebrow text-paper/60 mb-4">— Cannabis medicinal de precisión</p>
+            <p className="eyebrow text-paper/60 mb-4">— Dispensario médico autorizado</p>
             <h2 className="font-display text-display-3 text-balance">
               <span className="font-light">Una farmacia</span>{" "}
               <span className="italic font-normal">de laboratorio</span>{" "}
@@ -18,10 +18,10 @@ export default function Footer() {
             </h2>
           </div>
           <Link
-            href="/consulta"
+            href="/registro"
             className="inline-flex items-center gap-3 text-sm tracking-editorial border-b border-paper/40 hover:border-paper pb-1 transition-colors duration-300"
           >
-            Agenda tu consulta
+            Crear cuenta de paciente
             <span aria-hidden>→</span>
           </Link>
         </div>
@@ -36,17 +36,13 @@ export default function Footer() {
             { label: "Tópicos", href: "/productos?cat=topico" },
           ]} />
           <Column n="02" title="Atención" links={[
-            { label: "Consulta médica online", href: "/consulta" },
             { label: "Validación de receta", href: "/mi-cuenta/recetas" },
             { label: "Seguimiento de pedidos", href: "/mi-cuenta/pedidos" },
-            { label: "Trazabilidad de lotes", href: "/trazabilidad" },
+            { label: "Mi cuenta", href: "/mi-cuenta" },
           ]} />
-          <Column n="03" title="Compliance" links={[
-            { label: "Ley 20.850", href: "/compliance" },
-            { label: "DS Nº 345/2016", href: "/compliance" },
-            { label: "Política de privacidad (Ley 19.628)", href: "/privacidad" },
+          <Column n="03" title="Legal" links={[
+            { label: "Política de privacidad", href: "/privacidad" },
             { label: "Términos de uso", href: "/terminos" },
-            { label: "Derechos del paciente", href: "/derechos-paciente" },
           ]} />
           <div className="col-span-2 lg:col-span-3">
             <p className="eyebrow text-paper/50 mb-3 flex items-baseline gap-3">
@@ -73,29 +69,17 @@ export default function Footer() {
 
         <div className="hairline bg-paper/20 mb-12" />
 
-        {/* Compliance / Legal microprint */}
+        {/* Legal microprint */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-12">
-          <div className="lg:col-span-7 max-w-3xl">
+          <div className="lg:col-span-8 max-w-3xl">
             <p className="eyebrow text-paper/50 mb-3">— Aviso legal</p>
             <p className="text-sm leading-relaxed text-paper/70 font-mono">
-              Cultimed es un dispensario de cannabis medicinal autorizado en Chile.
-              Los productos comercializados requieren prescripción médica vigente conforme
-              a la Ley Nº 20.850 y el D.S. Nº 345/2016. Este sitio tiene fines exclusivamente
-              informativos y no constituye asesoría médica. No automedicarse — consulte siempre
-              a un profesional de salud habilitado. Los efectos terapéuticos pueden variar
-              entre pacientes.
+              Cultimed es un dispensario médico autorizado en Chile. Los productos
+              dispensados requieren prescripción médica vigente. Este sitio tiene fines
+              exclusivamente informativos y no constituye asesoría médica. No automedicarse —
+              consulte siempre a un profesional de salud habilitado. Los efectos terapéuticos
+              pueden variar entre pacientes.
             </p>
-          </div>
-          <div className="lg:col-span-5">
-            <p className="eyebrow text-paper/50 mb-3">— Certificaciones</p>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[11px] font-mono uppercase tracking-widest text-paper/60">
-              <span>· SANNA · autorizado</span>
-              <span>· ISP · registrado</span>
-              <span>· GMP · certificado</span>
-              <span>· Ley 20.850</span>
-              <span>· DS 345/2016</span>
-              <span>· Ley 19.628</span>
-            </div>
           </div>
         </div>
 
