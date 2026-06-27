@@ -43,9 +43,8 @@ export default function Header({ customer }: HeaderProps) {
           <nav className="hidden lg:flex items-center gap-10 text-sm">
             {[
               { href: "/productos", label: "Catálogo" },
-              { href: "/consulta", label: "Consulta médica" },
-              { href: "/trazabilidad", label: "Trazabilidad" },
-              { href: "/compliance", label: "Compliance" },
+              { href: "/mi-cuenta/recetas", label: "Validar receta" },
+              { href: "/mi-cuenta", label: "Mi cuenta" },
             ].map((l) => (
               <Link
                 key={l.href}
@@ -127,8 +126,8 @@ export default function Header({ customer }: HeaderProps) {
           <nav className="flex-1 px-6 py-8 space-y-1">
             {[
               { href: "/productos", label: "Catálogo", n: "01" },
-              { href: "/consulta", label: "Consulta médica", n: "02" },
-              { href: "/trazabilidad", label: "Trazabilidad", n: "03" },
+              { href: "/mi-cuenta/recetas", label: "Validar receta", n: "02" },
+              { href: "/mi-cuenta", label: "Mi cuenta", n: "03" },
               { href: "/compliance", label: "Compliance", n: "04" },
               { href: customer ? "/mi-cuenta" : "/ingresar", label: customer ? "Mi cuenta" : "Ingresar", n: "05" },
             ].map((l) => (

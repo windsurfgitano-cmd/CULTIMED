@@ -6,10 +6,10 @@ import AgeGate from "@/components/AgeGate";
 import { getCurrentCustomer } from "@/lib/auth";
 
 export const metadata: Metadata = {
-  title: "Cultimed · Cannabis medicinal de precisión",
+  title: "Cultimed · Dispensario médico autorizado",
   description:
-    "Dispensario de cannabis medicinal autorizado en Chile. Cada lote certificado por laboratorio independiente. Bajo prescripción médica.",
-  keywords: ["cannabis medicinal", "CBD Chile", "dispensario cannabis", "SANNA", "cultimed"],
+    "Dispensario médico autorizado en Chile. Acceso a catálogo bajo prescripción médica vigente y validación por químico farmacéutico.",
+  keywords: ["dispensario médico", "receta médica", "Chile", "cultimed"],
 };
 
 export const viewport: Viewport = {

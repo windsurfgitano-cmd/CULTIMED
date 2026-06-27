@@ -119,9 +119,9 @@ export default async function PrescriptionsPage({ searchParams }: { searchParams
             </p>
           </div>
 
-          <Link href="/consulta" className="block mt-6 text-sm text-ink-muted hover:text-ink transition-colors border-b border-rule pb-2">
-            <span className="italic">¿No tienes receta?</span> Agendar consulta médica →
-          </Link>
+          <p className="block mt-6 text-sm text-ink-muted border-b border-rule pb-2">
+            <span className="italic">¿No tienes receta?</span> Solicítala con tu médico tratante y cárgala aquí.
+          </p>
         </aside>
       </div>
     </section>

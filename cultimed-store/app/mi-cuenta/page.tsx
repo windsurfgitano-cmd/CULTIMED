@@ -182,7 +182,7 @@ export default async function AccountPage() {
                 </p>
                 <div className="flex flex-col gap-3">
                   <Link href="/mi-cuenta/recetas" className="btn-brass w-full">Cargar nueva receta</Link>
-                  <Link href="/consulta" className="btn-link justify-center">Agendar consulta médica →</Link>
+                  <Link href="/mi-cuenta/recetas" className="btn-link justify-center">Cargar receta →</Link>
                 </div>
               </>
             )}

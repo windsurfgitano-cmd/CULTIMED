@@ -29,7 +29,7 @@ export default async function CheckoutPage() {
           </div>
           <div className="col-span-12 lg:col-span-4 lg:col-start-9">
             <Link href="/mi-cuenta/recetas" className="btn-brass w-full mb-3">Cargar receta</Link>
-            <Link href="/consulta" className="btn-link w-full justify-center">Agendar consulta →</Link>
+            <Link href="/mi-cuenta" className="btn-link w-full justify-center">Volver a mi cuenta →</Link>
           </div>
         </div>
       </section>

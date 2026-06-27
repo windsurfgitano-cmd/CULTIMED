@@ -75,7 +75,7 @@ export default async function AmbassadorsPublicPage() {
           <Step
             n="03"
             title="Comparte"
-            body="WhatsApp, Instagram, en consulta médica, eventos. Cada persona que se registre con tu enlace queda asociada por 60 días."
+            body="WhatsApp, Instagram, en persona, eventos. Cada persona que se registre con tu enlace queda asociada por 60 días."
           />
           <Step
             n="04"

@@ -208,7 +208,7 @@ export default async function CatalogPage({
                 </p>
                 <div className="flex flex-col gap-3">
                   <Link href="/registro" className="btn-brass">Crear cuenta</Link>
-                  <Link href="/consulta" className="btn-link">¿No tienes receta? Agendar consulta →</Link>
+                  <Link href="/mi-cuenta/recetas" className="btn-link">Ya tengo receta · Cargar documento →</Link>
                 </div>
               </div>
             </div>

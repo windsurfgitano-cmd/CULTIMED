@@ -25,7 +25,7 @@ export default function CatalogGate({
       titleC: "para ver nuestro catálogo.",
       body: "Aceptamos PDF, JPG o PNG. Una vez cargada, nuestro químico farmacéutico la revisa en 24 horas hábiles. Mientras tanto, no podemos mostrarte productos por norma sanitaria.",
       cta: { label: "Cargar receta médica", href: "/mi-cuenta/recetas" },
-      secondary: { label: "Agendar consulta médica", href: "/consulta" },
+      secondary: { label: "Ya tengo receta · Cargar documento", href: "/mi-cuenta/recetas" },
     },
     pending: {
       eyebrow: "En revisión",
@@ -42,7 +42,7 @@ export default function CatalogGate({
       titleC: "una nueva receta.",
       body: "La receta anterior no pudo ser validada. Carga una nueva o agenda una consulta con nuestros médicos para obtener una receta vigente.",
       cta: { label: "Cargar nueva receta", href: "/mi-cuenta/recetas" },
-      secondary: { label: "Agendar consulta médica", href: "/consulta" },
+      secondary: { label: "Ya tengo receta · Cargar documento", href: "/mi-cuenta/recetas" },
     },
     expired: {
       eyebrow: "Receta vencida",
@@ -51,7 +51,7 @@ export default function CatalogGate({
       titleC: "ya no está activa.",
       body: "Las recetas tienen 6 meses de vigencia. Carga una receta actualizada o agenda una consulta para renovarla.",
       cta: { label: "Cargar nueva receta", href: "/mi-cuenta/recetas" },
-      secondary: { label: "Agendar consulta médica", href: "/consulta" },
+      secondary: { label: "Ya tengo receta · Cargar documento", href: "/mi-cuenta/recetas" },
     },
   };
   const m = meta[status];
