@@ -1,28 +1,12 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { requireCustomer } from "@/lib/auth";
-import { run } from "@/lib/db";
 import { formatDateTime } from "@/lib/format";
-import { saveUploadedFile } from "@/lib/uploads";
 import PrescriptionUpload from "@/components/PrescriptionUpload";
 
-async function uploadAction(formData: FormData) {
-  "use server";
-  const customer = await requireCustomer();
-  const file = formData.get("prescription") as File | null;
-  if (!file || file.size === 0) redirect("/mi-cuenta/recetas?e=missing");
-  if (file.size > 8 * 1024 * 1024) redirect("/mi-cuenta/recetas?e=too_big");
-
-  const url = await saveUploadedFile(file, "prescriptions", String(customer.id), "receta");
-  await run(
-    `UPDATE customer_accounts
-     SET prescription_url = ?, prescription_status = 'pending',
-         prescription_uploaded_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-     WHERE id = ?`,
-    url, customer.id
-  );
-  redirect("/mi-cuenta/recetas?ok=1");
-}
+// La subida ahora es 100% client-side (ver PrescriptionUpload.tsx): el
+// archivo va DIRECTO a Supabase Storage vía /api/uploads/sign + attach,
+// sin pasar por una función serverless de Vercel (límite duro ~4.5MB que
+// rompía fotos de receta reales tomadas con celular).
 
 const ERR: Record<string, string> = {
   missing: "Selecciona un archivo (PDF, JPG o PNG).",
@@ -73,7 +57,7 @@ export default async function PrescriptionsPage({ searchParams }: { searchParams
       <div className="grid grid-cols-12 gap-x-6 gap-y-12">
         {/* LEFT — Upload */}
         <div className="col-span-12 lg:col-span-7">
-          <PrescriptionUpload action={uploadAction} />
+          <PrescriptionUpload />
           {/* Original instruction list (kept for reference, hidden — now lives inside the component) */}
           <div className="hidden">
             <ul>

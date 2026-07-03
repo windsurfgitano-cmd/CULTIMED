@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { requireCustomer } from "@/lib/auth";
-import { get, all, run } from "@/lib/db";
+import { get, all } from "@/lib/db";
 import { formatCLP, formatDateTime } from "@/lib/format";
-import { saveUploadedFile } from "@/lib/uploads";
 import { resolveStorageUrl } from "@/lib/storage";
 import OrderTimeline from "@/components/OrderTimeline";
+import UploadProofForm from "@/components/UploadProofForm";
 import { isOrderPaid, isOrderRejected } from "@/lib/order-status";
 import WhatsAppButton from "@/components/WhatsAppButton";
 
@@ -27,38 +27,10 @@ interface EventRow {
   event_type: string; message: string | null; created_at: string;
 }
 
-async function uploadProofAction(formData: FormData) {
-  "use server";
-  const customer = await requireCustomer();
-  const orderId = Number(formData.get("order_id"));
-  const file = formData.get("proof") as File | null;
-  if (!file || file.size === 0) redirect(`/checkout/${orderId}?e=missing`);
-  if (file.size > 8 * 1024 * 1024) redirect(`/checkout/${orderId}?e=too_big`);
-
-  const order = await get<{ id: number; customer_account_id: number; status: string }>(
-    `SELECT id, customer_account_id, status FROM customer_orders WHERE id = ?`,
-    orderId
-  );
-  if (!order || order.customer_account_id !== customer.id) redirect("/mi-cuenta");
-  if (order.status !== "pending_payment" && order.status !== "proof_uploaded") {
-    redirect(`/checkout/${orderId}`);
-  }
-
-  const url = await saveUploadedFile(file, "payment-proofs", `${customer.id}-${orderId}`, "comprobante");
-  await run(
-    `UPDATE customer_orders
-     SET payment_proof_url = ?, payment_proof_uploaded_at = CURRENT_TIMESTAMP,
-         status = 'proof_uploaded', updated_at = CURRENT_TIMESTAMP
-     WHERE id = ?`,
-    url, orderId
-  );
-  await run(
-    `INSERT INTO customer_order_events (order_id, event_type, message)
-     VALUES (?, 'proof_uploaded', 'Comprobante de transferencia recibido')`,
-    orderId
-  );
-  redirect(`/checkout/${orderId}?ok=1`);
-}
+// La subida del comprobante es 100% client-side (ver UploadProofForm.tsx):
+// va DIRECTO a Supabase Storage vía /api/uploads/sign + attach, sin pasar
+// por una función serverless de Vercel (límite duro ~4.5MB que rompía
+// fotos de comprobante reales tomadas con celular).
 
 export default async function OrderPaymentPage({ params, searchParams }: { params: { id: string }; searchParams: { e?: string; ok?: string } }) {
   const customer = await requireCustomer();
@@ -218,22 +190,7 @@ export default async function OrderPaymentPage({ params, searchParams }: { param
                 </div>
               ) : null}
 
-              <form action={uploadProofAction} encType="multipart/form-data" className="mt-6">
-                <input type="hidden" name="order_id" value={order.id} />
-                <label
-                  htmlFor="proof"
-                  className="block border-2 border-dashed border-rule hover:border-ink p-10 lg:p-12 text-center bg-paper-bright transition-all cursor-pointer"
-                >
-                  <input id="proof" name="proof" type="file" accept=".pdf,image/jpeg,image/png" required className="sr-only" />
-                  <p className="font-display text-2xl italic mb-2">Selecciona archivo</p>
-                  <p className="text-xs font-mono uppercase tracking-widest text-ink-muted">
-                    Comprobante en PDF, JPG o PNG · máx 8 MB
-                  </p>
-                </label>
-                <button type="submit" className="btn-brass w-full mt-4">
-                  Enviar comprobante
-                </button>
-              </form>
+              <UploadProofForm orderId={order.id} />
             </div>
           )}
 

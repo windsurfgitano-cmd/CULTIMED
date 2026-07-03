@@ -1,6 +1,6 @@
 ﻿import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { requireRole, requirePrescriptionsRole } from "@/lib/auth";
+import { requirePrescriptionsRole } from "@/lib/auth";
 import { get, run } from "@/lib/db";
 import { formatDateTime } from "@/lib/format";
 import { logAudit } from "@/lib/audit";
@@ -8,6 +8,7 @@ import { markPrescriptionApproved } from "@/lib/referrals";
 import { resolveStorageUrl } from "@/lib/storage";
 import { sendEmail, emailLayout } from "@/lib/email";
 import PageHeader from "@/components/PageHeader";
+import StaffDocumentUploadForm from "@/components/StaffDocumentUploadForm";
 
 export const dynamic = "force-dynamic";
 
@@ -123,37 +124,10 @@ async function reviewAction(formData: FormData) {
   redirect(`/web-prescriptions/${id}`);
 }
 
-async function uploadDocumentAction(formData: FormData) {
-  "use server";
-  const staff = await requirePrescriptionsRole();
-  const id = Number(formData.get("id"));
-  const docType = String(formData.get("docType"));
-  const file = formData.get("file") as File;
-  
-  if (!id || !docType || !file || file.size === 0) {
-    redirect(`/web-prescriptions/${id}?error=missing`);
-  }
-  
-  const { saveUploadedFile } = await import("@/lib/uploads");
-  const { logAudit } = await import("@/lib/audit");
-  
-  const url = await saveUploadedFile(file, "patient-documents", String(id), docType);
-  
-  const columnMap: Record<string, string> = {
-    "id_front": "id_front_url",
-    "id_back": "id_back_url", 
-    "criminal_record": "criminal_record_url",
-    "prescription": "prescription_url",
-    "rights_assignment": "rights_assignment_url"
-  };
-  
-  const column = columnMap[docType];
-  if (!column) return;
-  
-  await run(`UPDATE customer_accounts SET ${column} = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, url, id);
-  await logAudit({ staffId: staff.id, action: `upload_document_${docType}`, entityType: "customer_account", entityId: id });
-  redirect(`/web-prescriptions/${id}`);
-}
+// La subida de documentos por staff ahora es 100% client-side (ver
+// components/StaffDocumentUploadForm.tsx): va DIRECTO a Supabase Storage vía
+// /api/uploads/sign + /api/uploads/attach-patient-doc, sin pasar por una
+// función serverless de Vercel (límite duro ~4.5MB que rompía fotos reales).
 
 export default async function WebPrescriptionDetail({ params }: { params: { id: string } }) {
   await requirePrescriptionsRole();
@@ -225,20 +199,8 @@ export default async function WebPrescriptionDetail({ params }: { params: { id: 
     );
   }
 
-  function UploadForm({ docType, docLabel }: { docType: string; docLabel: string }) {
-    return (
-      <form action={uploadDocumentAction} encType="multipart/form-data" className="mb-2 p-3 border border-dashed border-outline-variant rounded-lg bg-surface-container-low">
-        <input type="hidden" name="id" value={id} />
-        <input type="hidden" name="docType" value={docType} />
-        <div className="flex items-center gap-3">
-          <input type="file" name="file" accept=".jpg,.jpeg,.png,.pdf,.webp" className="flex-1 text-sm" required />
-          <button type="submit" className="btn-secondary text-sm whitespace-nowrap">
-            <span className="material-symbols-outlined text-base">upload</span>
-            Subir
-          </button>
-        </div>
-      </form>
-    );
+  function UploadForm({ docType }: { docType: "id_front" | "id_back" | "criminal_record" | "prescription" | "rights_assignment"; docLabel: string }) {
+    return <StaffDocumentUploadForm customerId={id} docType={docType} />;
   }
 
   return (

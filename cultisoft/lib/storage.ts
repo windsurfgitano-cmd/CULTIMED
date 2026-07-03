@@ -64,6 +64,27 @@ export async function uploadFile(opts: {
   return { path, signedUrl };
 }
 
+/**
+ * Genera una URL de subida firmada para que el BROWSER suba el archivo
+ * directo a Supabase Storage, evitando el límite duro (~4.5MB) que Vercel
+ * impone a las funciones serverless/server actions.
+ */
+export async function createSignedUploadUrl(
+  bucket: UploadBucket,
+  userId: number | string,
+  fileName: string
+): Promise<{ signedUrl: string; token: string; path: string; bucket: UploadBucket }> {
+  const admin = getStorageAdmin();
+  const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-80);
+  const ts = new Date().toISOString().replace(/[:.]/g, "-");
+  const path = `${userId}/${ts}_${safeName}`;
+
+  const { data, error } = await admin.storage.from(bucket).createSignedUploadUrl(path);
+  if (error || !data) throw new Error(`signed upload url failed: ${error?.message}`);
+
+  return { signedUrl: data.signedUrl, token: data.token, path: data.path, bucket };
+}
+
 /** Genera una URL firmada con TTL en segundos (default 1h). */
 export async function getSignedUrl(
   bucket: UploadBucket,

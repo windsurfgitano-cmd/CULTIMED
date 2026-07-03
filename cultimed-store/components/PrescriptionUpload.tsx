@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
-import { useFormStatus } from "react-dom";
+import { useRouter } from "next/navigation";
+import { uploadAndAttach, UploadError } from "@/lib/client-upload";
 
 const MAX_BYTES = 8 * 1024 * 1024;
 const ACCEPT = ".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg";
@@ -12,8 +13,7 @@ function formatBytes(n: number): string {
   return `${(n / 1024 / 1024).toFixed(1)} MB`;
 }
 
-function SubmitButton({ disabled }: { disabled: boolean }) {
-  const { pending } = useFormStatus();
+function SubmitButton({ disabled, pending }: { disabled: boolean; pending: boolean }) {
   return (
     <button
       type="submit"
@@ -35,15 +35,13 @@ function SubmitButton({ disabled }: { disabled: boolean }) {
   );
 }
 
-export default function PrescriptionUpload({
-  action,
-}: {
-  action: (formData: FormData) => Promise<void>;
-}) {
+export default function PrescriptionUpload() {
+  const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = useCallback((f: File | null) => {
@@ -97,8 +95,22 @@ export default function PrescriptionUpload({
     if (inputRef.current) inputRef.current.value = "";
   }
 
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!file) return;
+    setError(null);
+    setPending(true);
+    try {
+      await uploadAndAttach("prescription", file);
+      router.push("/mi-cuenta/recetas?ok=1");
+    } catch (err) {
+      setError(err instanceof UploadError ? err.message : "No pudimos subir tu receta. Intenta de nuevo.");
+      setPending(false);
+    }
+  }
+
   return (
-    <form action={action} className="space-y-8">
+    <form onSubmit={handleSubmit} className="space-y-8">
       <div>
         <label className="input-label mb-4">Archivo</label>
 
@@ -174,7 +186,7 @@ export default function PrescriptionUpload({
         </ul>
       </div>
 
-      <SubmitButton disabled={!file} />
+      <SubmitButton disabled={!file} pending={pending} />
     </form>
   );
 }

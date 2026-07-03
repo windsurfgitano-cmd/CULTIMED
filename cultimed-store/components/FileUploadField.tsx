@@ -16,12 +16,16 @@ export default function FileUploadField({
   accept = ".pdf,.png,.jpg,.jpeg",
   required = false,
   onFileChange,
+  status,
 }: {
   name: string;
   label: string;
   accept?: string;
   required?: boolean;
-  onFileChange?: (hasFile: boolean) => void;
+  /** Recibe el File seleccionado (o null si se quita). */
+  onFileChange?: (file: File | null) => void;
+  /** Estado de subida controlado desde el padre (opcional, para flujos de upload directo). */
+  status?: "idle" | "uploading" | "done" | "error";
 }) {
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -31,41 +35,56 @@ export default function FileUploadField({
     const f = e.target.files?.[0] ?? null;
     setError(null);
     if (!f) {
-      if (file) onFileChange?.(false);
       setFile(null);
+      onFileChange?.(null);
       return;
     }
     if (f.size > MAX_BYTES) {
       setError(`El archivo supera 8 MB (${formatBytes(f.size)}).`);
-      if (file) onFileChange?.(false);
       setFile(null);
+      onFileChange?.(null);
       if (inputRef.current) inputRef.current.value = "";
       return;
     }
-    if (!file) onFileChange?.(true);
     setFile(f);
+    onFileChange?.(f);
   }
 
   function clearFile() {
-    if (file) onFileChange?.(false);
     setFile(null);
     setError(null);
+    onFileChange?.(null);
     if (inputRef.current) inputRef.current.value = "";
   }
+
+  const borderCls =
+    status === "error" ? "border-sangria bg-sangria/5"
+    : status === "done" ? "border-forest bg-forest/5"
+    : "border-forest bg-forest/5";
 
   return (
     <div>
       <label className="input-label">{label} {required && "*"}</label>
       <div className="mt-2">
         {file ? (
-          <div className="border border-forest bg-forest/5 p-4 flex items-center justify-between">
+          <div className={`border ${borderCls} p-4 flex items-center justify-between`}>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium truncate">{file.name}</p>
-              <p className="text-xs font-mono text-ink-muted mt-0.5 nums-lining">{formatBytes(file.size)}</p>
+              <p className="text-xs font-mono text-ink-muted mt-0.5 nums-lining">
+                {formatBytes(file.size)}
+                {status === "uploading" && " · subiendo…"}
+                {status === "done" && " · ✓ subido"}
+                {status === "error" && " · falló, reintenta"}
+              </p>
             </div>
-            <button type="button" onClick={clearFile} className="text-xs uppercase tracking-widest font-mono text-sangria hover:text-sangria/70 ml-4 shrink-0">
-              Quitar
-            </button>
+            {status !== "uploading" && (
+              <button type="button" onClick={clearFile} className="text-xs uppercase tracking-widest font-mono text-sangria hover:text-sangria/70 ml-4 shrink-0">
+                Quitar
+              </button>
+            )}
+            {status === "uploading" && (
+              <span className="ml-4 shrink-0 w-4 h-4 border-2 border-ink-muted border-t-transparent rounded-full animate-spin" aria-hidden />
+            )}
           </div>
         ) : (
           <label htmlFor={name} className="block border-2 border-dashed border-rule hover:border-ink bg-paper-bright p-8 text-center cursor-pointer transition-colors">

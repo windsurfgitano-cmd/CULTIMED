@@ -40,9 +40,11 @@ scripts/out/*
 # Backups de BD (locales, fuera de git)
 _backups/
 
-# Uploads de pacientes (recetas, comprobantes)
-**/uploads/
-!**/uploads/.gitkeep
+# Uploads de pacientes (recetas, comprobantes) — solo el storage local legacy,
+# NUNCA el código fuente. La regla anterior "**/uploads/" era demasiado amplia
+# y también ignoraba app/api/uploads/ (rutas reales de la app) — corregido.
+public/uploads/
+!public/uploads/.gitkeep
 **/public/uploads/
 
 # ---- Logs ------------------------------------------------------
