@@ -12,6 +12,7 @@ interface TopPatient { patient_id: number; patient_name: string; rut: string; to
 interface CategoryBreakdown { category: string; count: number; total: number; }
 interface PaymentBreakdown { payment_method: string; count: number; total: number; }
 interface StaffBreakdown { staff_name: string; count: number; total: number; }
+interface ChannelDay { day: string; presencial: number; web: number; }
 
 const CATEGORY_LABELS: Record<string, string> = {
   flores: "Flores",
@@ -31,11 +32,20 @@ export default async function ReportsPage({
   const days = Math.min(365, Math.max(7, parseInt(searchParams.range || "30", 10) || 30));
 
   const dateFilter = `d.dispensed_at >= NOW() - (INTERVAL '1 day' * ${days}) AND d.status = 'completed'`;
+  const webDateFilter = `o.created_at >= NOW() - (INTERVAL '1 day' * ${days}) AND o.status NOT IN ('cancelled', 'rejected')`;
 
   const totals = await get<{ count: number; total: number; avg: number }>(
     `SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total, COALESCE(AVG(total_amount), 0) as avg
      FROM dispensations d WHERE ${dateFilter}`
   );
+
+  const webTotals = await get<{ count: number; total: number; avg: number }>(
+    `SELECT COUNT(*) as count, COALESCE(SUM(total), 0) as total, COALESCE(AVG(total), 0) as avg
+     FROM customer_orders o WHERE ${webDateFilter}`
+  );
+
+  const combinedTotal = Number(totals?.total || 0) + Number(webTotals?.total || 0);
+  const combinedCount = Number(totals?.count || 0) + Number(webTotals?.count || 0);
 
   const byDay = await all<DailySales>(
     `SELECT d.dispensed_at::date as day, COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total
@@ -45,13 +55,41 @@ export default async function ReportsPage({
      ORDER BY day ASC`
   );
 
+  const webByDay = await all<DailySales>(
+    `SELECT o.created_at::date as day, COUNT(*) as count, COALESCE(SUM(total), 0) as total
+     FROM customer_orders o
+     WHERE ${webDateFilter}
+     GROUP BY o.created_at::date
+     ORDER BY day ASC`
+  );
+
+  const channelByDayMap = new Map<string, ChannelDay>();
+  for (const b of byDay) {
+    channelByDayMap.set(b.day, { day: b.day, presencial: Number(b.total), web: 0 });
+  }
+  for (const w of webByDay) {
+    const existing = channelByDayMap.get(w.day);
+    if (existing) existing.web = Number(w.total);
+    else channelByDayMap.set(w.day, { day: w.day, presencial: 0, web: Number(w.total) });
+  }
+  const channelByDay = [...channelByDayMap.values()].sort((a, b) => a.day.localeCompare(b.day));
+
   const topProducts = await all<TopProduct>(
-    `SELECT pr.name as product_name, pr.sku, SUM(di.quantity) as total_qty, SUM(di.total_price) as total_revenue
-     FROM dispensation_items di
-     JOIN dispensations d ON d.id = di.dispensation_id
-     JOIN products pr ON pr.id = di.product_id
-     WHERE ${dateFilter}
-     GROUP BY pr.id
+    `SELECT product_name, sku, SUM(total_qty) as total_qty, SUM(total_revenue) as total_revenue
+     FROM (
+       SELECT pr.id as pid, pr.name as product_name, pr.sku, di.quantity as total_qty, di.total_price as total_revenue
+       FROM dispensation_items di
+       JOIN dispensations d ON d.id = di.dispensation_id
+       JOIN products pr ON pr.id = di.product_id
+       WHERE ${dateFilter}
+       UNION ALL
+       SELECT pr.id as pid, pr.name as product_name, pr.sku, oi.quantity as total_qty, oi.total_price as total_revenue
+       FROM customer_order_items oi
+       JOIN customer_orders o ON o.id = oi.order_id
+       JOIN products pr ON pr.id = oi.product_id
+       WHERE ${webDateFilter}
+     ) combined
+     GROUP BY pid, product_name, sku
      ORDER BY total_revenue DESC
      LIMIT 10`
   );
@@ -99,7 +137,7 @@ export default async function ReportsPage({
     `SELECT COUNT(*) as c FROM patients WHERE created_at >= NOW() - (INTERVAL '1 day' * ${days})`
   ))?.c || 0;
 
-  const maxDay = Math.max(1, ...byDay.map((b) => b.total));
+  const maxDay = Math.max(1, ...channelByDay.map((b) => b.presencial + b.web));
   const maxCat = Math.max(1, ...byCategory.map((b) => Number(b.total)));
 
   return (
@@ -128,36 +166,45 @@ export default async function ReportsPage({
 
       {/* High-level KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-7">
-        <Tile label="Dispensaciones" value={formatNumber(totals?.count || 0)} icon="medication" />
-        <Tile label="Ingresos totales" value={formatCLP(totals?.total || 0)} icon="payments" />
-        <Tile label="Ticket promedio" value={formatCLP(Math.round(totals?.avg || 0))} icon="receipt" />
-        <Tile label="Nuevos pacientes" value={formatNumber(newPatients)} icon="person_add" />
+        <Tile label="Ingresos totales" value={formatCLP(combinedTotal)} icon="payments" />
+        <Tile label="Ventas" value={formatNumber(combinedCount)} icon="receipt_long" />
+        <Tile label="Presencial" value={formatCLP(totals?.total || 0)} icon="medication" sub={`${formatNumber(totals?.count || 0)} dispensaciones`} />
+        <Tile label="Web" value={formatCLP(webTotals?.total || 0)} icon="shopping_cart" sub={`${formatNumber(webTotals?.count || 0)} pedidos`} />
       </div>
 
       {/* Daily chart */}
       <div className="clinical-card p-6 mb-7">
         <h2 className="text-base font-bold text-on-surface mb-1">Ingresos diarios</h2>
-        <p className="text-xs text-on-surface-variant mb-5">Total dispensado por día (CLP)</p>
-        {byDay.length === 0 ? (
+        <p className="text-xs text-on-surface-variant mb-3">Total por día (CLP) — presencial + web</p>
+        <div className="flex items-center gap-4 mb-4 text-[11px] text-on-surface-variant">
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-primary/80 inline-block" />Presencial</span>
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-tertiary/70 inline-block" />Web</span>
+        </div>
+        {channelByDay.length === 0 ? (
           <p className="text-sm text-on-surface-variant text-center py-8">No hay datos en el rango seleccionado.</p>
         ) : (
           <div className="grid grid-cols-[repeat(auto-fit,minmax(20px,1fr))] gap-1 items-end h-48">
-            {byDay.map((b) => {
-              const h = (b.total / maxDay) * 100;
+            {channelByDay.map((b) => {
+              const hPres = (b.presencial / maxDay) * 100;
+              const hWeb = (b.web / maxDay) * 100;
               return (
-                <div key={b.day} className="flex flex-col items-center justify-end h-full group" title={`${b.day}: ${formatCLP(b.total)} (${b.count} disp.)`}>
-                  <div
-                    className="w-full bg-primary/80 hover:bg-primary rounded-t transition-all"
-                    style={{ height: `${Math.max(2, h)}%` }}
-                  />
+                <div
+                  key={b.day}
+                  className="flex flex-col items-center justify-end h-full group"
+                  title={`${b.day}: ${formatCLP(b.presencial + b.web)} (presencial ${formatCLP(b.presencial)} · web ${formatCLP(b.web)})`}
+                >
+                  <div className="w-full flex flex-col justify-end" style={{ height: "100%" }}>
+                    <div className="w-full bg-tertiary/70 hover:bg-tertiary transition-all" style={{ height: `${hWeb}%` }} />
+                    <div className="w-full bg-primary/80 hover:bg-primary rounded-t transition-all" style={{ height: `${Math.max(b.presencial > 0 || b.web === 0 ? 2 : 0, hPres)}%` }} />
+                  </div>
                 </div>
               );
             })}
           </div>
         )}
         <div className="flex justify-between text-[10px] text-on-surface-variant mt-2 font-mono">
-          <span>{byDay[0]?.day}</span>
-          <span>{byDay[byDay.length - 1]?.day}</span>
+          <span>{channelByDay[0]?.day}</span>
+          <span>{channelByDay[channelByDay.length - 1]?.day}</span>
         </div>
       </div>
 
@@ -165,7 +212,7 @@ export default async function ReportsPage({
         {/* Top products */}
         <div className="clinical-card p-6">
           <h2 className="text-base font-bold text-on-surface mb-1">Top productos</h2>
-          <p className="text-xs text-on-surface-variant mb-4">Ordenados por ingresos</p>
+          <p className="text-xs text-on-surface-variant mb-4">Ordenados por ingresos · presencial + web</p>
           {topProducts.length === 0 ? (
             <p className="text-sm text-on-surface-variant py-4">Sin datos.</p>
           ) : (
@@ -188,7 +235,7 @@ export default async function ReportsPage({
 
         {/* Top patients */}
         <div className="clinical-card p-6">
-          <h2 className="text-base font-bold text-on-surface mb-1">Pacientes top</h2>
+          <h2 className="text-base font-bold text-on-surface mb-1">Pacientes top (presencial)</h2>
           <p className="text-xs text-on-surface-variant mb-4">Mayor gasto en el periodo</p>
           {topPatients.length === 0 ? (
             <p className="text-sm text-on-surface-variant py-4">Sin datos.</p>
@@ -216,7 +263,7 @@ export default async function ReportsPage({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-7">
         {/* Category breakdown */}
         <div className="clinical-card p-6 lg:col-span-2">
-          <h2 className="text-base font-bold text-on-surface mb-1">Por categoría</h2>
+          <h2 className="text-base font-bold text-on-surface mb-1">Por categoría (presencial)</h2>
           <p className="text-xs text-on-surface-variant mb-4">Distribución de ingresos por tipo de producto</p>
           {byCategory.length === 0 ? (
             <p className="text-sm text-on-surface-variant py-4">Sin datos.</p>
@@ -243,7 +290,7 @@ export default async function ReportsPage({
         {/* Payment + staff */}
         <div className="space-y-6">
           <div className="clinical-card p-6">
-            <h2 className="text-base font-bold text-on-surface mb-3">Por método de pago</h2>
+            <h2 className="text-base font-bold text-on-surface mb-3">Por método de pago (presencial)</h2>
             {byPayment.length === 0 ? (
               <p className="text-sm text-on-surface-variant">Sin datos.</p>
             ) : (
@@ -262,7 +309,7 @@ export default async function ReportsPage({
           </div>
 
           <div className="clinical-card p-6">
-            <h2 className="text-base font-bold text-on-surface mb-3">Por operador</h2>
+            <h2 className="text-base font-bold text-on-surface mb-3">Por operador (presencial)</h2>
             {byStaff.length === 0 ? (
               <p className="text-sm text-on-surface-variant">Sin datos.</p>
             ) : (
@@ -289,7 +336,7 @@ export default async function ReportsPage({
   );
 }
 
-function Tile({ label, value, icon }: { label: string; value: string; icon: string }) {
+function Tile({ label, value, icon, sub }: { label: string; value: string; icon: string; sub?: string }) {
   return (
     <div className="clinical-card p-5 flex items-center gap-4">
       <div className="w-12 h-12 rounded-xl bg-primary-fixed/40 text-primary flex items-center justify-center">
@@ -298,6 +345,7 @@ function Tile({ label, value, icon }: { label: string; value: string; icon: stri
       <div>
         <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">{label}</p>
         <p className="text-2xl font-light text-on-surface tabular-nums mt-0.5">{value}</p>
+        {sub && <p className="text-[11px] text-on-surface-variant mt-0.5">{sub}</p>}
       </div>
     </div>
   );

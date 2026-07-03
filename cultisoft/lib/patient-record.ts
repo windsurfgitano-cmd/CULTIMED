@@ -158,14 +158,14 @@ export async function loadPatientRecord(patientId: number): Promise<PatientRecor
        c.created_at, c.updated_at,
        CASE
          WHEN c.patient_id = ? THEN 'patient_id'
-         WHEN ? IS NOT NULL AND REPLACE(REPLACE(UPPER(c.rut), '.', ''), '-', '') = ? THEN 'rut'
-         WHEN ? IS NOT NULL AND LOWER(c.email) = ? THEN 'email'
+         WHEN ?::text IS NOT NULL AND REPLACE(REPLACE(UPPER(c.rut), '.', ''), '-', '') = ? THEN 'rut'
+         WHEN ?::text IS NOT NULL AND LOWER(c.email) = ? THEN 'email'
          ELSE 'patient_id'
        END as link_source
      FROM customer_accounts c
      WHERE c.patient_id = ?
-        OR (? IS NOT NULL AND REPLACE(REPLACE(UPPER(c.rut), '.', ''), '-', '') = ?)
-        OR (? IS NOT NULL AND LOWER(c.email) = ?)
+        OR (?::text IS NOT NULL AND REPLACE(REPLACE(UPPER(c.rut), '.', ''), '-', '') = ?)
+        OR (?::text IS NOT NULL AND LOWER(c.email) = ?)
      ORDER BY c.created_at DESC`,
     patientId,
     patientRut, patientRut,

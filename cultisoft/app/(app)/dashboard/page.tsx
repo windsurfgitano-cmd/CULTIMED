@@ -2,7 +2,6 @@ import Link from "next/link";
 import { requireStaff } from "@/lib/auth";
 import { all, get } from "@/lib/db";
 import { formatCLP, formatTime, relativeTime, formatDate } from "@/lib/format";
-import { isDemoMode } from "@/lib/seed-mode";
 import KpiCard from "@/components/KpiCard";
 import PageHeader from "@/components/PageHeader";
 
@@ -14,6 +13,9 @@ interface Counts {
   newPatientsThisMonth: number;
   todayDispensations: number;
   todayRevenue: number;
+  todayWebOrders: number;
+  todayWebRevenue: number;
+  pendingWebOrders: number;
   pendingRx: number;
   totalLowStock: number;
   totalExpiringSoon: number;
@@ -61,6 +63,9 @@ export default async function DashboardPage({
     newPatientsThisMonth: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM patients WHERE created_at >= ?`, monthStart))?.c ?? 0,
     todayDispensations: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM dispensations WHERE dispensed_at >= ?`, todayStart))?.c ?? 0,
     todayRevenue: (await get<{ s: number }>(`SELECT COALESCE(SUM(total_amount), 0) as s FROM dispensations WHERE dispensed_at >= ? AND status = 'completed'`, todayStart))?.s ?? 0,
+    todayWebOrders: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM customer_orders WHERE created_at >= ? AND status NOT IN ('cancelled','rejected')`, todayStart))?.c ?? 0,
+    todayWebRevenue: (await get<{ s: number }>(`SELECT COALESCE(SUM(total), 0) as s FROM customer_orders WHERE created_at >= ? AND status NOT IN ('cancelled','rejected')`, todayStart))?.s ?? 0,
+    pendingWebOrders: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM customer_orders WHERE status IN ('pending_payment','proof_uploaded','preparing')`))?.c ?? 0,
     pendingRx: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM prescriptions WHERE status = 'pending'`))?.c ?? 0,
     totalLowStock: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM batches WHERE status = 'available' AND quantity_current > 0 AND quantity_current <= 5`))?.c ?? 0,
     totalExpiringSoon: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM batches WHERE status = 'available' AND expiry_date IS NOT NULL AND expiry_date <= CURRENT_DATE + INTERVAL '60 days'`))?.c ?? 0,
@@ -117,19 +122,9 @@ export default async function DashboardPage({
     weekday: "long", day: "numeric", month: "long", year: "numeric",
   });
   const firstName = staff.full_name.split(" ")[0];
-  const demo = await isDemoMode();
 
   return (
     <>
-      {demo && (
-        <div className="mb-7 p-4 lg:p-5 bg-warning-container/40 border-l-2 border-brass animate-fade-in">
-          <p className="eyebrow text-brass-dim mb-1">— Modo demostración</p>
-          <p className="text-sm text-ink-muted leading-relaxed">
-            Pacientes y catálogo son <span className="text-ink">datos reales</span> exportados de Shopify, pero las recetas, dispensaciones e historiales son <span className="italic">sintéticos para demo</span> (los $ y conteos no representan ventas reales).
-            Para empezar a operar limpio corre <code className="font-mono text-[12px] bg-paper-bright px-1.5 py-0.5">npm run db:reset:clean</code>.
-          </p>
-        </div>
-      )}
 
       {searchParams.denied && (
         <div className="mb-7 p-4 bg-sangria/10 border-l-2 border-sangria">
@@ -164,6 +159,28 @@ export default async function DashboardPage({
                 <span className="font-light">{counts.pendingWebRx}</span>{" "}
                 <span className="italic text-base text-ink-muted">
                   {counts.pendingWebRx === 1 ? "paciente espera revisión de documentos" : "pacientes esperan revisión de documentos"}
+                </span>
+              </p>
+            </div>
+            <span className="text-ink-muted group-hover:translate-x-1 transition-transform shrink-0" aria-hidden>→</span>
+          </Link>
+        </section>
+      )}
+
+      {/* ─── Web orders ─── */}
+      {counts.pendingWebOrders > 0 && (
+        <section className="mb-10">
+          <Link
+            href="/web-orders"
+            className="group flex items-center gap-4 p-5 bg-forest/10 border-l-2 border-forest hover:bg-forest/15 transition-colors"
+          >
+            <span className="editorial-numeral text-base text-forest/60 shrink-0">— WEB</span>
+            <div className="flex-1 min-w-0">
+              <p className="eyebrow text-forest">Pedidos web por gestionar</p>
+              <p className="font-display text-xl mt-1 leading-tight">
+                <span className="font-light">{counts.pendingWebOrders}</span>{" "}
+                <span className="italic text-base text-ink-muted">
+                  {counts.pendingWebOrders === 1 ? "pedido esperando pago, preparación o envío" : "pedidos esperando pago, preparación o envío"}
                 </span>
               </p>
             </div>
@@ -231,9 +248,13 @@ export default async function DashboardPage({
         />
         <KpiCard
           numeral="02"
-          label="Dispensaciones hoy"
-          value={counts.todayDispensations}
-          delta={counts.todayRevenue > 0 ? { text: formatCLP(counts.todayRevenue), tone: "success" } : undefined}
+          label="Ventas hoy"
+          value={counts.todayDispensations + counts.todayWebOrders}
+          delta={
+            counts.todayRevenue + counts.todayWebRevenue > 0
+              ? { text: formatCLP(counts.todayRevenue + counts.todayWebRevenue), tone: "success" }
+              : undefined
+          }
         />
         <KpiCard
           numeral="03"
