@@ -3,6 +3,8 @@ import { requireReportsRole } from "@/lib/auth";
 import { all, get } from "@/lib/db";
 import { formatCLP, formatNumber, formatDate } from "@/lib/format";
 import PageHeader from "@/components/PageHeader";
+import RevenueLineChart from "@/components/charts/RevenueLineChart";
+import CategoryPieChart from "@/components/charts/CategoryPieChart";
 
 export const dynamic = "force-dynamic";
 
@@ -12,15 +14,6 @@ interface TopCustomer { account_id: number; full_name: string; email: string; to
 interface CategoryBreakdown { category: string; count: number; total: number; }
 interface PaymentBreakdown { payment_method: string; count: number; total: number; }
 interface ConfirmedByBreakdown { staff_name: string; count: number; total: number; }
-
-const CATEGORY_LABELS: Record<string, string> = {
-  flores: "Flores",
-  aceite_cbd: "Aceites CBD",
-  capsulas: "Cápsulas",
-  topico: "Tópicos",
-  farmaceutico: "Farmacéutico",
-  otro: "Otro",
-};
 
 export default async function ReportsPage({
   searchParams,
@@ -99,9 +92,6 @@ export default async function ReportsPage({
     `SELECT COUNT(*) as c FROM patients WHERE created_at >= NOW() - (INTERVAL '1 day' * ${days})`
   ))?.c || 0;
 
-  const maxDay = Math.max(1, ...byDay.map((b) => Number(b.total)));
-  const maxCat = Math.max(1, ...byCategory.map((b) => Number(b.total)));
-
   return (
     <>
       <PageHeader
@@ -141,24 +131,8 @@ export default async function ReportsPage({
         {byDay.length === 0 ? (
           <p className="text-sm text-on-surface-variant text-center py-8">No hay datos en el rango seleccionado.</p>
         ) : (
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(20px,1fr))] gap-1 items-end h-48">
-            {byDay.map((b) => {
-              const h = (Number(b.total) / maxDay) * 100;
-              return (
-                <div key={b.day} className="flex flex-col items-center justify-end h-full group" title={`${b.day}: ${formatCLP(b.total)} (${b.count} pedidos)`}>
-                  <div
-                    className="w-full bg-primary/80 hover:bg-primary rounded-t transition-all"
-                    style={{ height: `${Math.max(2, h)}%` }}
-                  />
-                </div>
-              );
-            })}
-          </div>
+          <RevenueLineChart data={byDay} />
         )}
-        <div className="flex justify-between text-[10px] text-on-surface-variant mt-2 font-mono">
-          <span>{byDay[0]?.day}</span>
-          <span>{byDay[byDay.length - 1]?.day}</span>
-        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-7 mb-7">
@@ -219,22 +193,7 @@ export default async function ReportsPage({
           {byCategory.length === 0 ? (
             <p className="text-sm text-on-surface-variant py-4">Sin datos.</p>
           ) : (
-            <ul className="space-y-3">
-              {byCategory.map((c) => {
-                const pct = (Number(c.total) / maxCat) * 100;
-                return (
-                  <li key={c.category}>
-                    <div className="flex items-center justify-between text-sm mb-1">
-                      <span className="font-medium text-on-surface">{CATEGORY_LABELS[c.category] || c.category}</span>
-                      <span className="font-mono tabular-nums">{formatCLP(c.total)}</span>
-                    </div>
-                    <div className="h-2 bg-surface-container-high rounded-full overflow-hidden">
-                      <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+            <CategoryPieChart data={byCategory} />
           )}
         </div>
 

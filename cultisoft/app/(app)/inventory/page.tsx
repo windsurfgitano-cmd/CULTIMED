@@ -6,6 +6,7 @@ import PageHeader from "@/components/PageHeader";
 import StatusBadge from "@/components/StatusBadge";
 import EmptyState from "@/components/EmptyState";
 import SearchInput from "@/components/SearchInput";
+import SortableHeader from "@/components/SortableHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -47,16 +48,29 @@ const CATEGORY_ICONS: Record<string, string> = {
   otro: "category",
 };
 
+const SORT_COLUMNS: Record<string, string> = {
+  producto: "pr.name",
+  lote: "b.batch_number",
+  categoria: "pr.category",
+  stock: "b.quantity_current",
+  precio: "b.price_per_unit",
+  vence: "b.expiry_date",
+  proveedor: "b.supplier",
+  estado: "b.status",
+};
+
 export default async function InventoryPage({
   searchParams,
 }: {
-  searchParams: { q?: string; filter?: string; category?: string };
+  searchParams: { q?: string; filter?: string; category?: string; sort?: string; dir?: string };
 }) {
   const me = await requireOpsRole();
   const showStrainView = isSuperadmin(me);
   const q = (searchParams.q || "").trim();
   const filter = searchParams.filter || "";
   const category = searchParams.category || "";
+  const sort = searchParams.sort && SORT_COLUMNS[searchParams.sort] ? searchParams.sort : null;
+  const dir: "asc" | "desc" = searchParams.dir === "desc" ? "desc" : "asc";
 
   const where: string[] = [];
   const params: any[] = [];
@@ -84,6 +98,12 @@ export default async function InventoryPage({
   }
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
+  const orderBy = sort
+    ? `${SORT_COLUMNS[sort]} ${dir.toUpperCase()} NULLS LAST`
+    : `CASE WHEN b.status = 'available' AND b.quantity_current > 0 THEN 0 ELSE 1 END,
+       b.quantity_current ASC,
+       pr.name ASC`;
+
   const rows = await all<BatchRow>(
     `SELECT b.id, b.batch_number, b.product_id, b.quantity_initial, b.quantity_current,
        b.price_per_unit, b.expiry_date, b.supplier, b.status,
@@ -92,10 +112,7 @@ export default async function InventoryPage({
      FROM batches b
      JOIN products pr ON pr.id = b.product_id
      ${whereSql}
-     ORDER BY
-       CASE WHEN b.status = 'available' AND b.quantity_current > 0 THEN 0 ELSE 1 END,
-       b.quantity_current ASC,
-       pr.name ASC`,
+     ORDER BY ${orderBy}`,
     ...params
   );
 
@@ -117,7 +134,7 @@ export default async function InventoryPage({
 
   const buildHref = (overrides: Record<string, string | undefined>) => {
     const sp = new URLSearchParams();
-    const merged = { q, filter, category, ...overrides };
+    const merged = { q, filter, category, sort: sort || undefined, dir: sort ? dir : undefined, ...overrides };
     for (const [k, v] of Object.entries(merged)) if (v) sp.set(k, v as string);
     return `?${sp.toString()}`;
   };
@@ -201,14 +218,14 @@ export default async function InventoryPage({
           <table className="table-clinical">
             <thead>
               <tr>
-                <th>Producto</th>
-                <th>Lote</th>
-                <th>Categoría</th>
-                <th className="text-right">Stock</th>
-                <th className="text-right">Precio</th>
-                <th>Vence</th>
-                <th>Proveedor</th>
-                <th>Estado</th>
+                <SortableHeader label="Producto" field="producto" currentSort={sort} currentDir={dir} buildHref={buildHref} />
+                <SortableHeader label="Lote" field="lote" currentSort={sort} currentDir={dir} buildHref={buildHref} />
+                <SortableHeader label="Categoría" field="categoria" currentSort={sort} currentDir={dir} buildHref={buildHref} />
+                <SortableHeader label="Stock" field="stock" currentSort={sort} currentDir={dir} buildHref={buildHref} align="right" />
+                <SortableHeader label="Precio" field="precio" currentSort={sort} currentDir={dir} buildHref={buildHref} align="right" />
+                <SortableHeader label="Vence" field="vence" currentSort={sort} currentDir={dir} buildHref={buildHref} />
+                <SortableHeader label="Proveedor" field="proveedor" currentSort={sort} currentDir={dir} buildHref={buildHref} />
+                <SortableHeader label="Estado" field="estado" currentSort={sort} currentDir={dir} buildHref={buildHref} />
               </tr>
             </thead>
             <tbody>
