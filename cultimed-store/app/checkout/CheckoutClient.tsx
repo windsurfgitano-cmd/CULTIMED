@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useCart } from "@/lib/cart";
+import { useCart, lineTotal } from "@/lib/cart";
 import { formatCLP } from "@/lib/format";
 import { calcShippingFee, FREE_SHIPPING_THRESHOLD, OUTLYING_SHIPPING_FEE, URBAN_SHIPPING_FEE } from "@/lib/shipping";
 import type { CustomerAccount } from "@/lib/auth";
@@ -188,7 +188,7 @@ export default function CheckoutClient({ customer }: { customer: CustomerAccount
                       <p className="text-[11px] font-mono text-ink-muted">×{it.quantity}</p>
                     </div>
                     <span className="text-sm font-mono nums-lining tabular-nums shrink-0">
-                      {formatCLP(it.unitPrice * it.quantity)}
+                      {formatCLP(lineTotal(it))}
                     </span>
                   </li>
                 ))}
