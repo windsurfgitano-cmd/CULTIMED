@@ -6,6 +6,8 @@ import { displayStrainName } from "@/lib/active-strains";
 import ProductCard from "@/components/ProductCard";
 import CatalogGate from "@/components/CatalogGate";
 import VariantPicker from "@/components/VariantPicker";
+import GramPricePicker from "@/components/GramPricePicker";
+import { parsePriceTiers } from "@/lib/pricing";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +19,7 @@ interface ProductFull {
   default_price: number; description: string | null; vendor: string | null;
   is_house_brand: number; is_preorder: number;
   image_url: string | null; strain_key: string | null;
+  price_tiers: unknown;
 }
 interface VariantRow {
   id: number; sku: string; presentation: string | null; default_price: number; total_stock: number;
@@ -60,6 +63,7 @@ export default async function ProductDetailPage({ params }: { params: { slug: st
 
   const totalStock = batches.reduce((s, b) => s + b.quantity_current, 0);
   const showPrice = canPurchase(customer);
+  const tiers = parsePriceTiers(product.price_tiers);
 
   // Hermanas (mismo strain_key) — agrupa variantes de gramaje en una sola publicación.
   // Solo cepas activas se muestran como switcher de gramaje.
@@ -220,12 +224,23 @@ export default async function ProductDetailPage({ params }: { params: { slug: st
               {/* Purchase / unlock block */}
               <div className="bg-paper-bright border border-rule p-6 lg:p-7">
                 {showPrice ? (
-                  <VariantPicker
-                    productName={cleanName}
-                    category={product.category}
-                    variants={siblingVariants}
-                    initialVariantId={product.id}
-                  />
+                  tiers ? (
+                    <GramPricePicker
+                      productId={product.id}
+                      sku={product.sku}
+                      productName={cleanName}
+                      presentation={product.presentation}
+                      tiers={tiers}
+                      totalStock={totalStock}
+                    />
+                  ) : (
+                    <VariantPicker
+                      productName={cleanName}
+                      category={product.category}
+                      variants={siblingVariants}
+                      initialVariantId={product.id}
+                    />
+                  )
                 ) : customer ? (
                   <>
                     <p className="eyebrow mb-3">— Validación pendiente</p>
