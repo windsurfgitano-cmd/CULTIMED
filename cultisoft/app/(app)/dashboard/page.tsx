@@ -1,25 +1,12 @@
 import Link from "next/link";
 import { requireStaff } from "@/lib/auth";
-import { all, get } from "@/lib/db";
+import { all } from "@/lib/db";
 import { formatCLP, formatTime, relativeTime, formatDate } from "@/lib/format";
-import KpiCard from "@/components/KpiCard";
+import { getDashboardCounts } from "@/lib/dashboard-counts";
+import LiveStatsGrid from "@/components/LiveStatsGrid";
 import PageHeader from "@/components/PageHeader";
 
 export const dynamic = "force-dynamic";
-
-interface Counts {
-  patients: number;
-  patientsActive: number;
-  newPatientsThisMonth: number;
-  todayWebOrders: number;
-  todayWebRevenue: number;
-  pendingWebOrders: number;
-  abandonedWebOrders: number;
-  pendingRx: number;
-  totalLowStock: number;
-  totalExpiringSoon: number;
-  pendingWebRx: number;
-}
 
 interface DocCompleteness {
   label: string;
@@ -63,24 +50,7 @@ export default async function DashboardPage({
   searchParams: { denied?: string };
 }) {
   const staff = await requireStaff();
-
-  const today = new Date();
-  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
-  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
-
-  const counts = {
-    patients: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM patients`))?.c ?? 0,
-    patientsActive: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM patients WHERE membership_status = 'active'`))?.c ?? 0,
-    newPatientsThisMonth: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM patients WHERE created_at >= ?`, monthStart))?.c ?? 0,
-    todayWebOrders: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM customer_orders WHERE created_at >= ? AND status NOT IN ('cancelled','rejected')`, todayStart))?.c ?? 0,
-    todayWebRevenue: (await get<{ s: number }>(`SELECT COALESCE(SUM(total), 0) as s FROM customer_orders WHERE created_at >= ? AND status NOT IN ('cancelled','rejected')`, todayStart))?.s ?? 0,
-    pendingWebOrders: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM customer_orders WHERE status IN ('proof_uploaded','preparing') OR (status = 'pending_payment' AND created_at >= CURRENT_TIMESTAMP - INTERVAL '7 days')`))?.c ?? 0,
-    abandonedWebOrders: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM customer_orders WHERE status = 'pending_payment' AND created_at < CURRENT_TIMESTAMP - INTERVAL '7 days'`))?.c ?? 0,
-    pendingRx: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM prescriptions WHERE status = 'pending'`))?.c ?? 0,
-    totalLowStock: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM batches WHERE status = 'available' AND quantity_current > 0 AND quantity_current <= 5`))?.c ?? 0,
-    totalExpiringSoon: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM batches WHERE status = 'available' AND expiry_date IS NOT NULL AND expiry_date <= CURRENT_DATE + INTERVAL '60 days'`))?.c ?? 0,
-    pendingWebRx: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM customer_accounts WHERE prescription_status = 'pending'`))?.c ?? 0,
-  } as Counts;
+  const counts = await getDashboardCounts();
 
   const docStats = await all<{ status: string; n: number }>(
     `SELECT
@@ -126,7 +96,7 @@ export default async function DashboardPage({
     LIMIT 5
   `);
 
-  const dateLabel = today.toLocaleDateString("es-CL", {
+  const dateLabel = new Date().toLocaleDateString("es-CL", {
     weekday: "long", day: "numeric", month: "long", year: "numeric",
   });
   const firstName = staff.full_name.split(" ")[0];
@@ -153,157 +123,7 @@ export default async function DashboardPage({
         }
       />
 
-      {/* ─── QF Review ─── */}
-      {counts.pendingWebRx > 0 && (
-        <section className="mb-10">
-          <Link
-            href="/web-prescriptions?status=pending"
-            className="group flex items-center gap-4 p-5 bg-warning-container/40 border-l-2 border-brass hover:bg-warning-container/60 transition-colors"
-          >
-            <span className="editorial-numeral text-base text-brass-dim/60 shrink-0">— QF</span>
-            <div className="flex-1 min-w-0">
-              <p className="eyebrow text-brass-dim">Validación QF pendiente</p>
-              <p className="font-display text-xl mt-1 leading-tight">
-                <span className="font-light">{counts.pendingWebRx}</span>{" "}
-                <span className="italic text-base text-ink-muted">
-                  {counts.pendingWebRx === 1 ? "paciente espera revisión de documentos" : "pacientes esperan revisión de documentos"}
-                </span>
-              </p>
-            </div>
-            <span className="text-ink-muted group-hover:translate-x-1 transition-transform shrink-0" aria-hidden>→</span>
-          </Link>
-        </section>
-      )}
-
-      {/* ─── Web orders ─── */}
-      {counts.pendingWebOrders > 0 && (
-        <section className="mb-10">
-          <Link
-            href="/web-orders"
-            className="group flex items-center gap-4 p-5 bg-forest/10 border-l-2 border-forest hover:bg-forest/15 transition-colors"
-          >
-            <span className="editorial-numeral text-base text-forest/60 shrink-0">— WEB</span>
-            <div className="flex-1 min-w-0">
-              <p className="eyebrow text-forest">Pedidos web por gestionar</p>
-              <p className="font-display text-xl mt-1 leading-tight">
-                <span className="font-light">{counts.pendingWebOrders}</span>{" "}
-                <span className="italic text-base text-ink-muted">
-                  {counts.pendingWebOrders === 1 ? "pedido esperando pago, preparación o envío" : "pedidos esperando pago, preparación o envío"}
-                </span>
-              </p>
-            </div>
-            <span className="text-ink-muted group-hover:translate-x-1 transition-transform shrink-0" aria-hidden>→</span>
-          </Link>
-        </section>
-      )}
-
-      {/* ─── Abandoned orders ─── */}
-      {counts.abandonedWebOrders > 0 && (
-        <section className="mb-10">
-          <Link
-            href="/web-orders?status=pending_payment"
-            className="group flex items-center gap-4 p-5 bg-paper-dim border-l-2 border-ink-subtle hover:bg-paper-bright transition-colors"
-          >
-            <span className="editorial-numeral text-base text-ink-subtle/60 shrink-0">— ABD</span>
-            <div className="flex-1 min-w-0">
-              <p className="eyebrow text-ink-muted">Pedidos abandonados</p>
-              <p className="font-display text-xl mt-1 leading-tight">
-                <span className="font-light">{counts.abandonedWebOrders}</span>{" "}
-                <span className="italic text-base text-ink-muted">
-                  {counts.abandonedWebOrders === 1 ? "pedido sin pago hace más de 7 días" : "pedidos sin pago hace más de 7 días"}
-                </span>
-              </p>
-            </div>
-            <span className="text-ink-muted group-hover:translate-x-1 transition-transform shrink-0" aria-hidden>→</span>
-          </Link>
-        </section>
-      )}
-
-      {/* ─── Alerts ─── */}
-      {(counts.totalLowStock > 0 || counts.pendingRx > 0 || counts.totalExpiringSoon > 0) && (
-        <section className="mb-10 grid gap-3 md:grid-cols-3">
-          {counts.totalLowStock > 0 && (
-            <Link href="/inventory?filter=low" className="group p-5 bg-error-container/40 border-l-2 border-sangria flex items-baseline gap-3 hover:bg-error-container/60 transition-colors">
-              <span className="editorial-numeral text-base text-sangria/60">— I</span>
-              <div className="flex-1 min-w-0">
-                <p className="eyebrow text-sangria">Stock bajo</p>
-                <p className="font-display text-xl mt-1 leading-tight">
-                  <span className="font-light">{counts.totalLowStock}</span>{" "}
-                  <span className="italic text-base text-ink-muted">
-                    {counts.totalLowStock === 1 ? "lote crítico" : "lotes críticos"}
-                  </span>
-                </p>
-              </div>
-              <span className="text-ink-muted group-hover:translate-x-1 transition-transform" aria-hidden>→</span>
-            </Link>
-          )}
-          {counts.pendingRx > 0 && (
-            <Link href="/prescriptions?status=pending" className="group p-5 bg-warning-container/40 border-l-2 border-brass flex items-baseline gap-3 hover:bg-warning-container/60 transition-colors">
-              <span className="editorial-numeral text-base text-brass-dim/60">— II</span>
-              <div className="flex-1 min-w-0">
-                <p className="eyebrow text-brass-dim">Recetas pendientes</p>
-                <p className="font-display text-xl mt-1 leading-tight">
-                  <span className="font-light">{counts.pendingRx}</span>{" "}
-                  <span className="italic text-base text-ink-muted">
-                    {counts.pendingRx === 1 ? "esperando QF" : "esperando QF"}
-                  </span>
-                </p>
-              </div>
-              <span className="text-ink-muted group-hover:translate-x-1 transition-transform" aria-hidden>→</span>
-            </Link>
-          )}
-          {counts.totalExpiringSoon > 0 && (
-            <Link href="/inventory?filter=expiring" className="group p-5 bg-warning-container/40 border-l-2 border-brass flex items-baseline gap-3 hover:bg-warning-container/60 transition-colors">
-              <span className="editorial-numeral text-base text-brass-dim/60">— III</span>
-              <div className="flex-1 min-w-0">
-                <p className="eyebrow text-brass-dim">Por vencer</p>
-                <p className="font-display text-xl mt-1 leading-tight">
-                  <span className="font-light">{counts.totalExpiringSoon}</span>{" "}
-                  <span className="italic text-base text-ink-muted">en menos de 60 días</span>
-                </p>
-              </div>
-              <span className="text-ink-muted group-hover:translate-x-1 transition-transform" aria-hidden>→</span>
-            </Link>
-          )}
-        </section>
-      )}
-
-      {/* ─── KPIs ─── */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5 mb-12">
-        <Link href="/patients" className="block">
-          <KpiCard
-            numeral="01"
-            label="Pacientes activos"
-            value={counts.patientsActive.toLocaleString("es-CL")}
-            delta={counts.newPatientsThisMonth > 0 ? { text: `+${counts.newPatientsThisMonth} este mes`, tone: "success" } : undefined}
-          />
-        </Link>
-        <Link href="/web-orders" className="block">
-          <KpiCard
-            numeral="02"
-            label="Pedidos web hoy"
-            value={counts.todayWebOrders}
-            delta={counts.todayWebRevenue > 0 ? { text: formatCLP(counts.todayWebRevenue), tone: "success" } : undefined}
-          />
-        </Link>
-        <Link href="/inventory?filter=low" className="block">
-          <KpiCard
-            numeral="03"
-            label="Stock bajo"
-            value={counts.totalLowStock}
-            delta={counts.totalLowStock > 0 ? { text: "Crítico", tone: "error" } : { text: "OK", tone: "success" }}
-            tone={counts.totalLowStock > 0 ? "warning" : "neutral"}
-          />
-        </Link>
-        <Link href="/prescriptions?status=pending" className="block">
-          <KpiCard
-            numeral="04"
-            label="Recetas pendientes"
-            value={counts.pendingRx}
-            delta={counts.pendingRx > 0 ? { text: "Acción", tone: "warning" } : { text: "Al día", tone: "success" }}
-          />
-        </Link>
-      </section>
+      <LiveStatsGrid initialCounts={counts} />
 
       {/* ─── Body grid ─── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-x-8 gap-y-12">
