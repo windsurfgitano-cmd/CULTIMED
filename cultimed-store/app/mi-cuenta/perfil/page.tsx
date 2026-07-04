@@ -5,11 +5,13 @@ import { get, run } from "@/lib/db";
 
 interface PatientData {
   id: number;
+  full_name: string;
   address: string | null;
   city: string | null;
   phone: string | null;
   emergency_contact_name: string | null;
   emergency_contact_phone: string | null;
+  name_edited_by_patient_at: string | null;
 }
 
 interface AccountDocs {
@@ -48,19 +50,39 @@ async function updateProfile(formData: FormData) {
   const ecName = String(formData.get("emergency_contact_name") || "").trim() || null;
   const ecPhone = String(formData.get("emergency_contact_phone") || "").trim() || null;
 
-  await run(
-    `UPDATE patients SET phone = ?, address = ?, city = ?,
-       emergency_contact_name = ?, emergency_contact_phone = ?,
-       updated_at = CURRENT_TIMESTAMP
-     WHERE id = ?`,
-    phone, address, city, ecName, ecPhone, customer.patient_id
+  const current = await get<{ name_edited_by_patient_at: string | null }>(
+    `SELECT name_edited_by_patient_at FROM patients WHERE id = ?`,
+    customer.patient_id
   );
+  const canEditName = !current?.name_edited_by_patient_at;
+  const newName = String(formData.get("full_name") || "").trim();
+
+  if (canEditName && newName) {
+    if (newName.length < 3) redirect("/mi-cuenta/perfil?e=name_too_short");
+    await run(
+      `UPDATE patients SET phone = ?, address = ?, city = ?,
+         emergency_contact_name = ?, emergency_contact_phone = ?,
+         full_name = ?, name_edited_by_patient_at = CURRENT_TIMESTAMP,
+         updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      phone, address, city, ecName, ecPhone, newName, customer.patient_id
+    );
+  } else {
+    await run(
+      `UPDATE patients SET phone = ?, address = ?, city = ?,
+         emergency_contact_name = ?, emergency_contact_phone = ?,
+         updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      phone, address, city, ecName, ecPhone, customer.patient_id
+    );
+  }
 
   redirect("/mi-cuenta/perfil?ok=1");
 }
 
 const ERR_MSG: Record<string, string> = {
   no_patient: "No encontramos tu ficha de paciente. Contacta a soporte.",
+  name_too_short: "El nombre debe tener al menos 3 caracteres.",
 };
 
 export default async function PerfilPage({ searchParams }: { searchParams: { ok?: string; e?: string } }) {
@@ -71,11 +93,13 @@ export default async function PerfilPage({ searchParams }: { searchParams: { ok?
   let patient: PatientData | null = null;
   if (customer.patient_id) {
     patient = (await get<PatientData>(
-      `SELECT id, address, city, phone, emergency_contact_name, emergency_contact_phone
+      `SELECT id, full_name, address, city, phone, emergency_contact_name, emergency_contact_phone,
+         name_edited_by_patient_at
        FROM patients WHERE id = ?`,
       customer.patient_id
     )) || null;
   }
+  const canEditName = Boolean(patient && !patient.name_edited_by_patient_at);
 
   const docs = await get<AccountDocs>(
     `SELECT prescription_status, id_front_url, id_back_url,
@@ -130,6 +154,37 @@ export default async function PerfilPage({ searchParams }: { searchParams: { ok?
         </div>
       ) : (
         <form action={updateProfile} className="max-w-xl space-y-7">
+          <div>
+            <label htmlFor="full_name" className="input-label">Nombre completo</label>
+            {canEditName ? (
+              <>
+                <input
+                  id="full_name" name="full_name"
+                  className="input-editorial"
+                  placeholder="Nombre y apellidos"
+                  defaultValue={patient.full_name || ""}
+                  minLength={3}
+                />
+                <p className="text-xs text-ink-muted mt-2">
+                  Puedes corregir tu nombre una sola vez. Después de guardar, para futuros cambios contáctanos.
+                </p>
+              </>
+            ) : (
+              <>
+                <input
+                  id="full_name_display"
+                  className="input-editorial opacity-60"
+                  value={patient.full_name || ""}
+                  disabled
+                  readOnly
+                />
+                <p className="text-xs text-ink-muted mt-2">
+                  Ya corregiste tu nombre una vez. Si necesitas otro cambio, escríbenos a contacto@dispensariocultimed.cl.
+                </p>
+              </>
+            )}
+          </div>
+
           <div>
             <label htmlFor="phone" className="input-label">Teléfono / WhatsApp</label>
             <input

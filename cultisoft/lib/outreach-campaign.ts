@@ -23,7 +23,7 @@ const DOC_FIELDS = [
   "rights_assignment_url",
 ] as const;
 
-const SKIP_EMAILS = new Set(["contacto@dispensariocultimed.cl", "rincondeoz@gmail.com"]);
+const STATIC_SKIP_EMAILS = new Set(["contacto@dispensariocultimed.cl"]);
 
 const TEMPLATE_PRIORITY: OutreachTemplate[] = [
   "register_account",
@@ -98,10 +98,10 @@ function hasUrl(value: string | null | undefined): boolean {
   return Boolean(value && String(value).trim());
 }
 
-function isValidEmail(email: string | null | undefined): boolean {
+function isValidEmail(email: string | null | undefined, skipEmails: Set<string>): boolean {
   if (!email) return false;
   const e = email.trim().toLowerCase();
-  if (SKIP_EMAILS.has(e)) return false;
+  if (skipEmails.has(e)) return false;
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 }
 
@@ -140,7 +140,8 @@ function resolveRecipient(
   accountsByPatient: Map<number, AccountRow[]>,
   validInternalSet: Set<number>,
   expiredInternalSet: Set<number>,
-  storeBase: string
+  storeBase: string,
+  skipEmails: Set<string>
 ): QueueItem | null {
   const linked = accountsByPatient.get(patient.id) || [];
   const primary = pickPrimaryAccount(linked);
@@ -152,7 +153,7 @@ function resolveRecipient(
 
   const candidates: QueueItem[] = [];
 
-  if (!linked.length && !hasValidRx && isValidEmail(patient.email)) {
+  if (!linked.length && !hasValidRx && isValidEmail(patient.email, skipEmails)) {
     candidates.push({
       patient,
       template: "register_account",
@@ -163,7 +164,7 @@ function resolveRecipient(
     });
   }
 
-  if (primary && (!primary.password_hash || primary.password_hash === "") && isValidEmail(primary.email)) {
+  if (primary && (!primary.password_hash || primary.password_hash === "") && isValidEmail(primary.email, skipEmails)) {
     candidates.push({
       patient,
       template: "activation_reminder",
@@ -179,7 +180,7 @@ function resolveRecipient(
   if (!hasValidRx && linked.length) {
     const cat = categorizeNoValidRx(linked, expiredInternalSet.has(patient.id));
     const email = primary?.email || patient.email;
-    if (isValidEmail(email) && cat !== "has_web_pending") {
+    if (isValidEmail(email, skipEmails) && cat !== "has_web_pending") {
       candidates.push({
         patient,
         template: cat === "has_web_rechazada" ? "resubmit_rx" : "upload_rx",
@@ -191,7 +192,7 @@ function resolveRecipient(
     }
   }
 
-  if (primary && criticalDocs.length && isValidEmail(primary.email || patient.email)) {
+  if (primary && criticalDocs.length && isValidEmail(primary.email || patient.email, skipEmails)) {
     candidates.push({
       patient,
       template: "upload_docs",
@@ -203,7 +204,7 @@ function resolveRecipient(
     });
   }
 
-  if (missingFields.length && isValidEmail(primary?.email || patient.email)) {
+  if (missingFields.length && isValidEmail(primary?.email || patient.email, skipEmails)) {
     const hasAccount = Boolean(primary?.password_hash);
     candidates.push({
       patient,
@@ -252,6 +253,15 @@ export async function runOutreachCampaign(opts: {
   const storeBase = opts.storeBase || process.env.NEXT_PUBLIC_STORE_URL || "https://dispensariocultimed.cl";
   const apply = opts.apply ?? false;
   const delayMs = opts.delayMs ?? 400;
+
+  // Excluye emails del propio equipo (staff) para no mandarles la campaña como si
+  // fueran pacientes reales — puede coincidir por cuentas compartidas o pacientes
+  // legacy de Shopify que resultaron ser el mismo staff.
+  const staffEmails = await sql<{ email: string }[]>`SELECT email FROM staff`;
+  const skipEmails = new Set([
+    ...STATIC_SKIP_EMAILS,
+    ...staffEmails.map((s) => s.email.trim().toLowerCase()),
+  ]);
 
   const patients = await sql<PatientRow[]>`
     SELECT id, full_name, rut, email, phone, date_of_birth, city
@@ -308,7 +318,8 @@ export async function runOutreachCampaign(opts: {
       accountsByPatient,
       validInternalSet,
       expiredInternalSet,
-      storeBase
+      storeBase,
+      skipEmails
     );
     if (!item) continue;
     if (segment !== "all" && item.segment !== segment) {
@@ -319,7 +330,7 @@ export async function runOutreachCampaign(opts: {
       skipped.cooldown++;
       continue;
     }
-    if (!isValidEmail(item.email)) {
+    if (!isValidEmail(item.email, skipEmails)) {
       skipped.no_email++;
       continue;
     }
