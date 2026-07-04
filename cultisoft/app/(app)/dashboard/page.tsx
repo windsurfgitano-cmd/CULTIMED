@@ -25,16 +25,28 @@ interface DocCompleteness {
   count: number;
 }
 
-interface RecentDispensation {
+interface RecentOrder {
   id: number;
   folio: string;
-  dispensed_at: string;
-  patient_name: string;
-  patient_rut: string;
+  created_at: string;
+  customer_name: string;
+  customer_email: string;
   product_summary: string;
-  total_amount: number;
-  dispenser_name: string;
+  total: number;
+  status: string;
 }
+
+const ORDER_STATUS_LABELS: Record<string, string> = {
+  pending_payment:  "Esperando comprobante",
+  proof_uploaded:   "Comprobante recibido",
+  paid:             "Pago confirmado",
+  preparing:        "Preparando",
+  ready_for_pickup: "Lista para retiro",
+  shipped:          "Despachada",
+  delivered:        "Entregada",
+  cancelled:        "Cancelada",
+  rejected:         "Comprobante rechazado",
+};
 
 interface LowStockBatch {
   batch_id: number;
@@ -90,17 +102,15 @@ export default async function DashboardPage({
     { label: "Sin documentos", count: docStatsMap.none || 0 },
   ];
 
-  const recent = await all<RecentDispensation>(`
-    SELECT d.id, d.folio, d.dispensed_at, d.total_amount,
-      p.full_name as patient_name, p.rut as patient_rut,
-      s.full_name as dispenser_name,
-      (SELECT STRING_AGG(pr.name || ' ×' || di.quantity, ', ')
-        FROM dispensation_items di JOIN products pr ON pr.id = di.product_id
-        WHERE di.dispensation_id = d.id) as product_summary
-    FROM dispensations d
-    JOIN patients p ON p.id = d.patient_id
-    JOIN staff s ON s.id = d.dispenser_id
-    ORDER BY d.dispensed_at DESC
+  const recentOrders = await all<RecentOrder>(`
+    SELECT o.id, o.folio, o.created_at, o.total, o.status,
+      c.full_name as customer_name, c.email as customer_email,
+      (SELECT STRING_AGG(pr.name || ' ×' || oi.quantity, ', ')
+        FROM customer_order_items oi JOIN products pr ON pr.id = oi.product_id
+        WHERE oi.order_id = o.id) as product_summary
+    FROM customer_orders o
+    JOIN customer_accounts c ON c.id = o.customer_account_id
+    ORDER BY o.created_at DESC
     LIMIT 8
   `);
 
@@ -135,8 +145,8 @@ export default async function DashboardPage({
         title={`Hola, ${firstName}`}
         subtitle="Resumen operacional del dispensario en tiempo real."
         actions={
-          <Link href="/dispensations/new" className="btn-primary">
-            <span aria-hidden>+</span> Nueva dispensación
+          <Link href="/web-orders" className="btn-primary">
+            <span aria-hidden>+</span> Ver pedidos web
           </Link>
         }
       />
@@ -265,21 +275,21 @@ export default async function DashboardPage({
 
       {/* ─── Body grid ─── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-x-8 gap-y-12">
-        {/* Recent dispensations */}
+        {/* Recent web orders */}
         <section className="lg:col-span-2">
           <div className="flex items-baseline justify-between mb-5">
             <div className="flex items-baseline gap-4">
               <span className="editorial-numeral text-base text-ink-subtle">— I</span>
-              <span className="eyebrow">Dispensaciones recientes</span>
+              <span className="eyebrow">Pedidos web recientes</span>
             </div>
-            <Link href="/dispensations" className="text-xs uppercase tracking-widest font-mono text-ink-muted hover:text-ink border-b border-transparent hover:border-ink/40 pb-0.5">
-              Ver todas →
+            <Link href="/web-orders" className="text-xs uppercase tracking-widest font-mono text-ink-muted hover:text-ink border-b border-transparent hover:border-ink/40 pb-0.5">
+              Ver todos →
             </Link>
           </div>
 
-          {recent.length === 0 ? (
+          {recentOrders.length === 0 ? (
             <div className="border-y border-rule py-16 text-center">
-              <p className="font-display text-2xl italic text-ink-muted">Sin dispensaciones aún.</p>
+              <p className="font-display text-2xl italic text-ink-muted">Sin pedidos aún.</p>
             </div>
           ) : (
             <div className="border-y border-rule overflow-x-auto">
@@ -290,27 +300,27 @@ export default async function DashboardPage({
                     <th>Paciente</th>
                     <th>Producto</th>
                     <th className="text-right">Total</th>
-                    <th className="text-right">Operador</th>
+                    <th className="text-right">Estado</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {recent.map((r) => (
+                  {recentOrders.map((r) => (
                     <tr key={r.id}>
                       <td className="font-mono text-[12px] text-ink-muted whitespace-nowrap nums-lining">
-                        <div>{formatTime(r.dispensed_at)}</div>
-                        <div className="text-[10px] text-ink-subtle">{relativeTime(r.dispensed_at)}</div>
+                        <div>{formatTime(r.created_at)}</div>
+                        <div className="text-[10px] text-ink-subtle">{relativeTime(r.created_at)}</div>
                       </td>
                       <td>
-                        <Link href={`/dispensations/${r.id}`} className="font-display text-base hover:italic transition-all">
-                          {r.patient_name}
+                        <Link href={`/web-orders/${r.id}`} className="font-display text-base hover:italic transition-all">
+                          {r.customer_name || r.customer_email}
                         </Link>
-                        <div className="text-[11px] text-ink-muted font-mono nums-lining">{r.patient_rut}</div>
+                        <div className="text-[11px] text-ink-muted font-mono nums-lining">{r.customer_email}</div>
                       </td>
                       <td className="text-sm max-w-md">{r.product_summary || "—"}</td>
                       <td className="text-right font-mono tabular-nums nums-lining whitespace-nowrap">
-                        {formatCLP(r.total_amount)}
+                        {formatCLP(r.total)}
                       </td>
-                      <td className="text-right text-xs text-ink-muted italic whitespace-nowrap">{r.dispenser_name}</td>
+                      <td className="text-right text-xs text-ink-muted italic whitespace-nowrap">{ORDER_STATUS_LABELS[r.status] || r.status}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -328,7 +338,7 @@ export default async function DashboardPage({
             </div>
             <div className="space-y-2">
               {[
-                { href: "/dispensations/new", label: "Nueva dispensación", num: "01" },
+                { href: "/web-orders",        label: "Pedidos web",        num: "01" },
                 { href: "/patients/new",      label: "Registrar paciente", num: "02" },
                 { href: "/prescriptions/new", label: "Cargar receta",      num: "03" },
               ].map((a) => (

@@ -24,18 +24,17 @@ const NAV: NavItem[] = [
       { href: "/patients/outreach", label: "Campaña datos", roles: ["admin", "superadmin"] },
     ],
   },
-  { n: "03", href: "/dispensations",     label: "Dispensaciones" },
-  { n: "04", href: "/web-orders",        label: "Pedidos web" },
-  { n: "05", href: "/prescriptions",     label: "Recetas" },
-  { n: "06", href: "/web-prescriptions", label: "Recetas web" },
-  { n: "07", href: "/products",          label: "Productos" },
-  { n: "08", href: "/inventory",         label: "Inventario" },
-  { n: "09", href: "/reports",           label: "Reportes" },
-  { n: "10", href: "/ambassadors",       label: "Embajadores" },
+  { n: "03", href: "/web-orders",        label: "Pedidos web" },
+  { n: "04", href: "/prescriptions",     label: "Recetas" },
+  { n: "05", href: "/web-prescriptions", label: "Recetas web" },
+  { n: "06", href: "/products",          label: "Productos" },
+  { n: "07", href: "/inventory",         label: "Inventario" },
+  { n: "08", href: "/reports",           label: "Reportes" },
+  { n: "09", href: "/ambassadors",       label: "Embajadores" },
 ];
 
 const SYSTEM = [
-  { n: "11", href: "/admin", label: "Super Admin", adminOnly: true },
+  { n: "10", href: "/admin", label: "Super Admin", adminOnly: true },
 ];
 
 function NavList({ role, onNav }: { role: StaffRole; onNav?: () => void }) {
