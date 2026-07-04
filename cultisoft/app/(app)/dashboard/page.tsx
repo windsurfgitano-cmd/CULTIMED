@@ -14,6 +14,7 @@ interface Counts {
   todayWebOrders: number;
   todayWebRevenue: number;
   pendingWebOrders: number;
+  abandonedWebOrders: number;
   pendingRx: number;
   totalLowStock: number;
   totalExpiringSoon: number;
@@ -73,7 +74,8 @@ export default async function DashboardPage({
     newPatientsThisMonth: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM patients WHERE created_at >= ?`, monthStart))?.c ?? 0,
     todayWebOrders: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM customer_orders WHERE created_at >= ? AND status NOT IN ('cancelled','rejected')`, todayStart))?.c ?? 0,
     todayWebRevenue: (await get<{ s: number }>(`SELECT COALESCE(SUM(total), 0) as s FROM customer_orders WHERE created_at >= ? AND status NOT IN ('cancelled','rejected')`, todayStart))?.s ?? 0,
-    pendingWebOrders: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM customer_orders WHERE status IN ('pending_payment','proof_uploaded','preparing')`))?.c ?? 0,
+    pendingWebOrders: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM customer_orders WHERE status IN ('proof_uploaded','preparing') OR (status = 'pending_payment' AND created_at >= CURRENT_TIMESTAMP - INTERVAL '7 days')`))?.c ?? 0,
+    abandonedWebOrders: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM customer_orders WHERE status = 'pending_payment' AND created_at < CURRENT_TIMESTAMP - INTERVAL '7 days'`))?.c ?? 0,
     pendingRx: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM prescriptions WHERE status = 'pending'`))?.c ?? 0,
     totalLowStock: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM batches WHERE status = 'available' AND quantity_current > 0 AND quantity_current <= 5`))?.c ?? 0,
     totalExpiringSoon: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM batches WHERE status = 'available' AND expiry_date IS NOT NULL AND expiry_date <= CURRENT_DATE + INTERVAL '60 days'`))?.c ?? 0,
@@ -187,6 +189,28 @@ export default async function DashboardPage({
                 <span className="font-light">{counts.pendingWebOrders}</span>{" "}
                 <span className="italic text-base text-ink-muted">
                   {counts.pendingWebOrders === 1 ? "pedido esperando pago, preparación o envío" : "pedidos esperando pago, preparación o envío"}
+                </span>
+              </p>
+            </div>
+            <span className="text-ink-muted group-hover:translate-x-1 transition-transform shrink-0" aria-hidden>→</span>
+          </Link>
+        </section>
+      )}
+
+      {/* ─── Abandoned orders ─── */}
+      {counts.abandonedWebOrders > 0 && (
+        <section className="mb-10">
+          <Link
+            href="/web-orders?status=pending_payment"
+            className="group flex items-center gap-4 p-5 bg-paper-dim border-l-2 border-ink-subtle hover:bg-paper-bright transition-colors"
+          >
+            <span className="editorial-numeral text-base text-ink-subtle/60 shrink-0">— ABD</span>
+            <div className="flex-1 min-w-0">
+              <p className="eyebrow text-ink-muted">Pedidos abandonados</p>
+              <p className="font-display text-xl mt-1 leading-tight">
+                <span className="font-light">{counts.abandonedWebOrders}</span>{" "}
+                <span className="italic text-base text-ink-muted">
+                  {counts.abandonedWebOrders === 1 ? "pedido sin pago hace más de 7 días" : "pedidos sin pago hace más de 7 días"}
                 </span>
               </p>
             </div>
