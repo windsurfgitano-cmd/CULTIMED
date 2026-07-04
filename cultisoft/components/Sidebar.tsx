@@ -25,13 +25,25 @@ const NAV: NavItem[] = [
     ],
   },
   { n: "03", href: "/web-orders",        label: "Pedidos web" },
-  { n: "04", href: "/prescriptions",     label: "Recetas" },
-  { n: "05", href: "/web-prescriptions", label: "Recetas web" },
-  { n: "06", href: "/doctors",           label: "Doctores" },
-  { n: "07", href: "/products",          label: "Productos" },
-  { n: "08", href: "/inventory",         label: "Inventario" },
-  { n: "09", href: "/reports",           label: "Reportes" },
-  { n: "10", href: "/ambassadors",       label: "Embajadores" },
+  {
+    n: "04",
+    href: "/web-prescriptions",
+    label: "Recetas web",
+    subItems: [
+      { href: "/prescriptions", label: "Recetas internas", roles: ["admin", "superadmin", "doctor", "pharmacist"] },
+      { href: "/doctors", label: "Doctores", roles: ["admin", "superadmin", "doctor", "pharmacist"] },
+    ],
+  },
+  {
+    n: "05",
+    href: "/products",
+    label: "Productos",
+    subItems: [
+      { href: "/inventory", label: "Inventario", roles: ["admin", "superadmin", "pharmacist"] },
+    ],
+  },
+  { n: "06", href: "/reports",           label: "Reportes" },
+  { n: "07", href: "/ambassadors",       label: "Embajadores" },
 ];
 
 const SYSTEM = [
