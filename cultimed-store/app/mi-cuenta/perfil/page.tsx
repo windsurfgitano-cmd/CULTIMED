@@ -2,6 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireCustomer } from "@/lib/auth";
 import { get, run } from "@/lib/db";
+import DocumentUpload from "@/components/DocumentUpload";
+import type { UploadTarget } from "@/lib/client-upload";
 
 interface PatientData {
   id: number;
@@ -24,13 +26,24 @@ interface AccountDocs {
   prescription_reviewer_notes: string | null;
 }
 
-const DOC_LABELS: { key: keyof AccountDocs; label: string }[] = [
+const DOC_LABELS: {
+  key: "id_front_url" | "id_back_url" | "criminal_record_url" | "prescription_url" | "rights_assignment_url";
+  label: string;
+}[] = [
   { key: "id_front_url", label: "Carnet por delante" },
   { key: "id_back_url", label: "Carnet por detrás" },
   { key: "criminal_record_url", label: "Antecedentes penales" },
   { key: "prescription_url", label: "Receta médica" },
   { key: "rights_assignment_url", label: "Comprobante de depósito" },
 ];
+
+const DOC_TARGET_MAP: Record<(typeof DOC_LABELS)[number]["key"], Exclude<UploadTarget, "payment_proof">> = {
+  id_front_url: "id_front",
+  id_back_url: "id_back",
+  criminal_record_url: "criminal_record",
+  prescription_url: "prescription",
+  rights_assignment_url: "rights_assignment",
+};
 
 const STATUS_META: Record<string, { label: string; cls: string }> = {
   pending:   { label: "Pendiente",  cls: "pill-warning" },
@@ -279,26 +292,21 @@ export default async function PerfilPage({ searchParams }: { searchParams: { ok?
             </div>
           )}
 
-          <div className="space-y-3">
-            {DOC_LABELS.map((d) => {
-              const uploaded = Boolean(docs[d.key]);
-              return (
-                <div key={d.key} className="flex items-center justify-between py-3 border-b border-rule-soft">
-                  <span className="text-sm text-ink">{d.label}</span>
-                  <span className={`text-xs font-mono ${uploaded ? "text-forest" : "text-ink-subtle"}`}>
-                    {uploaded ? "Subido" : "Falta"}
-                  </span>
-                </div>
-              );
-            })}
+          <div className="space-y-0">
+            {DOC_LABELS.map((d) => (
+              <DocumentUpload
+                key={d.key}
+                target={DOC_TARGET_MAP[d.key]}
+                label={d.label}
+                uploaded={Boolean(docs[d.key])}
+              />
+            ))}
           </div>
 
           <p className="text-xs text-ink-muted mt-6 leading-relaxed">
-            Si falta algún documento, súbelo desde{" "}
-            <Link href="/mi-cuenta/recetas" className="underline underline-offset-4 hover:text-ink">
-              Mis recetas
-            </Link>
-            . La documentación completa es necesaria para acceder al catálogo.
+            Puedes subir o reemplazar cualquier documento directamente aquí. La documentación
+            completa es necesaria para acceder al catálogo; una receta reemplazada vuelve a
+            quedar pendiente de revisión por nuestro QF.
           </p>
         </section>
       )}
