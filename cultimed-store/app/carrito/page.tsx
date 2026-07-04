@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCart } from "@/lib/cart";
+import { useCart, lineTotal } from "@/lib/cart";
 import { formatCLP } from "@/lib/format";
 
 export default function CartPage() {
@@ -52,7 +52,7 @@ export default function CartPage() {
                     </div>
                   </div>
                   <div className="col-span-6 sm:col-span-2 sm:text-right mt-3 sm:mt-0">
-                    <p className="font-mono text-base nums-lining tabular-nums">{formatCLP(it.unitPrice * it.quantity)}</p>
+                    <p className="font-mono text-base nums-lining tabular-nums">{formatCLP(lineTotal(it))}</p>
                   </div>
                   <div className="col-span-12 sm:col-span-1 sm:text-right">
                     <button
