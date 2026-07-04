@@ -59,6 +59,9 @@ yarn-error.log*
 **/.parcel-cache/
 **/coverage/
 
+# ---- Git worktrees (workspaces aislados para subagentes) -------
+.worktrees/
+
 # ---- IDE / OS --------------------------------------------------
 .DS_Store
 .idea/
