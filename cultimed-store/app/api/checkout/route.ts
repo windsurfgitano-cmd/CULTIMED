@@ -4,6 +4,7 @@ import { transaction, get } from "@/lib/db";
 import { getActiveConversionForReferred, REFERRED_DISCOUNT_BPS } from "@/lib/referrals";
 import { calcPaymentDiscount } from "@/lib/payments";
 import { calcShippingFee } from "@/lib/shipping";
+import { calcularPrecioGramos, parsePriceTiers } from "@/lib/pricing";
 
 interface CheckoutPayload {
   shipping_method?: "courier";
@@ -48,8 +49,8 @@ export async function POST(req: NextRequest) {
   const outOfStock: string[] = [];
 
   for (const it of body.items) {
-    const product = await get<{ default_price: number; name: string }>(
-      `SELECT default_price, name FROM products WHERE id = ? AND is_active = 1 AND shopify_status = 'active'`,
+    const product = await get<{ default_price: number; name: string; price_tiers: unknown }>(
+      `SELECT default_price, name, price_tiers FROM products WHERE id = ? AND is_active = 1 AND shopify_status = 'active'`,
       it.productId
     );
     if (!product) continue;
@@ -66,12 +67,14 @@ export async function POST(req: NextRequest) {
       continue;
     }
 
-    const total = product.default_price * it.quantity;
+    const tiers = parsePriceTiers(product.price_tiers);
+    const total = tiers ? calcularPrecioGramos(it.quantity, tiers) : product.default_price * it.quantity;
+    const unitPrice = tiers ? Math.round(total / it.quantity) : product.default_price;
     subtotal += total;
     validatedItems.push({
       productId: it.productId,
       qty: it.quantity,
-      unitPrice: product.default_price,
+      unitPrice,
       total,
       name: product.name,
     });
