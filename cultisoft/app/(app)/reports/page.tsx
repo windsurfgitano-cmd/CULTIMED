@@ -8,11 +8,10 @@ export const dynamic = "force-dynamic";
 
 interface DailySales { day: string; count: number; total: number; }
 interface TopProduct { product_name: string; sku: string; total_qty: number; total_revenue: number; }
-interface TopPatient { patient_id: number; patient_name: string; rut: string; total_count: number; total_spent: number; }
+interface TopCustomer { account_id: number; full_name: string; email: string; total_count: number; total_spent: number; }
 interface CategoryBreakdown { category: string; count: number; total: number; }
 interface PaymentBreakdown { payment_method: string; count: number; total: number; }
-interface StaffBreakdown { staff_name: string; count: number; total: number; }
-interface ChannelDay { day: string; presencial: number; web: number; }
+interface ConfirmedByBreakdown { staff_name: string; count: number; total: number; }
 
 const CATEGORY_LABELS: Record<string, string> = {
   flores: "Flores",
@@ -31,85 +30,48 @@ export default async function ReportsPage({
   await requireReportsRole();
   const days = Math.min(365, Math.max(7, parseInt(searchParams.range || "30", 10) || 30));
 
-  const dateFilter = `d.dispensed_at >= NOW() - (INTERVAL '1 day' * ${days}) AND d.status = 'completed'`;
-  const webDateFilter = `o.created_at >= NOW() - (INTERVAL '1 day' * ${days}) AND o.status NOT IN ('cancelled', 'rejected')`;
+  const dateFilter = `o.created_at >= NOW() - (INTERVAL '1 day' * ${days}) AND o.status NOT IN ('cancelled', 'rejected')`;
 
   const totals = await get<{ count: number; total: number; avg: number }>(
-    `SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total, COALESCE(AVG(total_amount), 0) as avg
-     FROM dispensations d WHERE ${dateFilter}`
-  );
-
-  const webTotals = await get<{ count: number; total: number; avg: number }>(
     `SELECT COUNT(*) as count, COALESCE(SUM(total), 0) as total, COALESCE(AVG(total), 0) as avg
-     FROM customer_orders o WHERE ${webDateFilter}`
+     FROM customer_orders o WHERE ${dateFilter}`
   );
-
-  const combinedTotal = Number(totals?.total || 0) + Number(webTotals?.total || 0);
-  const combinedCount = Number(totals?.count || 0) + Number(webTotals?.count || 0);
 
   const byDay = await all<DailySales>(
-    `SELECT d.dispensed_at::date as day, COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total
-     FROM dispensations d
-     WHERE ${dateFilter}
-     GROUP BY d.dispensed_at::date
-     ORDER BY day ASC`
-  );
-
-  const webByDay = await all<DailySales>(
     `SELECT o.created_at::date as day, COUNT(*) as count, COALESCE(SUM(total), 0) as total
      FROM customer_orders o
-     WHERE ${webDateFilter}
+     WHERE ${dateFilter}
      GROUP BY o.created_at::date
      ORDER BY day ASC`
   );
 
-  const channelByDayMap = new Map<string, ChannelDay>();
-  for (const b of byDay) {
-    channelByDayMap.set(b.day, { day: b.day, presencial: Number(b.total), web: 0 });
-  }
-  for (const w of webByDay) {
-    const existing = channelByDayMap.get(w.day);
-    if (existing) existing.web = Number(w.total);
-    else channelByDayMap.set(w.day, { day: w.day, presencial: 0, web: Number(w.total) });
-  }
-  const channelByDay = [...channelByDayMap.values()].sort((a, b) => a.day.localeCompare(b.day));
-
   const topProducts = await all<TopProduct>(
-    `SELECT product_name, sku, SUM(total_qty) as total_qty, SUM(total_revenue) as total_revenue
-     FROM (
-       SELECT pr.id as pid, pr.name as product_name, pr.sku, di.quantity as total_qty, di.total_price as total_revenue
-       FROM dispensation_items di
-       JOIN dispensations d ON d.id = di.dispensation_id
-       JOIN products pr ON pr.id = di.product_id
-       WHERE ${dateFilter}
-       UNION ALL
-       SELECT pr.id as pid, pr.name as product_name, pr.sku, oi.quantity as total_qty, oi.total_price as total_revenue
-       FROM customer_order_items oi
-       JOIN customer_orders o ON o.id = oi.order_id
-       JOIN products pr ON pr.id = oi.product_id
-       WHERE ${webDateFilter}
-     ) combined
-     GROUP BY pid, product_name, sku
+    `SELECT pr.name as product_name, pr.sku, SUM(oi.quantity) as total_qty, SUM(oi.total_price) as total_revenue
+     FROM customer_order_items oi
+     JOIN customer_orders o ON o.id = oi.order_id
+     JOIN products pr ON pr.id = oi.product_id
+     WHERE ${dateFilter}
+     GROUP BY pr.id
      ORDER BY total_revenue DESC
      LIMIT 10`
   );
 
-  const topPatients = await all<TopPatient>(
-    `SELECT p.id as patient_id, p.full_name as patient_name, p.rut,
-       COUNT(d.id) as total_count, COALESCE(SUM(d.total_amount), 0) as total_spent
-     FROM dispensations d
-     JOIN patients p ON p.id = d.patient_id
+  const topCustomers = await all<TopCustomer>(
+    `SELECT c.id as account_id, c.full_name, c.email,
+       COUNT(o.id) as total_count, COALESCE(SUM(o.total), 0) as total_spent
+     FROM customer_orders o
+     JOIN customer_accounts c ON c.id = o.customer_account_id
      WHERE ${dateFilter}
-     GROUP BY p.id
+     GROUP BY c.id
      ORDER BY total_spent DESC
      LIMIT 10`
   );
 
   const byCategory = await all<CategoryBreakdown>(
-    `SELECT pr.category, COUNT(DISTINCT d.id) as count, SUM(di.total_price) as total
-     FROM dispensation_items di
-     JOIN dispensations d ON d.id = di.dispensation_id
-     JOIN products pr ON pr.id = di.product_id
+    `SELECT pr.category, COUNT(DISTINCT o.id) as count, SUM(oi.total_price) as total
+     FROM customer_order_items oi
+     JOIN customer_orders o ON o.id = oi.order_id
+     JOIN products pr ON pr.id = oi.product_id
      WHERE ${dateFilter}
      GROUP BY pr.category
      ORDER BY total DESC`
@@ -117,17 +79,17 @@ export default async function ReportsPage({
 
   const byPayment = await all<PaymentBreakdown>(
     `SELECT COALESCE(payment_method, 'sin_datos') as payment_method,
-       COUNT(*) as count, SUM(total_amount) as total
-     FROM dispensations d
+       COUNT(*) as count, SUM(total) as total
+     FROM customer_orders o
      WHERE ${dateFilter}
      GROUP BY payment_method
      ORDER BY total DESC`
   );
 
-  const byStaff = await all<StaffBreakdown>(
-    `SELECT s.full_name as staff_name, COUNT(d.id) as count, SUM(d.total_amount) as total
-     FROM dispensations d
-     JOIN staff s ON s.id = d.dispenser_id
+  const byConfirmedBy = await all<ConfirmedByBreakdown>(
+    `SELECT s.full_name as staff_name, COUNT(o.id) as count, SUM(o.total) as total
+     FROM customer_orders o
+     JOIN staff s ON s.id = o.payment_confirmed_by
      WHERE ${dateFilter}
      GROUP BY s.id
      ORDER BY total DESC`
@@ -137,7 +99,7 @@ export default async function ReportsPage({
     `SELECT COUNT(*) as c FROM patients WHERE created_at >= NOW() - (INTERVAL '1 day' * ${days})`
   ))?.c || 0;
 
-  const maxDay = Math.max(1, ...channelByDay.map((b) => b.presencial + b.web));
+  const maxDay = Math.max(1, ...byDay.map((b) => Number(b.total)));
   const maxCat = Math.max(1, ...byCategory.map((b) => Number(b.total)));
 
   return (
@@ -166,45 +128,36 @@ export default async function ReportsPage({
 
       {/* High-level KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-7">
-        <Tile label="Ingresos totales" value={formatCLP(combinedTotal)} icon="payments" />
-        <Tile label="Ventas" value={formatNumber(combinedCount)} icon="receipt_long" />
-        <Tile label="Presencial" value={formatCLP(totals?.total || 0)} icon="medication" sub={`${formatNumber(totals?.count || 0)} dispensaciones`} />
-        <Tile label="Web" value={formatCLP(webTotals?.total || 0)} icon="shopping_cart" sub={`${formatNumber(webTotals?.count || 0)} pedidos`} />
+        <Tile label="Ingresos totales" value={formatCLP(totals?.total || 0)} icon="payments" />
+        <Tile label="Pedidos" value={formatNumber(totals?.count || 0)} icon="shopping_cart" />
+        <Tile label="Ticket promedio" value={formatCLP(Math.round(totals?.avg || 0))} icon="receipt" />
+        <Tile label="Nuevos pacientes" value={formatNumber(newPatients)} icon="person_add" />
       </div>
 
       {/* Daily chart */}
       <div className="clinical-card p-6 mb-7">
         <h2 className="text-base font-bold text-on-surface mb-1">Ingresos diarios</h2>
-        <p className="text-xs text-on-surface-variant mb-3">Total por día (CLP) — presencial + web</p>
-        <div className="flex items-center gap-4 mb-4 text-[11px] text-on-surface-variant">
-          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-primary/80 inline-block" />Presencial</span>
-          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-tertiary/70 inline-block" />Web</span>
-        </div>
-        {channelByDay.length === 0 ? (
+        <p className="text-xs text-on-surface-variant mb-5">Total vendido por día (CLP)</p>
+        {byDay.length === 0 ? (
           <p className="text-sm text-on-surface-variant text-center py-8">No hay datos en el rango seleccionado.</p>
         ) : (
           <div className="grid grid-cols-[repeat(auto-fit,minmax(20px,1fr))] gap-1 items-end h-48">
-            {channelByDay.map((b) => {
-              const hPres = (b.presencial / maxDay) * 100;
-              const hWeb = (b.web / maxDay) * 100;
+            {byDay.map((b) => {
+              const h = (Number(b.total) / maxDay) * 100;
               return (
-                <div
-                  key={b.day}
-                  className="flex flex-col items-center justify-end h-full group"
-                  title={`${b.day}: ${formatCLP(b.presencial + b.web)} (presencial ${formatCLP(b.presencial)} · web ${formatCLP(b.web)})`}
-                >
-                  <div className="w-full flex flex-col justify-end" style={{ height: "100%" }}>
-                    <div className="w-full bg-tertiary/70 hover:bg-tertiary transition-all" style={{ height: `${hWeb}%` }} />
-                    <div className="w-full bg-primary/80 hover:bg-primary rounded-t transition-all" style={{ height: `${Math.max(b.presencial > 0 || b.web === 0 ? 2 : 0, hPres)}%` }} />
-                  </div>
+                <div key={b.day} className="flex flex-col items-center justify-end h-full group" title={`${b.day}: ${formatCLP(b.total)} (${b.count} pedidos)`}>
+                  <div
+                    className="w-full bg-primary/80 hover:bg-primary rounded-t transition-all"
+                    style={{ height: `${Math.max(2, h)}%` }}
+                  />
                 </div>
               );
             })}
           </div>
         )}
         <div className="flex justify-between text-[10px] text-on-surface-variant mt-2 font-mono">
-          <span>{channelByDay[0]?.day}</span>
-          <span>{channelByDay[channelByDay.length - 1]?.day}</span>
+          <span>{byDay[0]?.day}</span>
+          <span>{byDay[byDay.length - 1]?.day}</span>
         </div>
       </div>
 
@@ -212,7 +165,7 @@ export default async function ReportsPage({
         {/* Top products */}
         <div className="clinical-card p-6">
           <h2 className="text-base font-bold text-on-surface mb-1">Top productos</h2>
-          <p className="text-xs text-on-surface-variant mb-4">Ordenados por ingresos · presencial + web</p>
+          <p className="text-xs text-on-surface-variant mb-4">Ordenados por ingresos</p>
           {topProducts.length === 0 ? (
             <p className="text-sm text-on-surface-variant py-4">Sin datos.</p>
           ) : (
@@ -233,26 +186,24 @@ export default async function ReportsPage({
           )}
         </div>
 
-        {/* Top patients */}
+        {/* Top customers */}
         <div className="clinical-card p-6">
-          <h2 className="text-base font-bold text-on-surface mb-1">Pacientes top (presencial)</h2>
+          <h2 className="text-base font-bold text-on-surface mb-1">Pacientes top</h2>
           <p className="text-xs text-on-surface-variant mb-4">Mayor gasto en el periodo</p>
-          {topPatients.length === 0 ? (
+          {topCustomers.length === 0 ? (
             <p className="text-sm text-on-surface-variant py-4">Sin datos.</p>
           ) : (
             <ol className="space-y-2.5">
-              {topPatients.map((p, i) => (
-                <li key={p.patient_id} className="flex items-center gap-3">
+              {topCustomers.map((c, i) => (
+                <li key={c.account_id} className="flex items-center gap-3">
                   <span className="w-6 h-6 rounded-full bg-tertiary-container/30 text-tertiary flex items-center justify-center text-xs font-bold">
                     {i + 1}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <Link href={`/patients/${p.patient_id}`} className="text-sm font-medium text-on-surface hover:text-primary truncate block">
-                      {p.patient_name}
-                    </Link>
-                    <p className="text-[11px] text-on-surface-variant font-mono">{p.rut} · {p.total_count} disp.</p>
+                    <p className="text-sm font-medium text-on-surface truncate">{c.full_name || c.email}</p>
+                    <p className="text-[11px] text-on-surface-variant font-mono truncate">{c.email} · {c.total_count} pedidos</p>
                   </div>
-                  <span className="text-sm font-mono tabular-nums">{formatCLP(p.total_spent)}</span>
+                  <span className="text-sm font-mono tabular-nums">{formatCLP(c.total_spent)}</span>
                 </li>
               ))}
             </ol>
@@ -263,7 +214,7 @@ export default async function ReportsPage({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-7">
         {/* Category breakdown */}
         <div className="clinical-card p-6 lg:col-span-2">
-          <h2 className="text-base font-bold text-on-surface mb-1">Por categoría (presencial)</h2>
+          <h2 className="text-base font-bold text-on-surface mb-1">Por categoría</h2>
           <p className="text-xs text-on-surface-variant mb-4">Distribución de ingresos por tipo de producto</p>
           {byCategory.length === 0 ? (
             <p className="text-sm text-on-surface-variant py-4">Sin datos.</p>
@@ -287,10 +238,10 @@ export default async function ReportsPage({
           )}
         </div>
 
-        {/* Payment + staff */}
+        {/* Payment + confirmed by */}
         <div className="space-y-6">
           <div className="clinical-card p-6">
-            <h2 className="text-base font-bold text-on-surface mb-3">Por método de pago (presencial)</h2>
+            <h2 className="text-base font-bold text-on-surface mb-3">Por método de pago</h2>
             {byPayment.length === 0 ? (
               <p className="text-sm text-on-surface-variant">Sin datos.</p>
             ) : (
@@ -309,12 +260,12 @@ export default async function ReportsPage({
           </div>
 
           <div className="clinical-card p-6">
-            <h2 className="text-base font-bold text-on-surface mb-3">Por operador (presencial)</h2>
-            {byStaff.length === 0 ? (
+            <h2 className="text-base font-bold text-on-surface mb-3">Pagos confirmados por</h2>
+            {byConfirmedBy.length === 0 ? (
               <p className="text-sm text-on-surface-variant">Sin datos.</p>
             ) : (
               <ul className="space-y-2">
-                {byStaff.map((s) => (
+                {byConfirmedBy.map((s) => (
                   <li key={s.staff_name} className="flex items-center justify-between text-sm">
                     <span className="text-on-surface truncate">{s.staff_name}</span>
                     <div className="text-right whitespace-nowrap">
@@ -336,7 +287,7 @@ export default async function ReportsPage({
   );
 }
 
-function Tile({ label, value, icon, sub }: { label: string; value: string; icon: string; sub?: string }) {
+function Tile({ label, value, icon }: { label: string; value: string; icon: string }) {
   return (
     <div className="clinical-card p-5 flex items-center gap-4">
       <div className="w-12 h-12 rounded-xl bg-primary-fixed/40 text-primary flex items-center justify-center">
@@ -345,7 +296,6 @@ function Tile({ label, value, icon, sub }: { label: string; value: string; icon:
       <div>
         <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">{label}</p>
         <p className="text-2xl font-light text-on-surface tabular-nums mt-0.5">{value}</p>
-        {sub && <p className="text-[11px] text-on-surface-variant mt-0.5">{sub}</p>}
       </div>
     </div>
   );

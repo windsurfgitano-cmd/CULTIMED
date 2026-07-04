@@ -12,7 +12,7 @@ export default async function ManualPage() {
         numeral="MN"
         eyebrow="Manual de operación · v1.0"
         title="Manual del dispensario"
-        subtitle="El flujo completo del trabajo diario en Cultimed: desde un paciente nuevo hasta una orden entregada con WhatsApp y trazabilidad. Este documento es imprimible — botón superior."
+        subtitle="El flujo completo del trabajo diario en Cultimed: desde un paciente nuevo hasta un pedido entregado con WhatsApp y trazabilidad. Este documento es imprimible — botón superior."
         actions={<PrintButton>Imprimir manual</PrintButton>}
       />
 
@@ -31,23 +31,20 @@ export default async function ManualPage() {
       <Section
         id="universo" n="01"
         eyebrow="Universo"
-        title="Dos sistemas, una base de datos."
+        title="Dos sistemas, una sola información."
       >
         <p>
           Cultimed opera en <em>dos planos</em>: el <strong>panel interno (CultiSoft)</strong> que estás
-          usando ahora, y la <strong>tienda pública (cultimed-store)</strong> que vive en{" "}
-          <code className="font-mono text-[13px] bg-paper-bright px-1.5 py-0.5 border border-rule-soft">www.dispensariocultimed.cl</code>.
+          usando ahora, y la <strong>tienda pública</strong> donde los pacientes se registran y compran.
         </p>
         <p>
-          Ambos comparten una <em>misma base de datos SQLite</em>. Cuando un paciente sube una receta o
-          completa un pedido en la web, aparece de inmediato en este panel. Cuando tú apruebas o
-          confirmas algo aquí, el paciente lo ve en su cuenta.
+          Cuando un paciente sube una receta o completa un pedido en la web, aparece de inmediato en
+          este panel. Cuando tú apruebas o confirmas algo aquí, el paciente lo ve en su cuenta.
         </p>
         <KV
           rows={[
-            ["Panel interno", "http://localhost:3030  ·  staff con login"],
-            ["Tienda pública", "http://localhost:3000  ·  pacientes registrados"],
-            ["Base de datos", "data/cultisoft.db  ·  archivo único, backup = copiarlo"],
+            ["Panel interno", "Este sistema — lo usa el equipo con su cuenta de personal."],
+            ["Tienda pública", "dispensariocultimed.cl — donde los pacientes se registran y compran."],
           ]}
         />
       </Section>
@@ -62,49 +59,49 @@ export default async function ManualPage() {
           head={["Rol", "Responsabilidad"]}
           rows={[
             ["Super Admin",            "Acceso total + gestión de staff + bitácora del sistema. Solo el dueño/director."],
-            ["Administrador",          "Operación día a día: pacientes, recetas, dispensaciones, embajadores, inventario."],
+            ["Administrador",          "Operación día a día: pacientes, recetas, pedidos, embajadores, inventario."],
             ["Químico Farmacéutico",   "Validación de recetas y dispensación de productos controlados."],
-            ["Dispensador",            "Ventas en mostrador y registro de dispensaciones."],
+            ["Dispensador",            "Preparación y registro de pedidos."],
             ["Doctor (staff)",         "Médico interno habilitado para emitir recetas digitales."],
           ]}
         />
-        <p className="text-[12px] font-mono text-ink-muted mt-4 leading-relaxed">
-          Cada acción importante queda registrada en la bitácora <code>audit_logs</code> con
-          fecha, IP y usuario, conforme a Ley 19.628 art. 11.
+        <p className="text-[13px] text-ink-muted mt-4 leading-relaxed">
+          Cada acción importante queda registrada en la bitácora del sistema con fecha, IP y usuario,
+          conforme a Ley 19.628 art. 11.
         </p>
       </Section>
 
       <Section
         id="paciente-nuevo" n="03"
         eyebrow="Flujo · Paciente nuevo"
-        title="De www a aprobado en 4 pasos."
+        title="De la web a aprobado en 4 pasos."
       >
         <Steps
           items={[
-            { n: "I",   t: "Registro web",          d: "El paciente entra a www.dispensariocultimed.cl, acepta el age gate (Ley 20.850) y crea su cuenta con nombre, RUT, teléfono y email." },
-            { n: "II",  t: "Carga de receta",        d: "Sube su receta médica vigente desde Mi cuenta → Recetas. Acepta PDF, JPG o PNG hasta 8 MB. El estado pasa a 'pending'." },
-            { n: "III", t: "Validación QF",         d: "Aquí en CultiSoft, el QF entra a Recetas → status 'pending', revisa el documento y aprueba (o rechaza con motivo)." },
+            { n: "I",   t: "Registro web",          d: "El paciente entra a la tienda, acepta el age gate (Ley 20.850) y crea su cuenta con nombre, RUT, teléfono y email." },
+            { n: "II",  t: "Carga de receta",        d: "Sube su receta médica vigente desde Mi cuenta → Recetas. Acepta PDF, JPG o PNG hasta 8 MB. El estado pasa a 'pendiente'." },
+            { n: "III", t: "Validación QF",         d: "Aquí en CultiSoft, el QF entra a Recetas web → estado 'pendiente', revisa el documento y aprueba (o rechaza con motivo)." },
             { n: "IV",  t: "Acceso al catálogo",    d: "Apenas se aprueba, el paciente ve precios y stock en la web y puede agregar productos al carrito." },
           ]}
         />
         <Tip>
-          <strong>El plazo SLA</strong> es 24h hábiles para validar una receta. Si demora más, el paciente
+          <strong>El plazo</strong> es 24h hábiles para validar una receta. Si demora más, el paciente
           probablemente nos contactará por WhatsApp — recuérdale que lo estamos revisando.
         </Tip>
       </Section>
 
       <Section
-        id="dispensacion-online" n="04"
-        eyebrow="Flujo · Dispensación online"
+        id="pedido" n="04"
+        eyebrow="Flujo · Pedido y pago"
         title="De carrito a comprobante en 5 hitos."
       >
         <Steps
           items={[
             { n: "I",   t: "Carrito",                d: "El paciente agrega productos. Solo ve precio si su receta está aprobada y si el producto coincide con lo prescrito." },
-            { n: "II",  t: "Checkout",               d: "Selecciona retiro (en farmacia) o despacho a domicilio. Confirma teléfono. Genera la orden con folio único." },
-            { n: "III", t: "Datos de transferencia", d: "La orden queda en 'pending_payment'. Se le muestran los datos bancarios y su RUT como referencia obligatoria." },
-            { n: "IV",  t: "Subida de comprobante",  d: "Hace la transferencia y sube imagen del comprobante. Estado cambia a 'proof_uploaded'." },
-            { n: "V",   t: "Validación admin",       d: "Aquí, en Dispensaciones online, revisas el comprobante. Si está OK marcas 'pago confirmado' y se dispara el envío de WhatsApp." },
+            { n: "II",  t: "Checkout",               d: "Selecciona retiro o despacho a domicilio. Confirma teléfono. Genera el pedido con folio único." },
+            { n: "III", t: "Datos de transferencia", d: "El pedido queda pendiente de pago. Se le muestran los datos bancarios y su RUT como referencia obligatoria." },
+            { n: "IV",  t: "Subida de comprobante",  d: "Hace la transferencia y sube imagen del comprobante." },
+            { n: "V",   t: "Validación admin",       d: "Aquí, en Pedidos web, revisas el comprobante. Si está OK marcas 'pago confirmado' y se dispara el envío de WhatsApp." },
           ]}
         />
         <Tip>
@@ -114,38 +111,20 @@ export default async function ManualPage() {
       </Section>
 
       <Section
-        id="dispensacion-mostrador" n="05"
-        eyebrow="Flujo · Dispensación en mostrador"
-        title="Tres pasos rápidos."
-      >
-        <p>
-          Para venta presencial — paciente llega a la farmacia, no necesita pasar por la web.
-          Desde el panel: <em>Dashboard → Nueva dispensación</em>.
-        </p>
-        <Steps
-          items={[
-            { n: "I",   t: "Paciente",               d: "Buscas por nombre o RUT en el listado. Si no existe, lo creas en el momento desde Pacientes → Nuevo." },
-            { n: "II",  t: "Productos",              d: "Agregas al carrito interno. Si requiere receta, asocias una de las recetas aprobadas del paciente." },
-            { n: "III", t: "Confirmar",              d: "Eliges método de pago (efectivo, tarjeta, transferencia). Confirmas. El stock se descuenta automáticamente." },
-          ]}
-        />
-      </Section>
-
-      <Section
-        id="inventario" n="06"
+        id="inventario" n="05"
         eyebrow="Inventario"
         title="Lotes, vencimientos, alertas."
       >
         <p>
           Cada producto tiene uno o varios <em>lotes</em> con un número único, fecha de vencimiento,
-          stock actual y precio por unidad. Cuando dispensas, descontamos del lote más próximo a
-          vencer (FEFO) automáticamente.
+          stock actual y precio por unidad. Cuando se confirma un pedido, descontamos del lote más
+          próximo a vencer automáticamente.
         </p>
         <KV
           rows={[
             ["Stock bajo",    "≤ 5 unidades disponibles → alerta en Dashboard"],
             ["Por vencer",    "≤ 60 días para vencimiento → alerta en Dashboard"],
-            ["Agotado",       "Stock = 0 → no aparece en checkout, paciente no puede pedir"],
+            ["Agotado",       "Stock = 0 → no aparece en la tienda, el paciente no puede pedirlo"],
             ["Ingreso lote",  "Inventario → Ingresar lote → registra cantidad, costo, vencimiento"],
             ["Ajuste manual", "Inventario → [lote] → Ajustar stock (motivo obligatorio)"],
           ]}
@@ -153,7 +132,7 @@ export default async function ManualPage() {
       </Section>
 
       <Section
-        id="trazabilidad" n="07"
+        id="trazabilidad" n="06"
         eyebrow="Trazabilidad y compliance"
         title="Todo queda escrito."
       >
@@ -164,10 +143,10 @@ export default async function ManualPage() {
         <ul className="space-y-3 my-6">
           {[
             "Cada login del personal (cuándo y desde qué IP).",
-            "Cada cambio de estado de receta o dispensación.",
+            "Cada cambio de estado de receta o pedido.",
             "Cada movimiento de inventario, con motivo y operador.",
             "Cada documento clínico subido (receta, comprobante de pago, COA).",
-            "Cada orden web — desde creación hasta entrega.",
+            "Cada pedido web — desde creación hasta entrega.",
           ].map((t, i) => (
             <li key={i} className="flex items-baseline gap-4">
               <span className="editorial-numeral text-base text-ink-subtle w-8 shrink-0">{String(i + 1).padStart(2, "0")}</span>
@@ -176,27 +155,9 @@ export default async function ManualPage() {
           ))}
         </ul>
         <Tip>
-          La tabla <code className="font-mono">audit_logs</code> es <em>append-only</em> en producción.
-          Si SANNA o el ISP requieren reporte, exportamos un CSV filtrado por fecha y entidad.
+          El registro de auditoría no se puede editar ni borrar. Si SANNA o el ISP requieren un reporte,
+          exportamos un CSV filtrado por fecha y tipo de acción.
         </Tip>
-      </Section>
-
-      <Section
-        id="comandos" n="08"
-        eyebrow="Mantenimiento"
-        title="Comandos útiles."
-      >
-        <Table
-          head={["Comando", "Qué hace"]}
-          rows={[
-            ["npm run dev",                 "Inicia el servidor de desarrollo (puerto 3030 admin, 3000 tienda)."],
-            ["npm run build",               "Compila producción y verifica tipos."],
-            ["npm run db:reset",            "Borra la BD y carga datos demo (pacientes reales + transacciones sintéticas)."],
-            ["npm run db:reset:clean",      "Borra la BD y carga SOLO identidad real — listo para producción."],
-            ["npm run db:extend",           "Aplica el schema de la tienda sobre la BD compartida."],
-            ["Backup",                      "Copia data/cultisoft.db a un disco seguro. Es un solo archivo."],
-          ]}
-        />
       </Section>
 
       {/* Footer of manual */}
@@ -214,14 +175,12 @@ export default async function ManualPage() {
 }
 
 const TOC = [
-  { n: "01", id: "universo",              title: "Universo: dos sistemas" },
-  { n: "02", id: "roles",                 title: "Roles del personal" },
-  { n: "03", id: "paciente-nuevo",        title: "Flujo: paciente nuevo" },
-  { n: "04", id: "dispensacion-online",   title: "Flujo: dispensación online" },
-  { n: "05", id: "dispensacion-mostrador",title: "Flujo: dispensación en mostrador" },
-  { n: "06", id: "inventario",            title: "Inventario y alertas" },
-  { n: "07", id: "trazabilidad",          title: "Trazabilidad y compliance" },
-  { n: "08", id: "comandos",              title: "Mantenimiento técnico" },
+  { n: "01", id: "universo",       title: "Universo: dos sistemas" },
+  { n: "02", id: "roles",          title: "Roles del personal" },
+  { n: "03", id: "paciente-nuevo", title: "Flujo: paciente nuevo" },
+  { n: "04", id: "pedido",         title: "Flujo: pedido y pago" },
+  { n: "05", id: "inventario",     title: "Inventario y alertas" },
+  { n: "06", id: "trazabilidad",   title: "Trazabilidad y compliance" },
 ];
 
 function Section({
@@ -273,7 +232,7 @@ function KV({ rows }: { rows: Array<[string, string]> }) {
       {rows.map(([k, v]) => (
         <div key={k} className="grid grid-cols-12 gap-3 items-baseline">
           <dt className="col-span-12 sm:col-span-4 eyebrow">{k}</dt>
-          <dd className="col-span-12 sm:col-span-8 text-sm font-mono nums-lining text-ink leading-relaxed">{v}</dd>
+          <dd className="col-span-12 sm:col-span-8 text-sm nums-lining text-ink leading-relaxed">{v}</dd>
         </div>
       ))}
     </dl>

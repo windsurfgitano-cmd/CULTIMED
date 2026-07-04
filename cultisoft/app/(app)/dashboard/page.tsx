@@ -11,8 +11,6 @@ interface Counts {
   patients: number;
   patientsActive: number;
   newPatientsThisMonth: number;
-  todayDispensations: number;
-  todayRevenue: number;
   todayWebOrders: number;
   todayWebRevenue: number;
   pendingWebOrders: number;
@@ -61,8 +59,6 @@ export default async function DashboardPage({
     patients: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM patients`))?.c ?? 0,
     patientsActive: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM patients WHERE membership_status = 'active'`))?.c ?? 0,
     newPatientsThisMonth: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM patients WHERE created_at >= ?`, monthStart))?.c ?? 0,
-    todayDispensations: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM dispensations WHERE dispensed_at >= ?`, todayStart))?.c ?? 0,
-    todayRevenue: (await get<{ s: number }>(`SELECT COALESCE(SUM(total_amount), 0) as s FROM dispensations WHERE dispensed_at >= ? AND status = 'completed'`, todayStart))?.s ?? 0,
     todayWebOrders: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM customer_orders WHERE created_at >= ? AND status NOT IN ('cancelled','rejected')`, todayStart))?.c ?? 0,
     todayWebRevenue: (await get<{ s: number }>(`SELECT COALESCE(SUM(total), 0) as s FROM customer_orders WHERE created_at >= ? AND status NOT IN ('cancelled','rejected')`, todayStart))?.s ?? 0,
     pendingWebOrders: (await get<{ c: number }>(`SELECT COUNT(*) as c FROM customer_orders WHERE status IN ('pending_payment','proof_uploaded','preparing')`))?.c ?? 0,
@@ -248,13 +244,9 @@ export default async function DashboardPage({
         />
         <KpiCard
           numeral="02"
-          label="Ventas hoy"
-          value={counts.todayDispensations + counts.todayWebOrders}
-          delta={
-            counts.todayRevenue + counts.todayWebRevenue > 0
-              ? { text: formatCLP(counts.todayRevenue + counts.todayWebRevenue), tone: "success" }
-              : undefined
-          }
+          label="Pedidos web hoy"
+          value={counts.todayWebOrders}
+          delta={counts.todayWebRevenue > 0 ? { text: formatCLP(counts.todayWebRevenue), tone: "success" } : undefined}
         />
         <KpiCard
           numeral="03"
@@ -429,7 +421,7 @@ export default async function DashboardPage({
               <span className="italic">aquí?</span>
             </p>
             <p className="relative text-xs text-paper/70 mt-2 leading-relaxed">
-              Conoce el flujo completo del dispensario en 8 pasos.
+              Conoce el flujo completo del dispensario.
             </p>
             <Link
               href="/manual"
