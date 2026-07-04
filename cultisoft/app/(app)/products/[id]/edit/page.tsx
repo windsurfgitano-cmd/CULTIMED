@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { requireRole, requireOpsRole } from "@/lib/auth";
 import { get, run } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
+import { parsePriceTiers, type PriceTier } from "@/lib/pricing";
 import PageHeader from "@/components/PageHeader";
 
 interface ProductFull {
@@ -27,6 +28,7 @@ interface ProductFull {
   is_active: number;
   image_url: string | null;
   strain_key: string | null;
+  price_tiers: unknown;
 }
 
 const CATEGORY_OPTIONS = [
@@ -50,6 +52,18 @@ function optionalNumber(formData: FormData, key: string) {
   return Number.isFinite(n) ? n : null;
 }
 
+function readPriceTiersFromForm(formData: FormData): PriceTier[] | null {
+  const tiers: PriceTier[] = [];
+  for (let i = 1; i <= 4; i++) {
+    const desde = optionalNumber(formData, `tier_desde_${i}`);
+    const precio = optionalNumber(formData, `tier_precio_${i}`);
+    if (desde !== null && precio !== null) tiers.push({ desde_g: desde, precio_g: precio });
+  }
+  if (tiers.length === 0) return null;
+  tiers.sort((a, b) => a.desde_g - b.desde_g);
+  return tiers;
+}
+
 async function updateProduct(formData: FormData) {
   "use server";
   const staff = await requireOpsRole();
@@ -61,6 +75,7 @@ async function updateProduct(formData: FormData) {
   const strainKey = optionalString(formData, "strain_key");
   const isActive = formData.get("is_active") === "1" ? 1 : 0;
   const shopifyStatus = isActive ? "active" : "archived";
+  const priceTiers = readPriceTiersFromForm(formData);
 
   if (!id || !sku || !name || !category || !defaultPrice || !strainKey) redirect(`/products/${id}/edit?e=incomplete`);
 
@@ -69,7 +84,7 @@ async function updateProduct(formData: FormData) {
       `UPDATE products SET sku = ?, name = ?, category = ?, presentation = ?, active_ingredient = ?,
         concentration = ?, thc_percentage = ?, cbd_percentage = ?, unit = ?, requires_prescription = ?,
         is_controlled = ?, default_price = ?, description = ?, vendor = ?, is_house_brand = ?,
-        is_preorder = ?, shopify_status = ?, is_active = ?, image_url = ?, strain_key = ?
+        is_preorder = ?, shopify_status = ?, is_active = ?, image_url = ?, strain_key = ?, price_tiers = ?
        WHERE id = ?`,
       sku,
       name,
@@ -91,9 +106,10 @@ async function updateProduct(formData: FormData) {
       isActive,
       optionalString(formData, "image_url"),
       strainKey,
+      priceTiers ? JSON.stringify(priceTiers) : null,
       id
     );
-    await logAudit({ staffId: staff.id, action: "product_updated", entityType: "product", entityId: id, details: { sku, name, strainKey, isActive } });
+    await logAudit({ staffId: staff.id, action: "product_updated", entityType: "product", entityId: id, details: { sku, name, strainKey, isActive, priceTiers } });
     redirect("/products?updated=1");
   } catch (err: any) {
     if (String(err).includes("UNIQUE")) redirect(`/products/${id}/edit?e=duplicate`);
@@ -140,6 +156,7 @@ export default async function EditProductPage({ params, searchParams }: { params
 }
 
 function ProductForm({ product }: { product: ProductFull }) {
+  const tiers = parsePriceTiers(product.price_tiers);
   return (
     <>
       <Section title="Ficha comercial" icon="sell">
@@ -162,6 +179,16 @@ function ProductForm({ product }: { product: ProductFull }) {
         <Field label="Unidad" name="unit" defaultValue={product.unit || "unidad"} />
       </Section>
 
+      <Section title="Escalera de precios por gramo (opcional)" icon="stairs">
+        <p className="md:col-span-2 text-xs text-on-surface-variant -mt-2 mb-1">
+          Solo para productos que se venden por gramo con tramos de precio (ej. flores a granel).
+          Deja los 4 tramos en blanco si este producto usa precio fijo normal.
+        </p>
+        {[0, 1, 2, 3].map((i) => (
+          <PriceTierRow key={i} index={i + 1} desde={tiers?.[i]?.desde_g} precio={tiers?.[i]?.precio_g} />
+        ))}
+      </Section>
+
       <Section title="Web y cumplimiento" icon="storefront">
         <Checkbox label="Habilitado para compra web" name="is_active" defaultChecked={product.is_active === 1 && product.shopify_status === "active"} />
         <Checkbox label="Requiere receta" name="requires_prescription" defaultChecked={product.requires_prescription === 1} />
@@ -169,6 +196,21 @@ function ProductForm({ product }: { product: ProductFull }) {
         <Checkbox label="Línea Cultimed" name="is_house_brand" defaultChecked={product.is_house_brand === 1} />
         <Checkbox label="Preventa" name="is_preorder" defaultChecked={product.is_preorder === 1} />
       </Section>
+    </>
+  );
+}
+
+function PriceTierRow({ index, desde, precio }: { index: number; desde?: number; precio?: number }) {
+  return (
+    <>
+      <div>
+        <label className="input-label" htmlFor={`tier_desde_${index}`}>Tramo {index} · desde (g)</label>
+        <input id={`tier_desde_${index}`} name={`tier_desde_${index}`} type="number" min="1" step="1" defaultValue={desde ?? ""} className="input-field" />
+      </div>
+      <div>
+        <label className="input-label" htmlFor={`tier_precio_${index}`}>Tramo {index} · precio/g (CLP)</label>
+        <input id={`tier_precio_${index}`} name={`tier_precio_${index}`} type="number" min="0" step="0.5" defaultValue={precio ?? ""} className="input-field" />
+      </div>
     </>
   );
 }
