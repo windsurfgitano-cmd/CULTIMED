@@ -78,6 +78,9 @@ async function updateProduct(formData: FormData) {
   const priceTiers = readPriceTiersFromForm(formData);
 
   if (!id || !sku || !name || !category || !defaultPrice || !strainKey) redirect(`/products/${id}/edit?e=incomplete`);
+  if (priceTiers && priceTiers.length < 4) redirect(`/products/${id}/edit?e=incomplete_tiers`);
+
+  const effectiveDefaultPrice = priceTiers ? priceTiers[0].precio_g : defaultPrice;
 
   try {
     await run(
@@ -97,7 +100,7 @@ async function updateProduct(formData: FormData) {
       String(formData.get("unit") || "unidad").trim() || "unidad",
       formData.get("requires_prescription") === "1" ? 1 : 0,
       formData.get("is_controlled") === "1" ? 1 : 0,
-      defaultPrice,
+      effectiveDefaultPrice,
       optionalString(formData, "description"),
       optionalString(formData, "vendor"),
       formData.get("is_house_brand") === "1" ? 1 : 0,
@@ -120,6 +123,7 @@ async function updateProduct(formData: FormData) {
 const ERR: Record<string, string> = {
   incomplete: "SKU, nombre, categoría, precio y strain key son obligatorios.",
   duplicate: "Ya existe otro producto con ese SKU.",
+  incomplete_tiers: "Completa los 4 tramos de precio, o dejalos todos en blanco.",
 };
 
 export default async function EditProductPage({ params, searchParams }: { params: { id: string }; searchParams: { e?: string } }) {
@@ -182,7 +186,7 @@ function ProductForm({ product }: { product: ProductFull }) {
       <Section title="Escalera de precios por gramo (opcional)" icon="stairs">
         <p className="md:col-span-2 text-xs text-on-surface-variant -mt-2 mb-1">
           Solo para productos que se venden por gramo con tramos de precio (ej. flores a granel).
-          Deja los 4 tramos en blanco si este producto usa precio fijo normal.
+          Completa los 4 tramos, o dejalos todos en blanco si este producto usa precio fijo normal.
         </p>
         {[0, 1, 2, 3].map((i) => (
           <PriceTierRow key={i} index={i + 1} desde={tiers?.[i]?.desde_g} precio={tiers?.[i]?.precio_g} />
