@@ -26,6 +26,10 @@ interface BatchRow {
   is_controlled: number;
 }
 
+interface DiscontinuedCount {
+  c: number;
+}
+
 const CATEGORY_LABELS: Record<string, string> = {
   flores: "Flor",
   aceite_cbd: "Aceite",
@@ -71,6 +75,13 @@ export default async function InventoryPage({
   } else if (filter === "expiring") {
     where.push(`b.expiry_date IS NOT NULL AND b.expiry_date <= CURRENT_DATE + INTERVAL '60 days' AND b.status = 'available'`);
   }
+  // Por defecto solo mostramos variedades activas (a la venta) — los productos
+  // descontinuados/archivados de Shopify quedan fuera salvo que se pidan explícito.
+  if (filter === "discontinued") {
+    where.push(`pr.is_active = 0`);
+  } else {
+    where.push(`pr.is_active = 1`);
+  }
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
   const rows = await all<BatchRow>(
@@ -88,7 +99,7 @@ export default async function InventoryPage({
     ...params
   );
 
-  // Summary KPIs
+  // Summary KPIs — solo variedades activas, para que refleje lo que realmente se vende hoy.
   const summary = await get<{ total_skus: number; total_units: number; total_value: number; low: number; out: number }>(
     `SELECT
        COUNT(DISTINCT pr.id) as total_skus,
@@ -96,7 +107,12 @@ export default async function InventoryPage({
        COALESCE(SUM(b.quantity_current * b.price_per_unit), 0) as total_value,
        SUM(CASE WHEN b.quantity_current > 0 AND b.quantity_current <= 5 AND b.status = 'available' THEN 1 ELSE 0 END) as low,
        SUM(CASE WHEN b.quantity_current = 0 OR b.status = 'depleted' THEN 1 ELSE 0 END) as out
-     FROM batches b JOIN products pr ON pr.id = b.product_id`
+     FROM batches b JOIN products pr ON pr.id = b.product_id
+     WHERE pr.is_active = 1`
+  );
+
+  const discontinued = await get<DiscontinuedCount>(
+    `SELECT COUNT(DISTINCT pr.id) as c FROM batches b JOIN products pr ON pr.id = b.product_id WHERE pr.is_active = 0`
   );
 
   const buildHref = (overrides: Record<string, string | undefined>) => {
@@ -143,6 +159,7 @@ export default async function InventoryPage({
             { v: "low", l: "Stock bajo" },
             { v: "out", l: "Agotado" },
             { v: "expiring", l: "Por vencer" },
+            ...(discontinued && discontinued.c > 0 ? [{ v: "discontinued", l: `Descontinuados (${discontinued.c})` }] : []),
           ].map((f) => {
             const active = filter === f.v;
             return (
