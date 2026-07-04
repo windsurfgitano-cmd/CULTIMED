@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { calcularPrecioGramos, type PriceTier } from "./pricing";
 
 export interface CartItem {
   productId: number;
@@ -10,6 +11,20 @@ export interface CartItem {
   unitPrice: number;
   quantity: number;
   imageUrl?: string | null;
+  priceTiers?: PriceTier[];
+}
+
+/**
+ * Total de una línea del carrito. Si el item tiene price_tiers (venta por
+ * gramo), el precio real se recalcula del tramo vigente para la cantidad
+ * actual — así nunca queda desincronizado si el usuario sube/baja los
+ * gramos. Para items sin tramos, es la multiplicación simple de siempre.
+ */
+export function lineTotal(item: CartItem): number {
+  if (item.priceTiers && item.priceTiers.length > 0) {
+    return calcularPrecioGramos(item.quantity, item.priceTiers);
+  }
+  return item.unitPrice * item.quantity;
 }
 
 const STORAGE_KEY = "cultimed_cart_v1";
@@ -72,7 +87,7 @@ export function useCart() {
 
   const clear = useCallback(() => write([]), []);
 
-  const subtotal = items.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
+  const subtotal = items.reduce((s, i) => s + lineTotal(i), 0);
   const count = items.reduce((s, i) => s + i.quantity, 0);
 
   return { items, hydrated, add, update, remove, clear, subtotal, count };
