@@ -23,6 +23,7 @@ interface CatalogProduct {
   is_active: number;
   shopify_status: string | null;
   total_stock: number;
+  price_tiers: unknown;
 }
 
 interface CatalogStrain {
@@ -65,7 +66,7 @@ export default async function CatalogPage({
   const products = await all<CatalogProduct>(
     `SELECT p.id, p.sku, p.name, p.category, p.presentation, p.default_price,
        p.thc_percentage, p.cbd_percentage, p.vendor, p.is_house_brand, p.description,
-       p.image_url, p.strain_key, p.is_active, p.shopify_status,
+       p.image_url, p.strain_key, p.is_active, p.shopify_status, p.price_tiers,
        COALESCE((SELECT SUM(quantity_current) FROM batches b WHERE b.product_id = p.id AND b.status = 'available'), 0) as total_stock
      FROM products p
      WHERE ${where.join(" AND ")}
@@ -182,6 +183,7 @@ export default async function CatalogPage({
                 variants={s.variants}
                 aggregateStock={s.total_stock}
                 unavailable={!(s.head.is_active === 1 && s.head.shopify_status === "active")}
+                pricePerGram={Boolean(s.head.price_tiers)}
               />
             ))}
           </div>

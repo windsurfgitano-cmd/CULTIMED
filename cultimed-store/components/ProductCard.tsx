@@ -43,6 +43,7 @@ export default function ProductCard({
   variants,
   aggregateStock,
   unavailable = false,
+  pricePerGram = false,
 }: {
   product: ProductLite;
   index?: number;
@@ -50,6 +51,7 @@ export default function ProductCard({
   variants?: VariantLite[];
   aggregateStock?: number;
   unavailable?: boolean;
+  pricePerGram?: boolean;
 }) {
   // Strip "(XXg)" suffix from name and treat as separate
   const presentationFromName = p.name.match(/\(([^)]+)\)\s*$/)?.[1];
@@ -159,6 +161,8 @@ export default function ProductCard({
           <span className="font-mono text-sm text-ink nums-lining">
             {hasVariants && minPrice !== maxPrice ? (
               <>desde {formatCLP(minPrice)}</>
+            ) : pricePerGram ? (
+              <>desde {formatCLP(p.default_price)}/g</>
             ) : (
               formatCLP(p.default_price)
             )}

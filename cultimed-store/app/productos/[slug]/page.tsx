@@ -82,7 +82,8 @@ export default async function ProductDetailPage({ params }: { params: { slug: st
   // Solo cepas activas en el carrusel.
   const related = await all<any>(
     `SELECT DISTINCT ON (p.strain_key) p.id, p.sku, p.name, p.category, p.presentation, p.default_price,
-       p.thc_percentage, p.cbd_percentage, p.vendor, p.is_house_brand, p.description, p.image_url, p.strain_key
+       p.thc_percentage, p.cbd_percentage, p.vendor, p.is_house_brand, p.description, p.image_url, p.strain_key,
+       p.price_tiers
      FROM products p
      WHERE p.category = ?
        AND p.strain_key != ?
@@ -387,6 +388,7 @@ export default async function ProductDetailPage({ params }: { params: { slug: st
                 product={{ ...p, slug: p.sku.toLowerCase() }}
                 index={i}
                 showPrice={showPrice}
+                pricePerGram={Boolean(p.price_tiers)}
               />
             ))}
           </div>
