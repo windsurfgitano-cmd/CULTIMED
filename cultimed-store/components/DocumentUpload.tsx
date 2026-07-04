@@ -22,6 +22,7 @@ export default function DocumentUpload({
   const [error, setError] = useState<string | null>(null);
 
   async function onChange(e: React.ChangeEvent<HTMLInputElement>) {
+    if (pending) return;
     const file = e.target.files?.[0];
     if (!file) return;
     setError(null);
