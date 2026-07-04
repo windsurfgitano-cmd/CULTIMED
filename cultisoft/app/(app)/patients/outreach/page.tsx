@@ -34,6 +34,7 @@ interface AccountRow {
   id_back_url: string | null;
   criminal_record_url: string | null;
   rights_assignment_url: string | null;
+  prescription_reviewed_at: string | null;
   created_at: string;
   matched_patient_id: number;
 }
@@ -147,6 +148,7 @@ export default async function PatientOutreachPage() {
        c.id_back_url,
        c.criminal_record_url,
        c.rights_assignment_url,
+       c.prescription_reviewed_at,
        c.created_at,
        p.id AS matched_patient_id
      FROM customer_accounts c
@@ -221,6 +223,31 @@ export default async function PatientOutreachPage() {
     });
   }
   incompleteDocs.sort((a, b) => a.docs_uploaded - b.docs_uploaded);
+
+  const zeroDocs = incompleteDocs.filter((r) => r.docs_uploaded === 0);
+
+  interface RejectedRxRow {
+    id: number;
+    full_name: string;
+    rut: string | null;
+    account_id: number;
+    reviewed_at: string | null;
+  }
+
+  const rejectedRx: RejectedRxRow[] = [];
+  for (const p of patients) {
+    const linked = accountsByPatient.get(p.id) || [];
+    const rejected = linked.find((a) => a.prescription_status === "rechazada");
+    if (!rejected) continue;
+    rejectedRx.push({
+      id: p.id,
+      full_name: p.full_name,
+      rut: p.rut,
+      account_id: rejected.id,
+      reviewed_at: rejected.prescription_reviewed_at,
+    });
+  }
+  rejectedRx.sort((a, b) => new Date(b.reviewed_at || 0).getTime() - new Date(a.reviewed_at || 0).getTime());
 
   const missingData: MissingDataRow[] = patients
     .map((p) => ({
@@ -329,6 +356,18 @@ export default async function PatientOutreachPage() {
           label="Cuentas sin vincular"
           value={formatNumber(unlinkedCount)}
           tone="neutral"
+        />
+        <KpiCard
+          numeral="V"
+          label="Sin ningún documento"
+          value={formatNumber(zeroDocs.length)}
+          tone="warning"
+        />
+        <KpiCard
+          numeral="VI"
+          label="Receta rechazada sin resubir"
+          value={formatNumber(rejectedRx.length)}
+          tone="error"
         />
       </div>
 
@@ -555,6 +594,94 @@ export default async function PatientOutreachPage() {
         )}
       </OutreachTable>
 
+      <OutreachTable title="Sin ningún documento subido" numeral="V" count={zeroDocs.length}>
+        {zeroDocs.length === 0 ? (
+          <div className="clinical-card p-8 text-center text-sm text-on-surface-variant">
+            Todas las cuentas vinculadas subieron al menos 1 documento.
+          </div>
+        ) : (
+          <div className="clinical-card overflow-hidden">
+            <table className="table-clinical">
+              <thead>
+                <tr>
+                  <th>Paciente</th>
+                  <th>RUT</th>
+                  <th className="text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {zeroDocs.slice(0, TOP_N).map((r) => (
+                  <tr key={r.id}>
+                    <td>
+                      <Link href={`/patients/${r.id}`} className="font-semibold text-on-surface hover:text-primary">
+                        {r.full_name}
+                      </Link>
+                    </td>
+                    <td className="font-mono text-[12px] text-on-surface-variant">{r.rut || "—"}</td>
+                    <td className="text-right">
+                      <div className="flex justify-end gap-3 text-xs">
+                        <Link href={`/patients/${r.id}`} className="font-semibold text-primary hover:underline">
+                          Ficha
+                        </Link>
+                        <Link href={`/web-prescriptions/${r.account_id}`} className="font-semibold text-primary hover:underline">
+                          Receta web
+                        </Link>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </OutreachTable>
+
+      <OutreachTable title="Receta rechazada sin resubir" numeral="VI" count={rejectedRx.length}>
+        {rejectedRx.length === 0 ? (
+          <div className="clinical-card p-8 text-center text-sm text-on-surface-variant">
+            No hay cuentas con receta rechazada pendiente de resubida.
+          </div>
+        ) : (
+          <div className="clinical-card overflow-hidden">
+            <table className="table-clinical">
+              <thead>
+                <tr>
+                  <th>Paciente</th>
+                  <th>RUT</th>
+                  <th>Rechazada</th>
+                  <th className="text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rejectedRx.slice(0, TOP_N).map((r) => (
+                  <tr key={r.id}>
+                    <td>
+                      <Link href={`/patients/${r.id}`} className="font-semibold text-on-surface hover:text-primary">
+                        {r.full_name}
+                      </Link>
+                    </td>
+                    <td className="font-mono text-[12px] text-on-surface-variant">{r.rut || "—"}</td>
+                    <td className="text-on-surface-variant text-xs">
+                      {r.reviewed_at ? new Date(r.reviewed_at).toLocaleDateString("es-CL") : "—"}
+                    </td>
+                    <td className="text-right">
+                      <div className="flex justify-end gap-3 text-xs">
+                        <Link href={`/patients/${r.id}`} className="font-semibold text-primary hover:underline">
+                          Ficha
+                        </Link>
+                        <Link href={`/web-prescriptions/${r.account_id}`} className="font-semibold text-primary hover:underline">
+                          Receta web
+                        </Link>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </OutreachTable>
+
       <div className="p-4 bg-paper-dim/30 border border-rule-soft">
         <p className="text-[11px] font-mono uppercase tracking-widest text-ink-muted mb-2">
           — Criterios de segmentación
@@ -572,6 +699,12 @@ export default async function PatientOutreachPage() {
           <li>
             <strong className="text-ink">Cuentas sin vincular:</strong> cuenta web detectada por RUT/email sin{" "}
             <code className="font-mono text-[12px] bg-paper-bright px-1 py-0.5">patient_id</code> asignado.
+          </li>
+          <li>
+            <strong className="text-ink">Sin ningún documento:</strong> cuenta vinculada con 0 de 5 documentos cargados.
+          </li>
+          <li>
+            <strong className="text-ink">Receta rechazada sin resubir:</strong> cuenta cuya receta web está actualmente en estado rechazada.
           </li>
         </ul>
       </div>
