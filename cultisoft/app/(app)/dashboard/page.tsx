@@ -270,31 +270,39 @@ export default async function DashboardPage({
 
       {/* ─── KPIs ─── */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5 mb-12">
-        <KpiCard
-          numeral="01"
-          label="Pacientes activos"
-          value={counts.patientsActive.toLocaleString("es-CL")}
-          delta={counts.newPatientsThisMonth > 0 ? { text: `+${counts.newPatientsThisMonth} este mes`, tone: "success" } : undefined}
-        />
-        <KpiCard
-          numeral="02"
-          label="Pedidos web hoy"
-          value={counts.todayWebOrders}
-          delta={counts.todayWebRevenue > 0 ? { text: formatCLP(counts.todayWebRevenue), tone: "success" } : undefined}
-        />
-        <KpiCard
-          numeral="03"
-          label="Stock bajo"
-          value={counts.totalLowStock}
-          delta={counts.totalLowStock > 0 ? { text: "Crítico", tone: "error" } : { text: "OK", tone: "success" }}
-          tone={counts.totalLowStock > 0 ? "warning" : "neutral"}
-        />
-        <KpiCard
-          numeral="04"
-          label="Recetas pendientes"
-          value={counts.pendingRx}
-          delta={counts.pendingRx > 0 ? { text: "Acción", tone: "warning" } : { text: "Al día", tone: "success" }}
-        />
+        <Link href="/patients" className="block">
+          <KpiCard
+            numeral="01"
+            label="Pacientes activos"
+            value={counts.patientsActive.toLocaleString("es-CL")}
+            delta={counts.newPatientsThisMonth > 0 ? { text: `+${counts.newPatientsThisMonth} este mes`, tone: "success" } : undefined}
+          />
+        </Link>
+        <Link href="/web-orders" className="block">
+          <KpiCard
+            numeral="02"
+            label="Pedidos web hoy"
+            value={counts.todayWebOrders}
+            delta={counts.todayWebRevenue > 0 ? { text: formatCLP(counts.todayWebRevenue), tone: "success" } : undefined}
+          />
+        </Link>
+        <Link href="/inventory?filter=low" className="block">
+          <KpiCard
+            numeral="03"
+            label="Stock bajo"
+            value={counts.totalLowStock}
+            delta={counts.totalLowStock > 0 ? { text: "Crítico", tone: "error" } : { text: "OK", tone: "success" }}
+            tone={counts.totalLowStock > 0 ? "warning" : "neutral"}
+          />
+        </Link>
+        <Link href="/prescriptions?status=pending" className="block">
+          <KpiCard
+            numeral="04"
+            label="Recetas pendientes"
+            value={counts.pendingRx}
+            delta={counts.pendingRx > 0 ? { text: "Acción", tone: "warning" } : { text: "Al día", tone: "success" }}
+          />
+        </Link>
       </section>
 
       {/* ─── Body grid ─── */}
