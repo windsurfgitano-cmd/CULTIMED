@@ -79,6 +79,9 @@ async function updateProduct(formData: FormData) {
 
   if (!id || !sku || !name || !category || !defaultPrice || !strainKey) redirect(`/products/${id}/edit?e=incomplete`);
   if (priceTiers && priceTiers.length < 4) redirect(`/products/${id}/edit?e=incomplete_tiers`);
+  if (priceTiers && priceTiers.some((t) => t.precio_g <= 0 || t.desde_g <= 0)) {
+    redirect(`/products/${id}/edit?e=invalid_tiers`);
+  }
 
   const effectiveDefaultPrice = priceTiers ? priceTiers[0].precio_g : defaultPrice;
 
@@ -124,6 +127,7 @@ const ERR: Record<string, string> = {
   incomplete: "SKU, nombre, categoría, precio y strain key son obligatorios.",
   duplicate: "Ya existe otro producto con ese SKU.",
   incomplete_tiers: "Completa los 4 tramos de precio, o dejalos todos en blanco.",
+  invalid_tiers: "Los tramos de precio deben ser valores positivos.",
 };
 
 export default async function EditProductPage({ params, searchParams }: { params: { id: string }; searchParams: { e?: string } }) {
