@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireRole, requireOpsRole } from "@/lib/auth";
-import { all, run } from "@/lib/db";
+import { all, get, run } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { formatCLP, formatNumber } from "@/lib/format";
 import PageHeader from "@/components/PageHeader";
@@ -68,7 +68,9 @@ export default async function ProductsPage({
 }) {
   await requireOpsRole();
   const q = (searchParams.q || "").trim();
-  const status = searchParams.status || "";
+  // Por defecto solo variedades comprables — las descontinuadas de Shopify quedaban
+  // mezcladas y tapaban el catalogo real (mismo problema que tenia Inventario).
+  const status = searchParams.status || "active";
   const category = searchParams.category || "";
 
   const where: string[] = [];
@@ -99,11 +101,23 @@ export default async function ProductsPage({
     ...params
   );
 
+  // Resumen independiente del filtro de status actual — si no, al filtrar por
+  // "Comprables" el conteo de "Agotados/ocultos" se veia siempre en 0.
+  const globalSummary = await get<{ active: number; archived: number; stock: number }>(
+    `SELECT
+       COUNT(*) FILTER (WHERE p.is_active = 1 AND p.shopify_status = 'active')::int AS active,
+       COUNT(*) FILTER (WHERE NOT (p.is_active = 1 AND p.shopify_status = 'active'))::int AS archived,
+       COALESCE(SUM(CASE WHEN p.is_active = 1 AND p.shopify_status = 'active'
+         THEN (SELECT SUM(quantity_current) FROM batches b WHERE b.product_id = p.id AND b.status='available')
+         ELSE 0 END), 0)::int AS stock
+     FROM products p`
+  );
+
   const summary = {
-    total: products.length,
-    active: products.filter((p) => p.is_active === 1 && p.shopify_status === "active").length,
-    archived: products.filter((p) => !(p.is_active === 1 && p.shopify_status === "active")).length,
-    stock: products.reduce((s, p) => s + (p.total_stock || 0), 0),
+    total: (globalSummary?.active || 0) + (globalSummary?.archived || 0),
+    active: globalSummary?.active || 0,
+    archived: globalSummary?.archived || 0,
+    stock: globalSummary?.stock || 0,
   };
 
   const buildHref = (overrides: Record<string, string | undefined>) => {
@@ -143,9 +157,9 @@ export default async function ProductsPage({
         <SearchInput placeholder="Buscar producto, SKU, strain, proveedor…" />
         <div className="flex gap-1.5 text-xs flex-wrap">
           {[
-            { v: "", l: "Todos" },
             { v: "active", l: "Comprables" },
             { v: "archived", l: "Agotados/ocultos" },
+            { v: "all", l: "Todos" },
           ].map((f) => (
             <Link key={f.v} href={buildHref({ status: f.v || undefined })}
               className={status === f.v ? "px-3 py-1.5 rounded-full bg-primary text-on-primary font-semibold" : "px-3 py-1.5 rounded-full bg-surface-container-low hover:bg-surface-container text-on-surface-variant font-medium"}>
