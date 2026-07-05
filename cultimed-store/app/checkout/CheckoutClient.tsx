@@ -1,14 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useCart, lineTotal } from "@/lib/cart";
 import { formatCLP } from "@/lib/format";
 import { calcShippingFee, FREE_SHIPPING_THRESHOLD, OUTLYING_SHIPPING_FEE, URBAN_SHIPPING_FEE } from "@/lib/shipping";
+import { isNativeApp } from "@/lib/capacitor";
 import type { CustomerAccount } from "@/lib/auth";
 
 const TRANSFER_DISCOUNT_PCT = 10;
+const CHECKOUT_WEB_URL = "https://dispensariocultimed.cl/checkout";
 
 export default function CheckoutClient({ customer }: { customer: CustomerAccount }) {
   const router = useRouter();
@@ -18,11 +20,24 @@ export default function CheckoutClient({ customer }: { customer: CustomerAccount
   const [shippingCity, setShippingCity] = useState("");
   const [shippingRegion, setShippingRegion] = useState("RM");
   const [error, setError] = useState<string | null>(null);
+  const [isNative, setIsNative] = useState(false);
+
+  // Google Play prohibe el carrito/pago de cannabis 100% nativo -- si esto
+  // corre dentro del shell de Capacitor, el pago se completa en el
+  // navegador del sistema (Safari/Chrome), no en este WebView.
+  useEffect(() => {
+    setIsNative(isNativeApp());
+  }, []);
 
   const transferDiscount = Math.round((subtotal * TRANSFER_DISCOUNT_PCT) / 100);
   const shippingFee = calcShippingFee(subtotal, shippingCity, shippingRegion);
   const finalTotal = Math.max(0, subtotal - transferDiscount + shippingFee);
   const shippingIsFree = shippingFee === 0;
+
+  async function handleContinueInBrowser() {
+    const { Browser } = await import("@capacitor/browser");
+    await Browser.open({ url: CHECKOUT_WEB_URL });
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -78,6 +93,47 @@ export default function CheckoutClient({ customer }: { customer: CustomerAccount
       <section className="max-w-[1440px] mx-auto px-6 lg:px-12 py-24 text-center">
         <p className="font-display text-3xl italic text-ink-muted mb-6">El carrito está vacío.</p>
         <Link href="/productos" className="btn-link">Volver al catálogo →</Link>
+      </section>
+    );
+  }
+
+  if (isNative) {
+    return (
+      <section className="max-w-[1440px] mx-auto px-6 lg:px-12 py-16 lg:py-24">
+        <div className="max-w-xl mx-auto text-center">
+          <h1 className="font-display text-display-2 leading-[0.98] text-balance mb-6">
+            <span className="font-light">Un paso más,</span>{" "}
+            <span className="italic font-normal">en tu navegador</span>
+            <span className="font-light">.</span>
+          </h1>
+          <p className="text-base text-ink-muted leading-relaxed mb-10">
+            Para completar tu pedido con transferencia bancaria, continúa en el navegador de tu
+            celular. Tu carrito y tu sesión se mantienen — vuelves a la app cuando termines.
+          </p>
+          <ul className="divide-y divide-rule-soft border-y border-rule mb-8 text-left">
+            {items.map((it) => (
+              <li key={it.productId} className="py-3 flex justify-between items-baseline gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-display truncate">{it.name}</p>
+                  <p className="text-[11px] font-mono text-ink-muted">×{it.quantity}</p>
+                </div>
+                <span className="text-sm font-mono nums-lining tabular-nums shrink-0">
+                  {formatCLP(lineTotal(it))}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <div className="flex items-baseline justify-between mb-8">
+            <span className="font-display text-lg">Subtotal</span>
+            <span className="font-display text-2xl nums-lining tabular-nums">{formatCLP(subtotal)}</span>
+          </div>
+          <button type="button" onClick={handleContinueInBrowser} className="btn-brass w-full mb-3">
+            Continuar en el navegador →
+          </button>
+          <Link href="/carrito" className="btn-link w-full justify-center">
+            Volver al carrito ←
+          </Link>
+        </div>
       </section>
     );
   }
