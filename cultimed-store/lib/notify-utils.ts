@@ -2,10 +2,14 @@
 // este archivo debe poder correr bajo tsx sin resolver alias "@/".
 import crypto from "node:crypto";
 
-const SECRET: string =
-  process.env.SESSION_SECRET ||
-  // mismo fallback dev que lib/auth.ts — en prod SESSION_SECRET es obligatorio allá
-  "dev-secret-change-please";
+// Guard perezoso: lanza al FIRMAR/VERIFICAR en producción sin SESSION_SECRET,
+// pero importar el módulo (p. ej. solo por normalizePhoneCL) nunca lanza.
+function getSecret(): string {
+  if (process.env.SESSION_SECRET) return process.env.SESSION_SECRET;
+  const isProd = process.env.NODE_ENV === "production" || process.env.VERCEL_ENV === "production";
+  if (isProd) throw new Error("SESSION_SECRET es obligatorio en producción para tokens de baja");
+  return "dev-secret-change-please";
+}
 
 /**
  * Normaliza un teléfono chileno a E.164 (+569XXXXXXXX).
@@ -23,7 +27,7 @@ export function normalizePhoneCL(raw: string | null | undefined): string | null 
 }
 
 function sign(payload: string): string {
-  return crypto.createHmac("sha256", SECRET).update(`unsub:${payload}`).digest("hex").slice(0, 32);
+  return crypto.createHmac("sha256", getSecret()).update(`unsub:${payload}`).digest("hex").slice(0, 32);
 }
 
 /** Token de baja de marketing: "<accountId>.<hmac>" — sin login, un clic. */
@@ -38,6 +42,7 @@ export function verifyUnsubscribeToken(token: string | null | undefined): number
   if (!payload || !sig) return null;
   const expected = sign(payload);
   if (sig.length !== expected.length) return null;
+  // compara la representación hex ASCII en tiempo constante (equivalente a comparar los bytes)
   if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
   const id = Number(payload);
   return Number.isInteger(id) && id > 0 ? id : null;
