@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCart, lineTotal } from "@/lib/cart";
 import { formatCLP } from "@/lib/format";
+import ScrollReveal from "@/components/ScrollReveal";
 
 export default function CartPage() {
   const { items, hydrated, update, remove, subtotal, count } = useCart();
@@ -33,7 +34,7 @@ export default function CartPage() {
         <div className="grid grid-cols-12 gap-x-6 gap-y-12">
           {/* Items */}
           <div className="col-span-12 lg:col-span-7">
-            <ul className="border-y border-rule divide-y divide-rule-soft">
+            <ScrollReveal as="ul" stagger className="border-y border-rule divide-y divide-rule-soft">
               {items.map((it) => (
                 <li key={it.productId} className="grid grid-cols-12 gap-x-4 py-6 lg:py-8 items-baseline">
                   <div className="col-span-12 sm:col-span-6">
@@ -46,9 +47,9 @@ export default function CartPage() {
                   </div>
                   <div className="col-span-6 sm:col-span-3 mt-3 sm:mt-0">
                     <div className="flex items-center border border-rule w-fit">
-                      <button onClick={() => update(it.productId, it.quantity - 1)} className="w-9 h-9 flex items-center justify-center hover:bg-paper-dim transition-colors">−</button>
+                      <button onClick={() => update(it.productId, it.quantity - 1)} className="w-11 h-11 flex items-center justify-center hover:bg-paper-dim transition-colors">−</button>
                       <span className="w-10 text-center font-mono nums-lining text-sm">{it.quantity}</span>
-                      <button onClick={() => update(it.productId, it.quantity + 1)} className="w-9 h-9 flex items-center justify-center hover:bg-paper-dim transition-colors">+</button>
+                      <button onClick={() => update(it.productId, it.quantity + 1)} className="w-11 h-11 flex items-center justify-center hover:bg-paper-dim transition-colors">+</button>
                     </div>
                   </div>
                   <div className="col-span-6 sm:col-span-2 sm:text-right mt-3 sm:mt-0">
@@ -57,18 +58,18 @@ export default function CartPage() {
                   <div className="col-span-12 sm:col-span-1 sm:text-right">
                     <button
                       onClick={() => remove(it.productId)}
-                      className="text-[10px] uppercase tracking-widest font-mono text-ink-muted hover:text-sangria transition-colors mt-3 sm:mt-0"
+                      className="relative text-[10px] uppercase tracking-widest font-mono text-ink-muted hover:text-sangria transition-colors mt-3 sm:mt-0 py-2 before:absolute before:-inset-2 before:content-['']"
                     >
                       Quitar
                     </button>
                   </div>
                 </li>
               ))}
-            </ul>
+            </ScrollReveal>
           </div>
 
           {/* Summary */}
-          <aside className="col-span-12 lg:col-span-4 lg:col-start-9">
+          <ScrollReveal as="aside" delay={0.1} className="col-span-12 lg:col-span-4 lg:col-start-9">
             <div className="lg:sticky lg:top-32 border border-rule bg-paper-bright p-7 lg:p-8">
               <p className="eyebrow mb-6">— Resumen de orden</p>
 
@@ -101,7 +102,7 @@ export default function CartPage() {
                 en menos de 24h hábiles).
               </p>
             </div>
-          </aside>
+          </ScrollReveal>
         </div>
       )}
     </section>

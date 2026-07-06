@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { formatCLP } from "@/lib/format";
 import { displayStrainName } from "@/lib/active-strains";
+import ScrollReveal from "@/components/ScrollReveal";
 
 interface ProductLite {
   id: number;
@@ -182,24 +183,20 @@ export default function ProductCard({
 
   if (unavailable) {
     return (
-      <article
-        aria-disabled="true"
-        className="group block opacity-0 animate-fade-up cursor-not-allowed select-none"
-        style={{ animationDelay: `${0.1 + index * 0.08}s` }}
-      >
-        {content}
-      </article>
+      <ScrollReveal delay={0.05 * (index % 3)} y={24}>
+        <article aria-disabled="true" className="group block cursor-not-allowed select-none">
+          {content}
+        </article>
+      </ScrollReveal>
     );
   }
 
   return (
-    <Link
-      href={`/productos/${slug}`}
-      className="group block opacity-0 animate-fade-up"
-      style={{ animationDelay: `${0.1 + index * 0.08}s` }}
-    >
-      {content}
-    </Link>
+    <ScrollReveal delay={0.05 * (index % 3)} y={24}>
+      <Link href={`/productos/${slug}`} className="group block">
+        {content}
+      </Link>
+    </ScrollReveal>
   );
 }
 

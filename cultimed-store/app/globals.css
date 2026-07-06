@@ -88,8 +88,10 @@
   .btn-ghost {
     @apply inline-flex items-center justify-center gap-2 px-7 py-3 border border-ink text-ink text-sm tracking-editorial font-medium transition-all duration-300 hover:bg-ink hover:text-paper;
   }
+  /* relative + before:-inset-3 amplia el area tocable a ~44px sin tocar
+     el tamano visual del link (hit-slop invisible) */
   .btn-link {
-    @apply inline-flex items-center gap-2 text-sm tracking-editorial border-b border-ink/30 pb-0.5 text-ink hover:border-ink transition-colors duration-300;
+    @apply relative inline-flex items-center gap-2 text-sm tracking-editorial border-b border-ink/30 pb-0.5 text-ink hover:border-ink transition-colors duration-300 before:absolute before:-inset-3 before:content-[''];
   }
   /* Inputs */
   .input-editorial {

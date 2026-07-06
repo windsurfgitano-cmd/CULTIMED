@@ -8,6 +8,7 @@ import CatalogGate from "@/components/CatalogGate";
 import VariantPicker from "@/components/VariantPicker";
 import GramPricePicker from "@/components/GramPricePicker";
 import { parsePriceTiers } from "@/lib/pricing";
+import ScrollReveal from "@/components/ScrollReveal";
 
 export const dynamic = "force-dynamic";
 
@@ -287,7 +288,7 @@ export default async function ProductDetailPage({ params }: { params: { slug: st
       {/* Long-form description */}
       {product.description && product.description.length > 280 && (
         <section className="max-w-[1440px] mx-auto px-6 lg:px-12 py-20 lg:py-32 border-t border-rule">
-          <div className="grid grid-cols-12 gap-x-6">
+          <ScrollReveal as="div" stagger className="grid grid-cols-12 gap-x-6">
             <div className="col-span-12 lg:col-span-3">
               <span className="eyebrow flex items-baseline gap-3">
                 <span className="editorial-numeral text-base text-ink-subtle">— I</span>
@@ -301,7 +302,7 @@ export default async function ProductDetailPage({ params }: { params: { slug: st
                 ))}
               </div>
             </div>
-          </div>
+          </ScrollReveal>
         </section>
       )}
 
@@ -325,7 +326,11 @@ export default async function ProductDetailPage({ params }: { params: { slug: st
               </div>
             </div>
             <div className="grid grid-cols-12 gap-x-6 lg:gap-y-0 gap-y-6">
-              <div className="col-span-12 lg:col-span-7 lg:col-start-5 grid grid-cols-1 sm:grid-cols-3 gap-px bg-rule">
+              <ScrollReveal
+                as="div"
+                stagger
+                className="col-span-12 lg:col-span-7 lg:col-start-5 grid grid-cols-1 sm:grid-cols-3 gap-px bg-rule"
+              >
                 {batches.map((b) => (
                   <div key={b.id} className="bg-paper p-6">
                     <p className="font-mono text-[11px] uppercase tracking-widest text-ink-muted nums-lining mb-4">
@@ -363,7 +368,7 @@ export default async function ProductDetailPage({ params }: { params: { slug: st
                     </button>
                   </div>
                 ))}
-              </div>
+              </ScrollReveal>
             </div>
           </div>
         </section>
@@ -372,7 +377,7 @@ export default async function ProductDetailPage({ params }: { params: { slug: st
       {/* Related */}
       {related.length > 0 && (
         <section className="max-w-[1440px] mx-auto px-6 lg:px-12 py-20 lg:py-32">
-          <div className="flex items-end justify-between mb-12 lg:mb-20">
+          <ScrollReveal as="div" className="flex items-end justify-between mb-12 lg:mb-20">
             <div className="flex items-baseline gap-6">
               <span className="editorial-numeral text-2xl text-ink-subtle">— III</span>
               <span className="eyebrow">También en {CATEGORY_FULL_LABEL[product.category] || product.category}</span>
@@ -380,7 +385,7 @@ export default async function ProductDetailPage({ params }: { params: { slug: st
             <Link href="/productos" className="btn-link">
               Ver catálogo →
             </Link>
-          </div>
+          </ScrollReveal>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-16">
             {related.map((p, i) => (
               <ProductCard

@@ -83,7 +83,7 @@ export default function Header({ customer }: HeaderProps) {
               type="button"
               onClick={() => setMobileOpen((o) => !o)}
               aria-label="Menu"
-              className="lg:hidden ml-2 w-9 h-9 flex flex-col items-center justify-center gap-1.5"
+              className="lg:hidden ml-2 w-11 h-11 flex flex-col items-center justify-center gap-1.5"
             >
               <span className={clsx(
                 "block h-px w-5 bg-ink transition-transform duration-300",

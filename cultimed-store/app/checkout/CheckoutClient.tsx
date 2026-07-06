@@ -8,6 +8,7 @@ import { formatCLP } from "@/lib/format";
 import { calcShippingFee, FREE_SHIPPING_THRESHOLD, OUTLYING_SHIPPING_FEE, URBAN_SHIPPING_FEE } from "@/lib/shipping";
 import { isNativeApp } from "@/lib/capacitor";
 import type { CustomerAccount } from "@/lib/auth";
+import ScrollReveal from "@/components/ScrollReveal";
 
 const TRANSFER_DISCOUNT_PCT = 10;
 const CHECKOUT_WEB_URL = "https://dispensariocultimed.cl/checkout";
@@ -167,7 +168,7 @@ export default function CheckoutClient({ customer }: { customer: CustomerAccount
         )}
 
         <form onSubmit={handleSubmit} className="grid grid-cols-12 gap-x-6 gap-y-10">
-          <div className="col-span-12 lg:col-span-7 space-y-10">
+          <ScrollReveal as="div" stagger className="col-span-12 lg:col-span-7 space-y-10">
             <div>
               <p className="eyebrow mb-4 flex items-baseline gap-3">
                 <span className="editorial-numeral text-base text-ink-subtle">— A</span>
@@ -231,9 +232,9 @@ export default function CheckoutClient({ customer }: { customer: CustomerAccount
               </p>
               <textarea name="notes" rows={3} className="input-editorial resize-none" placeholder="Indicaciones especiales, horarios..." />
             </div>
-          </div>
+          </ScrollReveal>
 
-          <aside className="col-span-12 lg:col-span-4 lg:col-start-9">
+          <ScrollReveal as="aside" delay={0.15} className="col-span-12 lg:col-span-4 lg:col-start-9">
             <div className="lg:sticky lg:top-32 border border-rule bg-paper-bright p-7">
               <p className="eyebrow mb-5">— Tu orden</p>
               <ul className="divide-y divide-rule-soft mb-5">
@@ -284,7 +285,7 @@ export default function CheckoutClient({ customer }: { customer: CustomerAccount
                 Al continuar generamos tu folio y te mostramos los datos para transferir. Despacho urbano {formatCLP(URBAN_SHIPPING_FEE)}; zonas fuera de Santiago urbano {formatCLP(OUTLYING_SHIPPING_FEE)}; gratis sobre {formatCLP(FREE_SHIPPING_THRESHOLD)}.
               </p>
             </div>
-          </aside>
+          </ScrollReveal>
         </form>
       </section>
     </>

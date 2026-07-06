@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getCurrentCustomer } from "@/lib/auth";
+import ScrollReveal from "@/components/ScrollReveal";
 
 export const dynamic = "force-dynamic";
 
@@ -85,7 +86,11 @@ export default async function HomePage() {
 
         {/* Hero bottom band — quiet trust strip */}
         <div className="border-y border-rule bg-paper-dim/40">
-          <div className="max-w-[1440px] mx-auto px-6 lg:px-12 py-6 grid grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-12 items-center">
+          <ScrollReveal
+            as="div"
+            stagger
+            className="max-w-[1440px] mx-auto px-6 lg:px-12 py-6 grid grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-12 items-center"
+          >
             <TrustItem
               n="01"
               title="SANNA · Autorizado"
@@ -106,13 +111,13 @@ export default async function HomePage() {
               title="COA · Por lote"
               description="Certificado de análisis de laboratorio independiente."
             />
-          </div>
+          </ScrollReveal>
         </div>
       </section>
 
       {/* ────────────────  SECTION 01 — CATÁLOGO RESTRINGIDO  ──────────────── */}
       <section className="py-24 lg:py-40 max-w-[1440px] mx-auto px-6 lg:px-12">
-        <div className="grid grid-cols-12 gap-x-6 gap-y-12 items-start">
+        <ScrollReveal as="div" stagger className="grid grid-cols-12 gap-x-6 gap-y-12 items-start">
           <div className="col-span-12 lg:col-span-7">
             <div className="flex items-baseline gap-6 mb-6">
               <span className="editorial-numeral text-2xl text-ink-subtle">— 01</span>
@@ -184,14 +189,14 @@ export default async function HomePage() {
               </>
             )}
           </div>
-        </div>
+        </ScrollReveal>
       </section>
 
       {/* ────────────────  SECTION 02 — VALIDACIÓN  ──────────────── */}
       <section className="bg-forest text-paper py-24 lg:py-40 relative overflow-hidden">
         <div className="absolute inset-0 grain-overlay opacity-50" aria-hidden />
         <div className="relative max-w-[1440px] mx-auto px-6 lg:px-12">
-          <div className="grid grid-cols-12 gap-x-6 gap-y-10">
+          <ScrollReveal as="div" stagger className="grid grid-cols-12 gap-x-6 gap-y-10">
             <div className="col-span-12 lg:col-span-5">
               <div className="flex items-baseline gap-6 mb-6">
                 <span className="editorial-numeral text-2xl text-paper/50">— 02</span>
@@ -207,7 +212,7 @@ export default async function HomePage() {
               <p className="font-display text-2xl lg:text-3xl leading-[1.3] text-balance text-paper mb-8">
                 Crea tu cuenta, carga tus documentos y nuestro equipo valida la receta antes de habilitar el catálogo.
               </p>
-              <div className="space-y-3 mb-10">
+              <ScrollReveal as="div" stagger className="space-y-3 mb-10">
                 {[
                   "Cuenta de paciente con RUT y contacto",
                   "Carga segura de receta e identificación",
@@ -221,7 +226,7 @@ export default async function HomePage() {
                     <span className="text-paper/85">{b}</span>
                   </div>
                 ))}
-              </div>
+              </ScrollReveal>
               <Link
                 href="/registro"
                 className="inline-flex items-center gap-3 px-8 py-3.5 bg-paper text-ink text-sm tracking-editorial font-medium hover:bg-brass-bright transition-colors duration-300"
@@ -230,7 +235,7 @@ export default async function HomePage() {
                 <span aria-hidden>→</span>
               </Link>
             </div>
-          </div>
+          </ScrollReveal>
         </div>
       </section>
 
@@ -238,7 +243,7 @@ export default async function HomePage() {
       {/* ────────────────  CLOSING / CTA BAND  ──────────────── */}
       <section className="bg-paper-dim border-y border-rule">
         <div className="max-w-[1440px] mx-auto px-6 lg:px-12 py-20 lg:py-28">
-          <div className="grid grid-cols-12 gap-x-6 gap-y-10 items-end">
+          <ScrollReveal as="div" stagger className="grid grid-cols-12 gap-x-6 gap-y-10 items-end">
             <div className="col-span-12 lg:col-span-8">
               <p className="eyebrow mb-4">— Empieza con seguridad clínica</p>
               <h2 className="font-display text-display-2 leading-[1.0] text-balance">
@@ -255,7 +260,7 @@ export default async function HomePage() {
                 Ya tengo cuenta →
               </Link>
             </div>
-          </div>
+          </ScrollReveal>
         </div>
       </section>
     </>
