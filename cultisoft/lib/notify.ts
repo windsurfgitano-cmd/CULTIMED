@@ -1,3 +1,4 @@
+// Mismo código en cultisoft y cultimed-store — sincronizar ambas copias a mano.
 // Envío multicanal de notificaciones con deduplicación por DB.
 // Canales: email (Resend, activo) · sms (TextBee, dormido hasta setear env) ·
 // whatsapp (stub fase 2). El routing por tipo vive en CHANNELS_BY_TYPE.

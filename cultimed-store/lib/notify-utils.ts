@@ -1,3 +1,4 @@
+// Mismo código en cultisoft y cultimed-store — sincronizar ambas copias a mano.
 // Funciones puras del sistema de notificaciones. SIN imports de la app —
 // este archivo debe poder correr bajo tsx sin resolver alias "@/".
 import crypto from "node:crypto";

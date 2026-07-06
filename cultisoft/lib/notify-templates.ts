@@ -1,3 +1,4 @@
+// Mismo código en cultisoft y cultimed-store — sincronizar ambas copias a mano.
 // Plantillas de email y SMS por tipo de notificación. Layout editorial oscuro
 // (mismo look del cron receta-expiry, que es la plantilla oficial de Cultimed).
 export type NotificationType =
