@@ -12,7 +12,6 @@ export const maxDuration = 120;
 
 const REPURCHASE_DAYS = 5;
 const STORE_BASE = process.env.STORE_PUBLIC_BASE || process.env.NEXT_PUBLIC_BASE_URL || "https://dispensariocultimed.cl";
-const PAID_STATUSES = ["paid", "preparing", "ready_for_pickup", "shipped", "delivered"];
 
 export async function GET(req: NextRequest) {
   const auth = req.headers.get("authorization") || "";
