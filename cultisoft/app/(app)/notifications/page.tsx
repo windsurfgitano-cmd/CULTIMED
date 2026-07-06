@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireStaff, isAdminOrAbove } from "@/lib/auth";
 import { all } from "@/lib/db";
@@ -98,9 +99,14 @@ export default async function NotificationsPage({
                   <td className="px-4 py-3">{r.customer_name || "—"}</td>
                   <td className="px-4 py-3 font-mono text-xs">{r.recipient}</td>
                   <td className="px-4 py-3">
-                    <span className={clsx(STATUS_CLS[r.status] || "pill-neutral")} title={r.error || undefined}>
+                    <span className={clsx(STATUS_CLS[r.status] || "pill-neutral")}>
                       {r.status}
                     </span>
+                    {r.status === "failed" && r.error && (
+                      <p className="mt-1 text-[11px] font-mono text-sangria leading-snug max-w-[280px] truncate" title={r.error}>
+                        {r.error}
+                      </p>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -114,7 +120,7 @@ export default async function NotificationsPage({
 
 function FilterChip({ active, href, children }: { active: boolean; href: string; children: React.ReactNode }) {
   return (
-    <a
+    <Link
       href={href}
       className={clsx(
         "px-4 py-1.5 text-xs uppercase tracking-widest font-medium transition-all duration-200 border",
@@ -122,6 +128,6 @@ function FilterChip({ active, href, children }: { active: boolean; href: string;
       )}
     >
       {children}
-    </a>
+    </Link>
   );
 }
