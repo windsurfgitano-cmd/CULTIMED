@@ -1,0 +1,36 @@
+# Compila el APK debug de la app nativa (Capacitor) y lo sube como artifact.
+# Existe porque el firewall del PC de desarrollo bloquea el daemon de Gradle;
+# además deja lista la base para el build firmado (AAB) de la Play Store.
+name: Android APK (debug)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "cultimed-store/android/**"
+      - "cultimed-store/capacitor.config.ts"
+      - ".github/workflows/android-apk.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Build debug APK
+        working-directory: cultimed-store/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cultimed-debug-apk
+          path: cultimed-store/android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
