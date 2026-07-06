@@ -15,7 +15,14 @@ type NavItem = {
 };
 
 const NAV: NavItem[] = [
-  { n: "01", href: "/dashboard",         label: "Dashboard" },
+  {
+    n: "01",
+    href: "/dashboard",
+    label: "Dashboard",
+    subItems: [
+      { href: "/notifications", label: "Notificaciones", roles: ["admin", "superadmin"] },
+    ],
+  },
   { n: "02", href: "/web-orders",        label: "Pedidos web" },
   {
     n: "03",
