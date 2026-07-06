@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
   }
 
   // Última orden pagada por cliente; candidata si tiene ≥5 días y no hay orden
-  // posterior (de cualquier estado no cancelado) del mismo cliente.
+  // posterior (de cualquier estado que no sea cancelled/rejected) del mismo cliente.
   const candidates = await all<{
     order_id: number; account_id: number; email: string; phone: string | null; full_name: string;
   }>(
@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
          SELECT 1 FROM customer_orders o2
          WHERE o2.customer_account_id = lp.account_id
            AND o2.created_at > lp.created_at
-           AND o2.status != 'cancelled'
+           AND o2.status NOT IN ('cancelled', 'rejected')
        )`
   );
 
