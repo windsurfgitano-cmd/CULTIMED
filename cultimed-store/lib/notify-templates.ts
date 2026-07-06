@@ -8,8 +8,10 @@ export type NotificationType =
   | "recompra"
   | "pedido_abandonado";
 
+// STORE_PUBLIC_BASE primero: en cultisoft es LA variable que apunta a la tienda;
+// si ese proyecto definiera NEXT_PUBLIC_BASE_URL (dominio del panel), no debe ganar.
 const STORE_BASE =
-  process.env.NEXT_PUBLIC_BASE_URL || process.env.STORE_PUBLIC_BASE || "https://dispensariocultimed.cl";
+  process.env.STORE_PUBLIC_BASE || process.env.NEXT_PUBLIC_BASE_URL || "https://dispensariocultimed.cl";
 const LOGO =
   "https://ibkhvopshhlbvjwrmuzm.supabase.co/storage/v1/object/public/email-assets/cultimed-logo-gold.png";
 const BANK = {
