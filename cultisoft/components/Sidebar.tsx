@@ -16,22 +16,22 @@ type NavItem = {
 
 const NAV: NavItem[] = [
   { n: "01", href: "/dashboard",         label: "Dashboard" },
+  { n: "02", href: "/web-orders",        label: "Pedidos web" },
   {
-    n: "02",
-    href: "/patients",
-    label: "Pacientes",
-    subItems: [
-      { href: "/patients/outreach", label: "Campaña datos", roles: ["admin", "superadmin"] },
-    ],
-  },
-  { n: "03", href: "/web-orders",        label: "Pedidos web" },
-  {
-    n: "04",
+    n: "03",
     href: "/web-prescriptions",
     label: "Recetas web",
     subItems: [
       { href: "/prescriptions", label: "Recetas internas", roles: ["admin", "superadmin", "doctor", "pharmacist"] },
       { href: "/doctors", label: "Doctores", roles: ["admin", "superadmin", "doctor", "pharmacist"] },
+    ],
+  },
+  {
+    n: "04",
+    href: "/patients",
+    label: "Pacientes",
+    subItems: [
+      { href: "/patients/outreach", label: "Campaña datos", roles: ["admin", "superadmin"] },
     ],
   },
   {
