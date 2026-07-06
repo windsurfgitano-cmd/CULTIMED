@@ -33,7 +33,7 @@ como canales preparados en el código, listos para activar por variables de ento
 | 2 | `receta_rechazada` | Mismo action, rama rechazo | "Fue rechazada: [motivo del QF]" + CTA "Subir nueva receta →" |
 | 3 | `pedido_pago_confirmado` | Server action de `cultisoft/app/(app)/web-orders/[id]/page.tsx`, transición `mark_paid` | "Recibimos tu pago, estamos preparando tu pedido" + resumen |
 | 4 | `pedido_despachado` | Mismo action, transición `mark_shipped` | "Tu pedido va en camino" + tracking si existe |
-| 5 | `recompra` | Cron diario `cultimed-store/app/api/cron/recompra/route.ts` | Último pedido pagado hace ≥25 días, sin pedido posterior → "¿Se te está acabando?" + CTA catálogo. Marketing: incluye link de baja. |
+| 5 | `recompra` | Cron diario `cultimed-store/app/api/cron/recompra/route.ts` | Último pedido pagado hace ≥5 días, sin pedido posterior → "¿Se te está acabando?" + CTA catálogo. Marketing: incluye link de baja. |
 | 6 | `pedido_abandonado` | Cron diario `cultimed-store/app/api/cron/pedido-abandonado/route.ts` | Pedidos `pending_payment` entre 24h y 7 días → datos de transferencia + total + CTA "Retomar mi pedido →" |
 
 Nota de alcance: los emails de receta aprobada/rechazada **ya existen inline** en
@@ -138,7 +138,7 @@ y error descriptivo (email sigue saliendo).
 - `vercel.json`: dos entradas nuevas con horarios tipo `0 13 * * *` (≈9-10am Chile)
   separados por algunos minutos.
 - Query recompra: última orden por cliente con status pagado/entregado, `created_at
-  <= now() - interval '25 days'`, sin orden posterior de ese cliente, sin
+  <= now() - interval '5 days'`, sin orden posterior de ese cliente, sin
   `marketing_opt_out`, sin registro previo en `notification_log` para esa orden.
 - Query abandonado: órdenes `pending_payment` con `created_at` entre 7 días y 24
   horas atrás, sin registro previo.

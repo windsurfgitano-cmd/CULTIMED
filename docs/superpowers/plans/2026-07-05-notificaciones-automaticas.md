@@ -31,7 +31,7 @@
 | `cultimed-store/app/baja/page.tsx` | Create | Opt-out marketing sin login (token firmado) |
 | `cultisoft/app/(app)/web-prescriptions/[id]/page.tsx` | Modify | Migrar emails inline de receta a `sendNotification` |
 | `cultisoft/app/(app)/web-orders/[id]/page.tsx` | Modify | Notificar `confirm_payment` y `mark_shipped` |
-| `cultimed-store/app/api/cron/recompra/route.ts` | Create | Cron diario recordatorio de recompra (≥25 días) |
+| `cultimed-store/app/api/cron/recompra/route.ts` | Create | Cron diario recordatorio de recompra (≥5 días) |
 | `cultimed-store/app/api/cron/pedido-abandonado/route.ts` | Create | Cron diario pedidos `pending_payment` 24h–7d |
 | `cultimed-store/vercel.json` | Modify | 2 entradas de cron nuevas |
 | `cultisoft/app/(app)/notifications/page.tsx` | Create | Admin: últimos 100 envíos |
@@ -445,12 +445,12 @@ export function renderEmail(
           eyebrow: "Tu tratamiento",
           titleHtml: `¿Se te está <em style="font-style:italic;font-weight:400;">acabando</em>?`,
           greeting,
-          bodyHtml: `<p style="margin:0 0 16px;">Ha pasado casi un mes desde tu último pedido. Para que no interrumpas tu tratamiento, el catálogo está disponible con tu receta vigente — despacho en 24–72h hábiles.</p>`,
+          bodyHtml: `<p style="margin:0 0 16px;">Han pasado unos días desde tu último pedido. Para que no interrumpas tu tratamiento, el catálogo está disponible con tu receta vigente — despacho en 24–72h hábiles.</p>`,
           ctaLabel: "Renovar mi pedido",
           ctaUrl: `${STORE_BASE}/productos`,
           footerExtraHtml: `<p style="margin:8px 0 0;font-size:10px;"><a href="${unsubscribeUrl}" style="color:#8b7d5c;text-decoration:underline;">No quiero recordatorios de recompra</a></p>`,
         }),
-        text: `${greeting},\n\nHa pasado casi un mes desde tu último pedido en Cultimed. Renueva en:\n${STORE_BASE}/productos\n\nPara no recibir recordatorios: ${unsubscribeUrl}\n\nCultimed · dispensariocultimed.cl`,
+        text: `${greeting},\n\nHan pasado unos días desde tu último pedido en Cultimed. Renueva en:\n${STORE_BASE}/productos\n\nPara no recibir recordatorios: ${unsubscribeUrl}\n\nCultimed · dispensariocultimed.cl`,
       };
     }
     case "pedido_abandonado": {
@@ -488,7 +488,7 @@ export function renderSms(type: NotificationType, data: Record<string, unknown>)
     case "pedido_despachado":
       return `Cultimed: tu pedido ${folio} va en camino.${data.tracking ? ` Seguimiento: ${String(data.tracking)}` : ""}`;
     case "recompra":
-      return `Cultimed: ha pasado casi un mes desde tu ultimo pedido. Renueva en dispensariocultimed.cl/productos`;
+      return `Cultimed: han pasado unos dias desde tu ultimo pedido. Renueva en dispensariocultimed.cl/productos`;
     case "pedido_abandonado":
       return `Cultimed: tu pedido ${folio} sigue reservado. Completa la transferencia en dispensariocultimed.cl/checkout/${Number(data.orderId)}`;
   }
@@ -1036,7 +1036,7 @@ git commit -m "Pedidos web: notifica pago confirmado y despacho al paciente"
 
 ```ts
 // Cron diario: recordatorio de recompra. Pacientes cuyo ÚLTIMO pedido pagado
-// fue hace ≥25 días y no han vuelto a comprar. Marketing → respeta
+// fue hace ≥5 días y no han vuelto a comprar. Marketing → respeta
 // marketing_opt_out e incluye link de baja. Dedupe: 1 email por orden gatillo.
 // Auth idéntica a los crons existentes (CRON_SECRET / MIGRATION_SECRET).
 import { NextResponse, type NextRequest } from "next/server";
@@ -1047,7 +1047,7 @@ import { makeUnsubscribeToken } from "@/lib/notify-utils";
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
-const REPURCHASE_DAYS = 25;
+const REPURCHASE_DAYS = 5;
 const STORE_BASE = process.env.NEXT_PUBLIC_BASE_URL || "https://dispensariocultimed.cl";
 const PAID_STATUSES = ["paid", "preparing", "ready_for_pickup", "shipped", "delivered"];
 
@@ -1059,7 +1059,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  // Última orden pagada por cliente; candidata si tiene ≥25 días y no hay orden
+  // Última orden pagada por cliente; candidata si tiene ≥5 días y no hay orden
   // posterior (de cualquier estado no cancelado) del mismo cliente.
   const candidates = await all<{
     order_id: number; account_id: number; email: string; phone: string | null; full_name: string;
@@ -1110,7 +1110,7 @@ export async function POST(req: NextRequest) {
 }
 ```
 
-Nota: `INTERVAL '25 days'` va interpolado como literal — `REPURCHASE_DAYS` es constante del módulo, no input de usuario (mismo estilo que receta-expiry).
+Nota: `INTERVAL '5 days'` va interpolado como literal — `REPURCHASE_DAYS` es constante del módulo, no input de usuario (mismo estilo que receta-expiry).
 
 - [ ] **Step 2: Agregar el cron a vercel.json**
 
@@ -1161,7 +1161,7 @@ await sql\`DELETE FROM customer_orders WHERE folio='TEST-RECOMPRA-1'\`;
 console.log('limpiado');await sql.end();})();
 "
 git add app/api/cron/recompra/route.ts vercel.json
-git commit -m "Cron recompra: recordatorio a 25 dias del ultimo pedido"
+git commit -m "Cron recompra: recordatorio a 5 dias del ultimo pedido"
 ```
 
 ---
@@ -1592,7 +1592,8 @@ Usar superpowers:finishing-a-development-branch para presentar opciones de integ
 
 - En Vercel, los crons nuevos quedan activos con el deploy — el primer run real
   de `recompra` puede mandar emails a TODOS los clientes que califiquen (los que
-  llevan ≥25 días sin recomprar). Si se quiere un arranque suave, correr primero
+  llevan ≥5 días sin recomprar — con umbral tan corto puede ser una lista GRANDE
+  el primer día). Si se quiere un arranque suave, correr primero
   el cron manualmente con curl y revisar `candidates` en la respuesta.
 - `EMAIL_FROM` debe ser un dominio verificado en Resend para producción
   (`no-reply@dispensariocultimed.cl`).
