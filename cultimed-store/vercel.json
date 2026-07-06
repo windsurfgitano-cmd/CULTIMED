@@ -15,6 +15,10 @@
     {
       "path": "/api/cron/stock-low",
       "schedule": "47 12 * * *"
+    },
+    {
+      "path": "/api/cron/recompra",
+      "schedule": "20 13 * * *"
     }
   ]
 }
