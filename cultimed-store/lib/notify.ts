@@ -55,6 +55,9 @@ async function sendOnChannel(channel: NotificationChannel, input: SendNotificati
 
   // Reclamar la fila ANTES de enviar: si el INSERT no devuelve id, ya existe
   // (enviada o en curso por otra request) — no enviar de nuevo.
+  // OJO (semántica at-most-once): si el destinatario es inválido en este momento
+  // (p. ej. teléfono no normalizable), la fila igual queda reclamada y esta
+  // instancia del evento NO se reintenta aunque corrijan el dato después.
   const ins = await run(
     `INSERT INTO notification_log (customer_account_id, type, channel, recipient, dedupe_key, related_id, status)
      VALUES (?, ?, ?, ?, ?, ?, 'pending')
