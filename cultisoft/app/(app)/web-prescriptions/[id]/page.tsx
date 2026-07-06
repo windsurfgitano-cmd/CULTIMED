@@ -6,7 +6,7 @@ import { formatDateTime } from "@/lib/format";
 import { logAudit } from "@/lib/audit";
 import { markPrescriptionApproved } from "@/lib/referrals";
 import { resolveStorageUrl } from "@/lib/storage";
-import { sendEmail, emailLayout } from "@/lib/email";
+import { sendNotification } from "@/lib/notify";
 import PageHeader from "@/components/PageHeader";
 import StaffDocumentUploadForm from "@/components/StaffDocumentUploadForm";
 
@@ -51,8 +51,10 @@ async function reviewAction(formData: FormData) {
   const notes = String(formData.get("notes") || "").trim();
   if (!id || !["aprobada", "rechazada"].includes(decision)) return;
 
-  const customer = await get<{ email: string; full_name: string }>(
-    `SELECT email, full_name FROM customer_accounts WHERE id = ?`, id
+  const customer = await get<{
+    email: string; full_name: string; phone: string | null; prescription_uploaded_at: string | null;
+  }>(
+    `SELECT email, full_name, phone, prescription_uploaded_at FROM customer_accounts WHERE id = ?`, id
   );
 
   await run(
@@ -79,46 +81,19 @@ async function reviewAction(formData: FormData) {
     details: { notes: notes || null },
   });
 
-  // Notificar al paciente por email
+  // Notificar al paciente. Dedupe por (cuenta, fecha de subida de la receta):
+  // el doble clic del QF no duplica, pero una nueva receta subida el próximo
+  // año sí genera su propio aviso. sendNotification nunca lanza.
   if (customer) {
-    const storeUrl = process.env.STORE_PUBLIC_BASE || "https://dispensariocultimed.cl";
-    if (decision === "aprobada") {
-      await sendEmail({
-        to: customer.email,
-        subject: "Tus documentos fueron aprobados — Cultimed",
-        html: emailLayout({
-          preheader: "Tus documentos fueron aprobados. Ya puedes comprar en Cultimed.",
-          title: "Documentos aprobados",
-          body: `
-            <p>Hola ${customer.full_name},</p>
-            <p>Tu documentación ha sido <strong>aprobada</strong> por nuestro químico farmacéutico.</p>
-            ${notes ? `<p>Nota del revisor:<br><em>${notes}</em></p>` : ""}
-            <p>Ya puedes acceder al catálogo completo y realizar tus pedidos en Cultimed.</p>
-          `,
-          ctaLabel: "Ir al dispensario",
-          ctaUrl: `${storeUrl}/mi-cuenta`,
-          footerNote: "Si tienes dudas, responde este correo o escríbenos a contacto@dispensariocultimed.cl.",
-        }),
-      });
-    } else {
-      await sendEmail({
-        to: customer.email,
-        subject: "Tus documentos requieren corrección — Cultimed",
-        html: emailLayout({
-          preheader: "Tus documentos fueron revisados y requieren corrección.",
-          title: "Documentos rechazados",
-          body: `
-            <p>Hola ${customer.full_name},</p>
-            <p>Hemos revisado tu documentación y <strong>no ha podido ser aprobada</strong>.</p>
-            ${notes ? `<p>Motivo indicado por el revisor:<br><em>${notes}</em></p>` : "<p>Tu documentación no cumple con los requisitos. Por favor, sube nuevos documentos.</p>"}
-            <p>Puedes volver a subir tus documentos desde tu cuenta en Cultimed.</p>
-          `,
-          ctaLabel: "Subir documentos",
-          ctaUrl: `${storeUrl}/mi-cuenta`,
-          footerNote: "Si tienes dudas, responde este correo o escríbenos a contacto@dispensariocultimed.cl.",
-        }),
-      });
-    }
+    await sendNotification({
+      type: decision === "aprobada" ? "receta_aprobada" : "receta_rechazada",
+      customerAccountId: id,
+      recipientEmail: customer.email,
+      recipientPhone: customer.phone,
+      dedupeKey: `${id}:${customer.prescription_uploaded_at || "sin-fecha"}`,
+      relatedId: id,
+      data: { firstName: customer.full_name, notes: notes || null },
+    });
   }
 
   redirect(`/web-prescriptions/${id}`);
