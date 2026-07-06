@@ -5,6 +5,7 @@ import { all, get, transaction } from "@/lib/db";
 import { formatCLP, formatDateTime } from "@/lib/format";
 import { logAudit } from "@/lib/audit";
 import { recordCommissionForOrder } from "@/lib/referrals";
+import { sendNotification } from "@/lib/notify";
 import { resolveStorageUrl } from "@/lib/storage";
 import PageHeader from "@/components/PageHeader";
 import AdminUploadProofForm from "@/components/AdminUploadProofForm";
@@ -276,6 +277,35 @@ async function transitionAction(formData: FormData) {
     } catch (e) {
       // No bloqueamos el flujo de pago si falla el cálculo de comisión — se reporta en logs.
       console.error("recordCommissionForOrder failed:", e);
+    }
+  }
+
+  // Notificar al paciente los hitos que le importan: pago confirmado y despacho.
+  // dedupeKey = id de la orden; el type distingue cada hito. Nunca lanza.
+  if (action === "confirm_payment" || action === "mark_shipped") {
+    const cust = await get<{
+      account_id: number; email: string; phone: string | null; full_name: string; total: number;
+    }>(
+      `SELECT c.id as account_id, c.email, c.phone, c.full_name, o.total
+       FROM customer_orders o JOIN customer_accounts c ON c.id = o.customer_account_id
+       WHERE o.id = ?`,
+      id
+    );
+    if (cust) {
+      await sendNotification({
+        type: action === "confirm_payment" ? "pedido_pago_confirmado" : "pedido_despachado",
+        customerAccountId: cust.account_id,
+        recipientEmail: cust.email,
+        recipientPhone: cust.phone,
+        dedupeKey: String(id),
+        relatedId: id,
+        data: {
+          firstName: cust.full_name,
+          folio: order.folio,
+          totalCLP: formatCLP(Number(cust.total)),
+          tracking: tracking || null,
+        },
+      });
     }
   }
 
