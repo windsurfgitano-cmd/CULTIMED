@@ -87,7 +87,12 @@ export async function GET(req: NextRequest) {
     WHERE is_active=1 AND role IN ('admin','superadmin')
     ORDER BY role DESC, email
   `;
-  const recipients = admins.map((a) => a.email);
+  // Resend rechaza el envío COMPLETO si un solo email trae caracteres no-ASCII
+  // (p. ej. una ñ tipeada en la dirección) — filtramos inválidos para que una
+  // fila mala no deje sin alerta a todos los demás.
+  const recipients = admins
+    .map((a) => a.email)
+    .filter((e) => /^[\x20-\x7E]+$/.test(e) && e.includes("@"));
 
   if (recipients.length === 0) {
     return NextResponse.json({ ok: true, error: "no active admins to notify" });
