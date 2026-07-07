@@ -1,4 +1,10 @@
 ﻿import Link from "next/link";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Trazabilidad por lote",
+  description: "Cada producto con número de lote, análisis de laboratorio independiente (COA) y registro sanitario. Trazabilidad completa de tu tratamiento.",
+};
 
 export default function TrazabilidadPage() {
   return (

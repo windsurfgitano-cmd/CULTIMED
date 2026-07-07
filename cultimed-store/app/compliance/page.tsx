@@ -1,4 +1,10 @@
 ﻿import Link from "next/link";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Cumplimiento y normativa",
+  description: "Marco legal del dispensario: Ley 20.850, D.S. 345/2016, SANNA e ISP. Cómo operamos un dispensario de cannabis medicinal en Chile.",
+};
 
 export default function CompliancePage() {
   return (

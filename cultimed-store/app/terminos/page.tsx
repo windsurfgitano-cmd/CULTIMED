@@ -1,3 +1,10 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Términos de uso",
+  description: "Términos y condiciones de uso del dispensario Cultimed.",
+};
+
 export default function TerminosPage() {
   return (
     <article className="max-w-[1440px] mx-auto px-6 lg:px-12 py-16 lg:py-24">

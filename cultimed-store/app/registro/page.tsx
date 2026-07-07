@@ -5,6 +5,12 @@ import { safeRedirectPath } from "@/lib/safe-redirect";
 import { get } from "@/lib/db";
 import { findActiveCode, REFERRAL_COOKIE_NAME } from "@/lib/referrals";
 import RegisterForm from "@/components/RegisterForm";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Crear cuenta de paciente",
+  description: "Crea tu cuenta, sube tu receta médica y accede al catálogo de cannabis medicinal validado por químico farmacéutico.",
+};
 
 // El registro se ejecuta enteramente client-side (ver RegisterForm.tsx):
 // 1) POST JSON a /api/auth/register (crea cuenta + sesión, sin archivos)

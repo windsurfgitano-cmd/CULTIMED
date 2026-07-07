@@ -1,3 +1,10 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Política de privacidad",
+  description: "Cómo protegemos tus datos personales y clínicos bajo la Ley 19.628.",
+};
+
 export default function PrivacidadPage() {
   return (
     <article className="max-w-[1440px] mx-auto px-6 lg:px-12 py-16 lg:py-24">

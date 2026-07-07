@@ -1,3 +1,10 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Derechos del paciente",
+  description: "Tus derechos como paciente de cannabis medicinal en Chile: receta, privacidad de datos clínicos (Ley 19.628) y dispensación segura.",
+};
+
 export default function DerechosPacientePage() {
   return (
     <article className="max-w-[1440px] mx-auto px-6 lg:px-12 py-16 lg:py-24">

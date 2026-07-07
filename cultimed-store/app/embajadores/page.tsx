@@ -11,11 +11,11 @@ import {
   MIN_PAYOUT_AMOUNT,
 } from "@/lib/referrals";
 import { formatCLP } from "@/lib/format";
+import type { Metadata } from "next";
 
-export const metadata = {
-  title: "Programa de Embajadores · Cultimed",
-  description:
-    "Invita a otros pacientes a Cultimed con tu enlace único. Gana comisión por cada nueva dispensación.",
+export const metadata: Metadata = {
+  title: "Programa de embajadores",
+  description: "Recomienda Cultimed y obtén beneficios. Programa de embajadores para pacientes del dispensario.",
 };
 
 export default async function AmbassadorsPublicPage() {
