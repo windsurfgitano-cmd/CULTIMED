@@ -21,13 +21,14 @@ export default function CheckoutClient({ customer }: { customer: CustomerAccount
   const [shippingCity, setShippingCity] = useState("");
   const [shippingRegion, setShippingRegion] = useState("RM");
   const [error, setError] = useState<string | null>(null);
-  const [isNative, setIsNative] = useState(false);
+  const [browserCheckout, setBrowserCheckout] = useState(false);
 
-  // Google Play prohibe el carrito/pago de cannabis 100% nativo -- si esto
-  // corre dentro del shell de Capacitor, el pago se completa en el
-  // navegador del sistema (Safari/Chrome), no en este WebView.
+  // Google Play prohibe ORDENAR cannabis desde la app (el carrito mismo, no el
+  // pago). Solo la futura variante Play Store — cuyo shell agrega "CultimedPlay"
+  // al user agent via appendUserAgent en su capacitor.config — manda el checkout
+  // al navegador. Los builds normales (iOS + APK directo) compran dentro de la app.
   useEffect(() => {
-    setIsNative(isNativeApp());
+    setBrowserCheckout(isNativeApp() && navigator.userAgent.includes("CultimedPlay"));
   }, []);
 
   const transferDiscount = Math.round((subtotal * TRANSFER_DISCOUNT_PCT) / 100);
@@ -98,7 +99,7 @@ export default function CheckoutClient({ customer }: { customer: CustomerAccount
     );
   }
 
-  if (isNative) {
+  if (browserCheckout) {
     return (
       <section className="max-w-[1440px] mx-auto px-6 lg:px-12 py-16 lg:py-24">
         <div className="max-w-xl mx-auto text-center">
