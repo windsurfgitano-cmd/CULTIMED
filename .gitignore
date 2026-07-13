@@ -92,3 +92,8 @@ pnpm-lock.yaml
 .migration-secret.txt
 .vercel
 .env*.local
+
+# Release signing Android — NUNCA commitear (sin esto no hay updates)
+cultimed-store/android/keystore.properties
+cultimed-store/android/*.keystore
+cultimed-store/android/*.jks
