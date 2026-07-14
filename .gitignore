@@ -59,6 +59,10 @@ yarn-error.log*
 **/.parcel-cache/
 **/coverage/
 
+# Copia JS compilada del dataset de comunas (leftover de testeo con tsx) —
+# el fuente vive en cultimed-store/lib/comunas-rm.ts, nunca commitear el .mjs
+cultimed-store/comunas-rm.mjs
+
 # ---- Git worktrees (workspaces aislados para subagentes) -------
 .worktrees/
 
