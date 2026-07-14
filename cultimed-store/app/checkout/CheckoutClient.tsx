@@ -9,6 +9,7 @@ import { calcShippingFee, FREE_SHIPPING_THRESHOLD, OUTLYING_SHIPPING_FEE, URBAN_
 import { isNativeApp } from "@/lib/capacitor";
 import type { CustomerAccount } from "@/lib/auth";
 import ScrollReveal from "@/components/ScrollReveal";
+import ComunaCombobox from "@/components/ComunaCombobox";
 
 const TRANSFER_DISCOUNT_PCT = 10;
 const CHECKOUT_WEB_URL = "https://dispensariocultimed.cl/checkout";
@@ -19,7 +20,6 @@ export default function CheckoutClient({ customer }: { customer: CustomerAccount
   const [submitting, setSubmitting] = useState(false);
   const [shippingMethod] = useState<"courier">("courier");
   const [shippingCity, setShippingCity] = useState("");
-  const [shippingRegion, setShippingRegion] = useState("RM");
   const [error, setError] = useState<string | null>(null);
   const [browserCheckout, setBrowserCheckout] = useState(false);
 
@@ -32,7 +32,7 @@ export default function CheckoutClient({ customer }: { customer: CustomerAccount
   }, []);
 
   const transferDiscount = Math.round((subtotal * TRANSFER_DISCOUNT_PCT) / 100);
-  const shippingFee = calcShippingFee(subtotal, shippingCity, shippingRegion);
+  const shippingFee = calcShippingFee(subtotal, shippingCity, "RM");
   const finalTotal = Math.max(0, subtotal - transferDiscount + shippingFee);
   const shippingIsFree = shippingFee === 0;
 
@@ -46,6 +46,12 @@ export default function CheckoutClient({ customer }: { customer: CustomerAccount
     if (items.length === 0) return;
     setSubmitting(true);
     setError(null);
+
+    if (!shippingCity) {
+      setError("Elige tu comuna de la lista de despacho.");
+      setSubmitting(false);
+      return;
+    }
 
     const fd = new FormData(e.currentTarget);
     const payload = {
@@ -177,24 +183,9 @@ export default function CheckoutClient({ customer }: { customer: CustomerAccount
               </p>
               <div className="space-y-4">
                 <input name="shipping_address" required className="input-editorial" placeholder="Calle, número, depto." />
-                <div className="grid grid-cols-2 gap-4">
-                  <input
-                    name="shipping_city"
-                    required
-                    className="input-editorial"
-                    placeholder="Comuna"
-                    value={shippingCity}
-                    onChange={(e) => setShippingCity(e.currentTarget.value)}
-                  />
-                  <input
-                    name="shipping_region"
-                    required
-                    className="input-editorial"
-                    placeholder="RM"
-                    value={shippingRegion}
-                    onChange={(e) => setShippingRegion(e.currentTarget.value)}
-                  />
-                </div>
+                <ComunaCombobox value={shippingCity} onChange={setShippingCity} />
+                <input type="hidden" name="shipping_city" value={shippingCity} />
+                <input type="hidden" name="shipping_region" value="RM" />
               </div>
             </div>
 
