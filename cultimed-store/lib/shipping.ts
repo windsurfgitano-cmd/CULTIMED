@@ -1,26 +1,11 @@
+import { OUTLYING_COMUNA_KEYS, normalizeComuna } from "./comunas-rm";
+
 export const FREE_SHIPPING_THRESHOLD = 100000;
 export const URBAN_SHIPPING_FEE = 4990;
 export const OUTLYING_SHIPPING_FEE = 9990;
 
-const OUTLYING_RM_COMMUNES = new Set([
-  "buin",
-  "calera de tango",
-  "colina",
-  "curacavi",
-  "el monte",
-  "isla de maipo",
-  "lampa",
-  "maria pinto",
-  "melipilla",
-  "padre hurtado",
-  "paine",
-  "penaflor",
-  "pirque",
-  "san jose de maipo",
-  "talagante",
-  "tiltil",
-]);
-
+// Alias de la RM: si la región es la RM, la tarifa la decide la comuna;
+// cualquier otra región (data histórica — hoy solo despachamos RM) → alejada.
 const RM_ALIASES = new Set([
   "rm",
   "region metropolitana",
@@ -28,18 +13,10 @@ const RM_ALIASES = new Set([
   "santiago",
 ]);
 
-function normalizeLocation(value: string | null | undefined): string {
-  return (value || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim()
-    .toLowerCase();
-}
-
 export function isOutlyingShippingZone(city: string | null | undefined, region?: string | null): boolean {
-  const normalizedRegion = normalizeLocation(region);
+  const normalizedRegion = normalizeComuna(region);
   if (normalizedRegion && !RM_ALIASES.has(normalizedRegion)) return true;
-  return OUTLYING_RM_COMMUNES.has(normalizeLocation(city));
+  return OUTLYING_COMUNA_KEYS.has(normalizeComuna(city));
 }
 
 export function calcShippingFee(subtotal: number, city: string | null | undefined, region?: string | null): number {
