@@ -101,3 +101,12 @@ pnpm-lock.yaml
 cultimed-store/android/keystore.properties
 cultimed-store/android/*.keystore
 cultimed-store/android/*.jks
+
+# Variante Play (android-play): build artifacts y firma fuera de git
+cultimed-store/android-play/.gradle/
+cultimed-store/android-play/build/
+cultimed-store/android-play/app/build/
+cultimed-store/android-play/local.properties
+cultimed-store/android-play/keystore.properties
+cultimed-store/android-play/*.keystore
+cultimed-store/android-play/**/*.iml
