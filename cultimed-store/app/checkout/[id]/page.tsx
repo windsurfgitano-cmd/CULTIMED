@@ -8,11 +8,13 @@ import OrderTimeline from "@/components/OrderTimeline";
 import UploadProofForm from "@/components/UploadProofForm";
 import { isOrderPaid, isOrderRejected } from "@/lib/order-status";
 import WhatsAppButton from "@/components/WhatsAppButton";
+import { computeOrderBreakdown } from "@/lib/order-breakdown";
 
 export const dynamic = "force-dynamic";
 
 interface OrderRow {
   id: number; folio: string; status: string; subtotal: number; total: number;
+  referral_discount_amount: number | null; payment_discount_amount: number | null;
   shipping_method: string; shipping_address: string | null; shipping_city: string | null;
   shipping_phone: string;
   payment_proof_url: string | null; payment_proof_uploaded_at: string | null;
@@ -70,6 +72,7 @@ export default async function OrderPaymentPage({ params, searchParams }: { param
   const isConfirmed = isOrderPaid(order.status);
   const isRejected = isOrderRejected(order.status, order.payment_rejection_reason);
   const proofSignedUrl = await resolveStorageUrl(order.payment_proof_url);
+  const bd = computeOrderBreakdown(order);
 
   return (
     <>
@@ -221,9 +224,31 @@ export default async function OrderPaymentPage({ params, searchParams }: { param
                 </li>
               ))}
             </ul>
-            <div className="border-t border-rule pt-4 flex justify-between items-baseline">
-              <span className="font-display text-base">Total</span>
-              <span className="font-display text-2xl nums-lining tabular-nums">{formatCLP(order.total)}</span>
+            <div className="border-t border-rule pt-4 space-y-2">
+              <div className="flex justify-between text-sm text-ink-muted">
+                <span>Subtotal</span>
+                <span className="font-mono nums-lining tabular-nums">{formatCLP(bd.subtotal)}</span>
+              </div>
+              {bd.paymentDiscount > 0 && (
+                <div className="flex justify-between text-sm text-forest">
+                  <span>Descuento transferencia</span>
+                  <span className="font-mono nums-lining tabular-nums">−{formatCLP(bd.paymentDiscount)}</span>
+                </div>
+              )}
+              {bd.referralDiscount > 0 && (
+                <div className="flex justify-between text-sm text-forest">
+                  <span>Descuento embajador</span>
+                  <span className="font-mono nums-lining tabular-nums">−{formatCLP(bd.referralDiscount)}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-sm text-ink-muted">
+                <span>Despacho</span>
+                <span className="font-mono nums-lining tabular-nums">{bd.shippingFee > 0 ? formatCLP(bd.shippingFee) : "Gratis"}</span>
+              </div>
+              <div className="flex justify-between items-baseline pt-2 border-t border-rule-soft">
+                <span className="font-display text-base">Total</span>
+                <span className="font-display text-2xl nums-lining tabular-nums">{formatCLP(order.total)}</span>
+              </div>
             </div>
             <div className="mt-5 pt-5 border-t border-rule-soft text-xs text-ink-muted space-y-1">
               <p><span className="text-ink-muted">Entrega:</span> Despacho a domicilio (courier)</p>

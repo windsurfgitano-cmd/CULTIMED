@@ -5,6 +5,7 @@ import { get, all } from "@/lib/db";
 import { formatCLP, formatDateTime } from "@/lib/format";
 import OrderTimeline from "@/components/OrderTimeline";
 import { ORDER_STATUS_LABEL, isOrderAwaitingPayment, isOrderPaid } from "@/lib/order-status";
+import { computeOrderBreakdown } from "@/lib/order-breakdown";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,8 @@ export default async function OrderDetailPage({ params }: { params: { id: string
     status: string;
     subtotal: number;
     total: number;
+    referral_discount_amount: number | null;
+    payment_discount_amount: number | null;
     shipping_method: string;
     shipping_address: string | null;
     shipping_city: string | null;
@@ -51,6 +54,7 @@ export default async function OrderDetailPage({ params }: { params: { id: string
 
   const statusLabel = ORDER_STATUS_LABEL[order.status] || order.status;
   const needsPayment = isOrderAwaitingPayment(order.status) || order.status === "proof_uploaded";
+  const bd = computeOrderBreakdown(order);
 
   return (
     <section className="max-w-[1440px] mx-auto px-6 lg:px-12 py-12 lg:py-20">
@@ -74,6 +78,26 @@ export default async function OrderDetailPage({ params }: { params: { id: string
                 <p className="font-mono tabular-nums">{formatCLP(it.total_price)}</p>
               </div>
             ))}
+            <div className="px-5 py-3 flex justify-between text-sm text-ink-muted">
+              <span>Subtotal</span>
+              <span className="font-mono tabular-nums">{formatCLP(bd.subtotal)}</span>
+            </div>
+            {bd.paymentDiscount > 0 && (
+              <div className="px-5 py-3 flex justify-between text-sm text-forest">
+                <span>Descuento transferencia</span>
+                <span className="font-mono tabular-nums">−{formatCLP(bd.paymentDiscount)}</span>
+              </div>
+            )}
+            {bd.referralDiscount > 0 && (
+              <div className="px-5 py-3 flex justify-between text-sm text-forest">
+                <span>Descuento embajador</span>
+                <span className="font-mono tabular-nums">−{formatCLP(bd.referralDiscount)}</span>
+              </div>
+            )}
+            <div className="px-5 py-3 flex justify-between text-sm text-ink-muted">
+              <span>Despacho</span>
+              <span className="font-mono tabular-nums">{bd.shippingFee > 0 ? formatCLP(bd.shippingFee) : "Gratis"}</span>
+            </div>
             <div className="px-5 py-4 flex justify-between font-display text-xl">
               <span>Total</span>
               <span className="tabular-nums">{formatCLP(order.total)}</span>
