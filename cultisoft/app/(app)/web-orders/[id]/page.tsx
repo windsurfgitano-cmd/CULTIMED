@@ -9,6 +9,7 @@ import { sendNotification } from "@/lib/notify";
 import { resolveStorageUrl } from "@/lib/storage";
 import PageHeader from "@/components/PageHeader";
 import AdminUploadProofForm from "@/components/AdminUploadProofForm";
+import { computeOrderBreakdown } from "@/lib/order-breakdown";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,8 @@ interface OrderFull {
   status: string;
   subtotal: number;
   total: number;
+  referral_discount_amount: number | null;
+  payment_discount_amount: number | null;
   shipping_address: string | null;
   shipping_city: string | null;
   shipping_region: string | null;
@@ -363,6 +366,8 @@ export default async function WebOrderDetail({
     id
   );
 
+  const bd = computeOrderBreakdown(o);
+
   const meta = STATUS_META[o.status] ?? { label: o.status, cls: "pill-neutral" };
   const isImage = o.payment_proof_url && /\.(png|jpe?g|webp|gif)$/i.test(o.payment_proof_url);
   const isPdf = o.payment_proof_url && /\.pdf$/i.test(o.payment_proof_url);
@@ -477,6 +482,22 @@ export default async function WebOrderDetail({
                   <tr className="border-t border-rule">
                     <td colSpan={3} className="px-5 py-3 text-right eyebrow text-ink-subtle">Subtotal</td>
                     <td className="px-5 py-3 text-right tabular-nums font-mono text-ink">{formatCLP(o.subtotal)}</td>
+                  </tr>
+                  {bd.paymentDiscount > 0 && (
+                    <tr>
+                      <td colSpan={3} className="px-5 py-2 text-right eyebrow text-ink-subtle">Descuento transferencia</td>
+                      <td className="px-5 py-2 text-right tabular-nums font-mono text-forest">−{formatCLP(bd.paymentDiscount)}</td>
+                    </tr>
+                  )}
+                  {bd.referralDiscount > 0 && (
+                    <tr>
+                      <td colSpan={3} className="px-5 py-2 text-right eyebrow text-ink-subtle">Descuento embajador</td>
+                      <td className="px-5 py-2 text-right tabular-nums font-mono text-forest">−{formatCLP(bd.referralDiscount)}</td>
+                    </tr>
+                  )}
+                  <tr>
+                    <td colSpan={3} className="px-5 py-2 text-right eyebrow text-ink-subtle">Despacho</td>
+                    <td className="px-5 py-2 text-right tabular-nums font-mono text-ink">{bd.shippingFee > 0 ? formatCLP(bd.shippingFee) : "Gratis"}</td>
                   </tr>
                   <tr className="border-t border-rule bg-paper-dim/30">
                     <td colSpan={3} className="px-5 py-3 text-right font-display italic text-base">Total</td>
