@@ -16,6 +16,18 @@ const DOC_FIELDS: Array<{ target: UploadTarget; label: string }> = [
   { target: "rights_assignment", label: "Comprobante de depósito (captura o PDF)" },
 ];
 
+// Datos de transferencia del dispensario (env, NEXT_PUBLIC_). Se muestran junto
+// al campo de "Comprobante de depósito" para que el paciente sepa a qué cuenta
+// transferir antes de subir el comprobante.
+const BANK = {
+  name: process.env.NEXT_PUBLIC_BANK_NAME || "",
+  accountType: process.env.NEXT_PUBLIC_BANK_ACCOUNT_TYPE || "",
+  accountNumber: process.env.NEXT_PUBLIC_BANK_ACCOUNT_NUMBER || "",
+  rut: process.env.NEXT_PUBLIC_BANK_RUT || "",
+  holder: process.env.NEXT_PUBLIC_BANK_HOLDER || "",
+  email: process.env.NEXT_PUBLIC_BANK_EMAIL || "",
+};
+
 const ERR: Record<string, string> = {
   missing: "Completa todos los campos obligatorios.",
   weak_password: "La contraseña debe tener al menos 6 caracteres.",
@@ -228,24 +240,41 @@ export default function RegisterForm({
             </p>
 
             {DOC_FIELDS.map(({ target, label }) => (
-              <FileUploadField
-                key={target}
-                name={target}
-                label={label}
-                required
-                status={fieldStatus[target] || "idle"}
-                onFileChange={(file) => {
-                  setFiles((prev) => {
-                    const next = { ...prev };
-                    if (file) next[target] = file;
-                    else delete next[target];
-                    return next;
-                  });
-                  // Si el usuario reemplaza un archivo ya subido, hay que re-subirlo.
-                  uploadedRef.current.delete(target);
-                  setFieldStatus((s) => ({ ...s, [target]: "idle" }));
-                }}
-              />
+              <div key={target}>
+                {target === "rights_assignment" && BANK.accountNumber && (
+                  <div className="mb-3 border border-ink/15 bg-paper-dim/60 p-4">
+                    <p className="eyebrow mb-2">— Datos para tu depósito de inscripción</p>
+                    <p className="text-xs text-ink-muted mb-3 leading-relaxed">
+                      Transfiere el valor de inscripción a esta cuenta y sube el comprobante aquí abajo.
+                    </p>
+                    <dl className="text-sm space-y-1.5">
+                      <div className="flex justify-between gap-3"><dt className="text-ink-muted shrink-0">Titular</dt><dd className="text-ink text-right">{BANK.holder}</dd></div>
+                      <div className="flex justify-between gap-3"><dt className="text-ink-muted shrink-0">RUT</dt><dd className="text-ink text-right font-mono nums-lining">{BANK.rut}</dd></div>
+                      <div className="flex justify-between gap-3"><dt className="text-ink-muted shrink-0">Banco</dt><dd className="text-ink text-right">{BANK.name}</dd></div>
+                      <div className="flex justify-between gap-3"><dt className="text-ink-muted shrink-0">Tipo de cuenta</dt><dd className="text-ink text-right">{BANK.accountType}</dd></div>
+                      <div className="flex justify-between gap-3"><dt className="text-ink-muted shrink-0">N° de cuenta</dt><dd className="text-ink text-right font-mono nums-lining">{BANK.accountNumber}</dd></div>
+                      <div className="flex justify-between gap-3"><dt className="text-ink-muted shrink-0">Enviar comprobante a</dt><dd className="text-ink text-right break-all">{BANK.email}</dd></div>
+                    </dl>
+                  </div>
+                )}
+                <FileUploadField
+                  name={target}
+                  label={label}
+                  required
+                  status={fieldStatus[target] || "idle"}
+                  onFileChange={(file) => {
+                    setFiles((prev) => {
+                      const next = { ...prev };
+                      if (file) next[target] = file;
+                      else delete next[target];
+                      return next;
+                    });
+                    // Si el usuario reemplaza un archivo ya subido, hay que re-subirlo.
+                    uploadedRef.current.delete(target);
+                    setFieldStatus((s) => ({ ...s, [target]: "idle" }));
+                  }}
+                />
+              </div>
             ))}
 
             <div className="hairline" />
