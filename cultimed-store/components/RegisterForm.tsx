@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import FileUploadField from "./FileUploadField";
 import { uploadAndAttach, UploadError, type UploadTarget } from "@/lib/client-upload";
+import { formatCLP } from "@/lib/format";
 
 type FieldStatus = "idle" | "uploading" | "done" | "error";
 
@@ -15,6 +16,10 @@ const DOC_FIELDS: Array<{ target: UploadTarget; label: string }> = [
   { target: "criminal_record", label: "Antecedentes penales (captura o PDF)" },
   { target: "rights_assignment", label: "Comprobante de depósito (captura o PDF)" },
 ];
+
+// Cuota de inscripción en CLP. Valor propio del registro: coincide en monto con
+// OUTLYING_SHIPPING_FEE (lib/shipping.ts) por casualidad — no unificarlos.
+const INSCRIPTION_FEE = 9990;
 
 // Datos de transferencia del dispensario (env, NEXT_PUBLIC_). Se muestran junto
 // al campo de "Comprobante de depósito" para que el paciente sepa a qué cuenta
@@ -245,9 +250,10 @@ export default function RegisterForm({
                   <div className="mb-3 border border-ink/15 bg-paper-dim/60 p-4">
                     <p className="eyebrow mb-2">— Datos para tu depósito de inscripción</p>
                     <p className="text-xs text-ink-muted mb-3 leading-relaxed">
-                      Transfiere el valor de inscripción a esta cuenta y sube el comprobante aquí abajo.
+                      Transfiere {formatCLP(INSCRIPTION_FEE)} (valor de inscripción) a esta cuenta y sube el comprobante aquí abajo.
                     </p>
                     <dl className="text-sm space-y-1.5">
+                      <div className="flex justify-between gap-3"><dt className="text-ink-muted shrink-0">Monto</dt><dd className="text-ink text-right font-mono nums-lining font-semibold">{formatCLP(INSCRIPTION_FEE)}</dd></div>
                       <div className="flex justify-between gap-3"><dt className="text-ink-muted shrink-0">Titular</dt><dd className="text-ink text-right">{BANK.holder}</dd></div>
                       <div className="flex justify-between gap-3"><dt className="text-ink-muted shrink-0">RUT</dt><dd className="text-ink text-right font-mono nums-lining">{BANK.rut}</dd></div>
                       <div className="flex justify-between gap-3"><dt className="text-ink-muted shrink-0">Banco</dt><dd className="text-ink text-right">{BANK.name}</dd></div>
