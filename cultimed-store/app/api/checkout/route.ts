@@ -49,8 +49,16 @@ export async function POST(req: NextRequest) {
   const outOfStock: string[] = [];
 
   for (const it of body.items) {
+    // `is_preorder = 0` NO es decorativo: una reserva no es una venta. Un producto
+    // en preventa se reserva a nombre del paciente, sin pago, y jamas puede pasar
+    // por checkout — tampoco el dia que se le carguen lotes reales (el chequeo de
+    // stock de abajo lo bloquea hoy solo por accidente, con 0 disponible).
+    // Si un item de preventa llega aca (carrito viejo en localStorage, producto
+    // marcado como preventa despues de agregarlo, o payload manipulado), la query
+    // no lo devuelve y cae en el mismo camino de "producto no disponible" que ya
+    // existia para los despublicados. SMALLINT: se compara con 0, nunca con false.
     const product = await get<{ default_price: number; name: string; price_tiers: unknown }>(
-      `SELECT default_price, name, price_tiers FROM products WHERE id = ? AND is_active = 1 AND shopify_status = 'active'`,
+      `SELECT default_price, name, price_tiers FROM products WHERE id = ? AND is_active = 1 AND shopify_status = 'active' AND is_preorder = 0`,
       it.productId
     );
     if (!product) continue;

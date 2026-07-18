@@ -3,6 +3,7 @@ import { all } from "@/lib/db";
 import { getCurrentCustomer, canPurchase } from "@/lib/auth";
 import ProductCard from "@/components/ProductCard";
 import CatalogGate from "@/components/CatalogGate";
+import { isReachable } from "@/lib/availability";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,7 @@ interface CatalogProduct {
   strain_key: string | null;
   is_active: number;
   shopify_status: string | null;
+  is_preorder: number;
   total_stock: number;
   price_tiers: unknown;
 }
@@ -56,17 +58,19 @@ export default async function CatalogPage({
   if (brand === "cultimed") where.push(`p.is_house_brand = 1`);
   else if (brand === "external") where.push(`p.is_house_brand = 0`);
 
-  const purchasableOrder = `CASE WHEN p.is_active = 1 AND p.shopify_status = 'active' THEN 0 ELSE 1 END`;
-  let order = `${purchasableOrder}, p.is_house_brand DESC, p.created_at DESC`;
-  if (sort === "thc-high") order = `${purchasableOrder}, p.thc_percentage DESC NULLS LAST`;
-  else if (sort === "thc-low") order = `${purchasableOrder}, p.thc_percentage ASC NULLS LAST`;
-  else if (sort === "price-low") order = `${purchasableOrder}, p.default_price ASC`;
-  else if (sort === "price-high") order = `${purchasableOrder}, p.default_price DESC`;
+  // Espejo SQL de isReachable() (lib/availability.ts): las alcanzables arriba.
+  // La preventa cuenta como alcanzable aunque no tenga estado 'active'.
+  const reachableOrder = `CASE WHEN p.is_active = 1 AND (p.shopify_status = 'active' OR p.is_preorder = 1) THEN 0 ELSE 1 END`;
+  let order = `${reachableOrder}, p.is_house_brand DESC, p.created_at DESC`;
+  if (sort === "thc-high") order = `${reachableOrder}, p.thc_percentage DESC NULLS LAST`;
+  else if (sort === "thc-low") order = `${reachableOrder}, p.thc_percentage ASC NULLS LAST`;
+  else if (sort === "price-low") order = `${reachableOrder}, p.default_price ASC`;
+  else if (sort === "price-high") order = `${reachableOrder}, p.default_price DESC`;
 
   const products = await all<CatalogProduct>(
     `SELECT p.id, p.sku, p.name, p.category, p.presentation, p.default_price,
        p.thc_percentage, p.cbd_percentage, p.vendor, p.is_house_brand, p.description,
-       p.image_url, p.strain_key, p.is_active, p.shopify_status, p.price_tiers,
+       p.image_url, p.strain_key, p.is_active, p.shopify_status, p.is_preorder, p.price_tiers,
        COALESCE((SELECT SUM(quantity_current) FROM batches b WHERE b.product_id = p.id AND b.status = 'available'), 0) as total_stock
      FROM products p
      WHERE ${where.join(" AND ")}
@@ -182,7 +186,7 @@ export default async function CatalogPage({
                 showPrice={showPrice}
                 variants={s.variants}
                 aggregateStock={s.total_stock}
-                unavailable={!(s.head.is_active === 1 && s.head.shopify_status === "active")}
+                unavailable={!isReachable({ ...s.head, stock: s.total_stock })}
                 pricePerGram={Boolean(s.head.price_tiers)}
               />
             ))}

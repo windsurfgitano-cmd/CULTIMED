@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { formatCLP } from "@/lib/format";
 import { displayStrainName } from "@/lib/active-strains";
+import { isPreorder } from "@/lib/availability";
 import ScrollReveal from "@/components/ScrollReveal";
 
 interface ProductLite {
@@ -17,6 +18,7 @@ interface ProductLite {
   description: string | null;
   image_url?: string | null;
   strain_key?: string | null;
+  is_preorder?: number;
   slug?: string;
 }
 
@@ -61,6 +63,12 @@ export default function ProductCard({
 
   const slug = p.slug || p.sku.toLowerCase();
 
+  // La preventa es alcanzable aunque no tenga stock: la reserva vive en la ficha,
+  // asi que la tarjeta sigue siendo <Link> y no se pinta como agotada.
+  // Un producto normal no cambia en nada (ver lib/availability.ts).
+  const enPreventa = isPreorder(p);
+  const noAlcanzable = unavailable && !enPreventa;
+
   // Si hay multiples variantes (ej. 5g/10g/20g), mostramos pills + rango de precio.
   const hasVariants = variants && variants.length > 1;
   const minPrice = hasVariants ? variants![0].default_price : p.default_price;
@@ -76,7 +84,7 @@ export default function ProductCard({
           <img
             src={p.image_url}
             alt={cleanName}
-            className={`absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-editorial ${unavailable ? "grayscale contrast-90 opacity-70" : "group-hover:scale-105"}`}
+            className={`absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-editorial ${noAlcanzable ? "grayscale contrast-90 opacity-70" : "group-hover:scale-105"}`}
             loading="lazy"
           />
         ) : (
@@ -85,13 +93,13 @@ export default function ProductCard({
             accent={p.is_house_brand ? "forest" : "brass"}
           />
         )}
-        {unavailable && (
+        {noAlcanzable && (
           <div className="absolute inset-x-[-18%] top-1/2 -translate-y-1/2 -rotate-6 bg-ink/90 py-3 text-center shadow-lg">
             <span className="font-mono text-[12px] uppercase tracking-[0.45em] text-paper">Agotado</span>
           </div>
         )}
         {/* Hover hint */}
-        {!unavailable && (
+        {!noAlcanzable && (
           <div className="absolute bottom-4 right-4 transition-all duration-500 ease-editorial opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0">
             <span className="text-[10px] tracking-widest uppercase font-mono px-3 py-1.5 bg-paper-bright text-ink">
               Ver ficha →
@@ -153,7 +161,7 @@ export default function ProductCard({
 
       {/* Price / prescription row */}
       <div className="flex items-baseline justify-between border-t border-rule pt-3">
-        {unavailable ? (
+        {noAlcanzable ? (
           <span className="text-[10px] uppercase tracking-widest font-mono text-ink-muted flex items-center gap-1.5">
             <span className="w-1 h-1 rounded-full bg-ink-muted" />
             Agotado
@@ -175,13 +183,13 @@ export default function ProductCard({
           </span>
         )}
         <span className="text-[10px] uppercase tracking-widest font-mono text-ink-subtle group-hover:text-ink transition-colors">
-          {unavailable ? "No disponible" : "→ Ficha técnica"}
+          {noAlcanzable ? "No disponible" : "→ Ficha técnica"}
         </span>
       </div>
     </>
   );
 
-  if (unavailable) {
+  if (noAlcanzable) {
     return (
       <ScrollReveal delay={0.05 * (index % 3)} y={24}>
         <article aria-disabled="true" className="group block cursor-not-allowed select-none">

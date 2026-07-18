@@ -8,6 +8,7 @@ import CatalogGate from "@/components/CatalogGate";
 import VariantPicker from "@/components/VariantPicker";
 import GramPricePicker from "@/components/GramPricePicker";
 import { parsePriceTiers } from "@/lib/pricing";
+import { isReachable } from "@/lib/availability";
 import ScrollReveal from "@/components/ScrollReveal";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +20,7 @@ interface ProductFull {
   unit: string; requires_prescription: number; is_controlled: number;
   default_price: number; description: string | null; vendor: string | null;
   is_house_brand: number; is_preorder: number;
+  is_active: number; shopify_status: string | null;
   image_url: string | null; strain_key: string | null;
   price_tiers: unknown;
 }
@@ -49,11 +51,15 @@ export default async function ProductDetailPage({ params }: { params: { slug: st
   }
 
   const slug = params.slug.toLowerCase();
+  // El WHERE solo descarta lo que isReachable() descarta siempre (is_active = 0);
+  // la decision fina — 'active' vs preventa — la toma el helper, que es la unica
+  // fuente de verdad. Un producto de preventa abre ficha aunque este en 0 stock;
+  // uno normal despublicado sigue dando 404 exactamente igual que antes.
   const product = await get<ProductFull>(
-    `SELECT * FROM products WHERE LOWER(sku) = ? AND is_active = 1 AND shopify_status = 'active'`,
+    `SELECT * FROM products WHERE LOWER(sku) = ? AND is_active = 1`,
     slug
   );
-  if (!product) notFound();
+  if (!product || !isReachable(product)) notFound();
 
   const batches = await all<BatchInfo>(
     `SELECT id, batch_number, quantity_current, manufacture_date, expiry_date, supplier
@@ -68,7 +74,11 @@ export default async function ProductDetailPage({ params }: { params: { slug: st
 
   // Hermanas (mismo strain_key) — agrupa variantes de gramaje en una sola publicación.
   // Solo cepas activas se muestran como switcher de gramaje.
-  const siblingVariants = product.strain_key
+  const selfVariant: VariantRow = {
+    id: product.id, sku: product.sku, presentation: product.presentation,
+    default_price: product.default_price, total_stock: totalStock,
+  };
+  const siblingRows = product.strain_key
     ? await all<VariantRow>(
         `SELECT p.id, p.sku, p.presentation, p.default_price,
            COALESCE((SELECT SUM(quantity_current) FROM batches b WHERE b.product_id = p.id AND b.status='available'), 0) as total_stock
@@ -77,7 +87,10 @@ export default async function ProductDetailPage({ params }: { params: { slug: st
          ORDER BY p.default_price ASC`,
         product.strain_key
       )
-    : [{ id: product.id, sku: product.sku, presentation: product.presentation, default_price: product.default_price, total_stock: totalStock }];
+    : [selfVariant];
+  // VariantPicker asume que la lista nunca viene vacia (lee variants[0]). Una ficha
+  // de preventa que abre sin estar 'active' no tiene hermanas: se muestra a si misma.
+  const siblingVariants = siblingRows.length > 0 ? siblingRows : [selfVariant];
 
   // Relacionadas: misma categoría, distinto strain_key (1 publicación por cepa).
   // Solo cepas activas en el carrusel.
