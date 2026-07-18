@@ -26,6 +26,7 @@ const TYPE_LABEL: Record<string, string> = {
   pedido_despachado: "Pedido despachado",
   recompra: "Recompra",
   pedido_abandonado: "Pedido abandonado",
+  reserva_confirmada: "Reserva confirmada",
 };
 
 const STATUS_CLS: Record<string, string> = {

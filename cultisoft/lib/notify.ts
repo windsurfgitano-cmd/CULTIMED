@@ -19,6 +19,7 @@ const CHANNELS_BY_TYPE: Record<NotificationType, NotificationChannel[]> = {
   pedido_despachado: ["email"],
   recompra: ["email"],
   pedido_abandonado: ["email"],
+  reserva_confirmada: ["email"],
 };
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
@@ -33,7 +34,7 @@ export interface SendNotificationInput {
   customerAccountId: number;
   recipientEmail: string;
   recipientPhone?: string | null;
-  /** Identidad de la instancia del evento — ver spec. Orden: String(orderId); receta: `${accountId}:${uploadedAt}`. */
+  /** Identidad de la instancia del evento — ver spec. Orden: String(orderId); receta: `${accountId}:${uploadedAt}`; reserva: `${productId}:${customerAccountId}` (un doble click no manda dos correos). */
   dedupeKey: string;
   relatedId: number;
   data: Record<string, unknown>;

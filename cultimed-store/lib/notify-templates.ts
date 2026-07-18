@@ -7,7 +7,8 @@ export type NotificationType =
   | "pedido_pago_confirmado"
   | "pedido_despachado"
   | "recompra"
-  | "pedido_abandonado";
+  | "pedido_abandonado"
+  | "reserva_confirmada";
 
 // STORE_PUBLIC_BASE primero: en cultisoft es LA variable que apunta a la tienda;
 // si ese proyecto definiera NEXT_PUBLIC_BASE_URL (dominio del panel), no debe ganar.
@@ -180,6 +181,25 @@ ${esc(BANK.holder)} · RUT ${esc(BANK.rut)}<br>${esc(BANK.name)} · ${esc(BANK.a
         text: `${greeting},\n\nTu pedido ${String(data.folio)} por ${String(data.totalCLP)} sigue reservado, pendiente de transferencia. Retómalo en:\n${STORE_BASE}/checkout/${orderId}\n\nCultimed · dispensariocultimed.cl`,
       };
     }
+    case "reserva_confirmada": {
+      // Reserva en firme de un producto en preventa: es un compromiso, NO una venta.
+      // El texto tiene que dejar clarísimo que no hubo cobro (regla de oro del proyecto).
+      const productNameRaw = String(data.productName || "la cepa");
+      const productName = esc(productNameRaw);
+      return {
+        subject: `Reservamos ${productNameRaw} a tu nombre · Cultimed`,
+        html: layout({
+          eyebrow: "Reserva confirmada",
+          eyebrowColor: "#3d5c3a",
+          titleHtml: `Tu reserva quedó <em style="font-style:italic;font-weight:400;">registrada</em>.`,
+          greeting,
+          bodyHtml: `<p style="margin:0 0 16px;">Anotamos <strong>${productName}</strong> a tu nombre. Cuando llegue el lote, se aparta para ti.</p><p style="margin:0 0 16px;">Esto <strong>no es una compra</strong>: no te cobramos nada y no hay ningún pago pendiente. Es solo un compromiso de reserva, sin costo y sin obligación.</p><p style="margin:0 0 16px;">Te avisaremos por este mismo medio apenas esté disponible para dispensar, y ahí recién podrás completar tu pedido.</p>`,
+          ctaLabel: "Ver catálogo",
+          ctaUrl: `${STORE_BASE}/productos`,
+        }),
+        text: `${greeting},\n\nAnotamos ${productNameRaw} a tu nombre. Cuando llegue el lote, se aparta para ti.\n\nEsto NO es una compra: no te cobramos nada y no hay ningún pago pendiente. Es solo un compromiso de reserva, sin costo y sin obligación.\n\nTe avisaremos apenas esté disponible para dispensar.\n\nCatálogo: ${STORE_BASE}/productos\n\nCultimed · dispensariocultimed.cl`,
+      };
+    }
   }
 }
 
@@ -198,5 +218,7 @@ export function renderSms(type: NotificationType, data: Record<string, unknown>)
       return `Cultimed: han pasado unos dias desde tu ultimo pedido. Renueva en dispensariocultimed.cl/productos`;
     case "pedido_abandonado":
       return `Cultimed: tu pedido ${folio} sigue reservado. Completa la transferencia en dispensariocultimed.cl/checkout/${Number(data.orderId)}`;
+    case "reserva_confirmada":
+      return `Cultimed: reservamos ${String(data.productName || "tu cepa")} a tu nombre. No es una compra y no te cobramos nada. Te avisamos cuando este disponible.`;
   }
 }
