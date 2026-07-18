@@ -1,14 +1,16 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { all, get } from "@/lib/db";
+import { notFound, redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
+import { all, get, run } from "@/lib/db";
 import { getCurrentCustomer, canPurchase } from "@/lib/auth";
 import { displayStrainName } from "@/lib/active-strains";
+import { sendNotification } from "@/lib/notify";
 import ProductCard from "@/components/ProductCard";
 import CatalogGate from "@/components/CatalogGate";
 import VariantPicker from "@/components/VariantPicker";
 import GramPricePicker from "@/components/GramPricePicker";
 import { parsePriceTiers } from "@/lib/pricing";
-import { isReachable } from "@/lib/availability";
+import { isReachable, isPreorder } from "@/lib/availability";
 import ScrollReveal from "@/components/ScrollReveal";
 
 export const dynamic = "force-dynamic";
@@ -41,7 +43,88 @@ const CATEGORY_FULL_LABEL: Record<string, string> = {
   otro: "Producto medicinal",
 };
 
-export default async function ProductDetailPage({ params }: { params: { slug: string } }) {
+// Mensaje segun el estado de la reserva que YA tiene el paciente para esta cepa.
+// El indice unico de product_reservations es (product_id, customer_account_id) sin
+// mirar el status: exista la fila que exista, el boton no vuelve a aparecer, asi
+// que el texto tiene que explicar por que.
+const RESERVA_ESTADO: Record<string, string> = {
+  pendiente: "Ya tienes esta cepa reservada. Te avisamos por correo apenas llegue el lote.",
+  cumplida: "Tu reserva de esta cepa ya fue cumplida.",
+  cancelada:
+    "Tu reserva de esta cepa quedó cancelada. Escríbenos a contacto@dispensariocultimed.cl si quieres retomarla.",
+};
+
+/**
+ * Reserva en firme de un producto en preventa (PREDISPENSADO).
+ *
+ * NO es una venta: no hay monto, no hay pago y no toca customer_orders ni el
+ * carrito. Solo deja registrado el compromiso del paciente en product_reservations.
+ */
+async function reservarProducto(formData: FormData) {
+  "use server";
+
+  const productId = Number(formData.get("productId"));
+  if (!Number.isInteger(productId) || productId <= 0) redirect("/productos");
+
+  // El producto se re-lee del servidor: el id que viene del form es dato del
+  // cliente y no decide nada. Solo se reserva lo que HOY es preventa alcanzable.
+  const producto = await get<{
+    id: number; sku: string; name: string; strain_key: string | null;
+    is_preorder: number; is_active: number; shopify_status: string | null;
+  }>(
+    `SELECT id, sku, name, strain_key, is_preorder, is_active, shopify_status
+     FROM products WHERE id = ?`,
+    productId
+  );
+  if (!producto || !isPreorder(producto) || !isReachable(producto)) redirect("/productos");
+
+  const ficha = `/productos/${producto.sku.toLowerCase()}`;
+
+  const customer = await getCurrentCustomer();
+  if (!customer) redirect(`/ingresar?next=${encodeURIComponent(ficha)}`);
+  // Misma barrera SANNA que el resto del catalogo: sin receta aprobada no se
+  // reserva. Al volver a la ficha, el CatalogGate le explica que le falta.
+  if (!canPurchase(customer)) redirect(ficha);
+
+  // ON CONFLICT sobre el indice unico (product_id, customer_account_id): apretar
+  // dos veces no duplica ni revienta. run() le agrega RETURNING id, asi que un
+  // conflicto vuelve sin filas -> lastInsertRowid = 0 y sabemos que NO se creo.
+  const res = await run(
+    `INSERT INTO product_reservations (product_id, customer_account_id, status)
+     VALUES (?, ?, 'pendiente')
+     ON CONFLICT (product_id, customer_account_id) DO NOTHING`,
+    producto.id, customer.id
+  );
+  const reservationId = Number(res.lastInsertRowid);
+
+  // Solo la reserva realmente creada avisa: el segundo click no manda otro correo.
+  // sendNotification NUNCA lanza, asi que un mail caido no rompe la reserva.
+  if (reservationId > 0) {
+    await sendNotification({
+      type: "reserva_confirmada",
+      customerAccountId: customer.id,
+      recipientEmail: customer.email,
+      recipientPhone: customer.phone,
+      dedupeKey: `${producto.id}:${customer.id}`,
+      relatedId: reservationId,
+      data: {
+        firstName: customer.full_name,
+        productName: displayStrainName(producto.strain_key, producto.name),
+      },
+    });
+  }
+
+  revalidatePath(ficha);
+  redirect(`${ficha}?reserva=${reservationId > 0 ? "ok" : "existente"}`);
+}
+
+export default async function ProductDetailPage({
+  params,
+  searchParams,
+}: {
+  params: { slug: string };
+  searchParams: { reserva?: string };
+}) {
   const customer = await getCurrentCustomer();
   // Gating SANNA estricto: receta aprobada o no entras al detalle.
   if (!customer) return <CatalogGate status="anonymous" />;
@@ -71,6 +154,19 @@ export default async function ProductDetailPage({ params }: { params: { slug: st
   const totalStock = batches.reduce((s, b) => s + b.quantity_current, 0);
   const showPrice = canPurchase(customer);
   const tiers = parsePriceTiers(product.price_tiers);
+
+  // Preventa: la ficha muestra el bloque de reserva en vez del selector de compra.
+  const enReserva = isPreorder(product);
+  // Una fila existente — del status que sea — significa que este paciente ya no
+  // puede volver a reservar esta cepa (lo impide el indice unico), asi que en vez
+  // del boton mostramos el estado.
+  const miReserva = enReserva
+    ? await get<{ id: number; status: string }>(
+        `SELECT id, status FROM product_reservations
+         WHERE product_id = ? AND customer_account_id = ?`,
+        product.id, customer.id
+      )
+    : undefined;
 
   // Hermanas (mismo strain_key) — agrupa variantes de gramaje en una sola publicación.
   // Solo cepas activas se muestran como switcher de gramaje.
@@ -150,8 +246,8 @@ export default async function ProductDetailPage({ params }: { params: { slug: st
                 {product.is_house_brand === 1 && (
                   <span className="pill-editorial bg-paper-bright/90">Línea Cultimed</span>
                 )}
-                {product.is_preorder === 1 && (
-                  <span className="pill-editorial bg-brass text-paper border-brass">Preventa</span>
+                {enReserva && (
+                  <span className="pill-editorial bg-brass text-paper border-brass">Reserva</span>
                 )}
               </div>
               {product.is_controlled === 1 && (
@@ -236,9 +332,61 @@ export default async function ProductDetailPage({ params }: { params: { slug: st
                 } />
               </dl>
 
-              {/* Purchase / unlock block */}
+              {/* Purchase / reserve / unlock block */}
               <div className="bg-paper-bright border border-rule p-6 lg:p-7">
-                {showPrice ? (
+                {/* La rama de reserva va ANTES que showPrice/tiers a proposito: asi
+                    los pickers de compra ni siquiera se montan para una preventa. */}
+                {enReserva && showPrice ? (
+                  <>
+                    {searchParams.reserva === "ok" && (
+                      <div className="mb-5 border-l-2 border-forest bg-forest/10 px-4 py-3">
+                        <p className="text-sm text-ink">
+                          Listo. Reservamos esta cepa a tu nombre y no te cobramos nada.
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-3 mb-4">
+                      <span className="pill-editorial bg-brass text-paper border-brass">Reserva</span>
+                      <span className="eyebrow">— Aún no disponible</span>
+                    </div>
+
+                    <p className="font-display text-2xl leading-tight mb-4 text-balance">
+                      <span className="font-light">Todavía no la tenemos</span>{" "}
+                      <span className="italic">para dispensar</span>
+                      <span className="font-light">.</span>
+                    </p>
+
+                    <p className="text-sm leading-relaxed text-ink-muted mb-3">
+                      Puedes reservarla ahora y queda anotada a tu nombre. Cuando llegue el
+                      lote te avisamos por correo, y recién ahí completas tu pedido.
+                    </p>
+                    <p className="text-sm leading-relaxed text-ink mb-6">
+                      <strong className="font-medium">No se cobra nada ahora.</strong>{" "}
+                      Reservar no es comprar: no hay pago, no queda ningún monto pendiente y
+                      puedes arrepentirte sin costo.
+                    </p>
+
+                    {miReserva ? (
+                      <div className="border-l-2 border-forest bg-forest/10 px-4 py-3">
+                        <p className="text-sm text-ink">
+                          {RESERVA_ESTADO[miReserva.status] || RESERVA_ESTADO.pendiente}
+                        </p>
+                      </div>
+                    ) : (
+                      <form action={reservarProducto}>
+                        <input type="hidden" name="productId" value={product.id} />
+                        {/* min-h-[44px]: area tocable comoda en mobile. */}
+                        <button type="submit" className="btn-brass w-full min-h-[44px]">
+                          Reservar esta cepa
+                        </button>
+                        <p className="mt-3 text-center text-[11px] font-mono uppercase tracking-widest text-ink-subtle">
+                          Sin pago · Sin compromiso de compra
+                        </p>
+                      </form>
+                    )}
+                  </>
+                ) : showPrice ? (
                   tiers ? (
                     <GramPricePicker
                       productId={product.id}
