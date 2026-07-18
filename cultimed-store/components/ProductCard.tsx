@@ -10,7 +10,8 @@ interface ProductLite {
   name: string;
   category: string;
   presentation: string | null;
-  default_price: number;
+  /** Puede venir null: un producto en reserva todavia no tiene precio definido. */
+  default_price: number | null;
   thc_percentage: number | null;
   cbd_percentage: number | null;
   vendor: string | null;
@@ -26,7 +27,7 @@ interface VariantLite {
   id: number;
   sku: string;
   presentation: string | null;
-  default_price: number;
+  default_price: number | null;
   total_stock: number;
 }
 
@@ -74,6 +75,8 @@ export default function ProductCard({
   const minPrice = hasVariants ? variants![0].default_price : p.default_price;
   const maxPrice = hasVariants ? variants![variants!.length - 1].default_price : p.default_price;
   const stock = aggregateStock !== undefined ? aggregateStock : null;
+  // Sin precio cargado (tipico de una cepa en reserva): no hay monto que mostrar.
+  const sinPrecio = (hasVariants ? minPrice : p.default_price) == null;
 
   const content = (
     <>
@@ -167,15 +170,24 @@ export default function ProductCard({
             Agotado
           </span>
         ) : showPrice ? (
-          <span className="font-mono text-sm text-ink nums-lining">
-            {hasVariants && minPrice !== maxPrice ? (
-              <>desde {formatCLP(minPrice)}</>
-            ) : pricePerGram ? (
-              <>desde {formatCLP(p.default_price)}/g</>
-            ) : (
-              formatCLP(p.default_price)
-            )}
-          </span>
+          sinPrecio ? (
+            // Una cepa en reserva todavia no tiene precio: formatCLP(null) pintaria
+            // un "—" mudo, asi que decimos explicitamente que falta definirlo.
+            <span className="text-[10px] uppercase tracking-widest font-mono text-brass flex items-center gap-1.5">
+              <span className="w-1 h-1 rounded-full bg-brass" />
+              Precio por confirmar
+            </span>
+          ) : (
+            <span className="font-mono text-sm text-ink nums-lining">
+              {hasVariants && minPrice !== maxPrice ? (
+                <>desde {formatCLP(minPrice)}</>
+              ) : pricePerGram ? (
+                <>desde {formatCLP(p.default_price)}/g</>
+              ) : (
+                formatCLP(p.default_price)
+              )}
+            </span>
+          )
         ) : (
           <span className="text-[10px] uppercase tracking-widest font-mono text-sangria flex items-center gap-1.5">
             <span className="w-1 h-1 rounded-full bg-sangria" />

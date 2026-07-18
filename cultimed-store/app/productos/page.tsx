@@ -13,7 +13,8 @@ interface CatalogProduct {
   name: string;
   category: string;
   presentation: string | null;
-  default_price: number;
+  /** Puede venir null: una cepa en reserva todavia no tiene precio definido. */
+  default_price: number | null;
   thc_percentage: number | null;
   cbd_percentage: number | null;
   vendor: string | null;
@@ -28,9 +29,18 @@ interface CatalogProduct {
   price_tiers: unknown;
 }
 
+/**
+ * Precio para comparar/ordenar. Sin precio (cepa en reserva) va al final y nunca
+ * gana como "variante mas barata": null en aritmetica se coerciona a 0 y ganaria
+ * siempre, quedando como head del grupo.
+ */
+function precioOrden(precio: number | null): number {
+  return precio ?? Number.POSITIVE_INFINITY;
+}
+
 interface CatalogStrain {
   head: CatalogProduct;
-  variants: Array<{ id: number; sku: string; presentation: string | null; default_price: number; total_stock: number }>;
+  variants: Array<{ id: number; sku: string; presentation: string | null; default_price: number | null; total_stock: number }>;
   total_stock: number;
 }
 
@@ -64,8 +74,10 @@ export default async function CatalogPage({
   let order = `${reachableOrder}, p.is_house_brand DESC, p.created_at DESC`;
   if (sort === "thc-high") order = `${reachableOrder}, p.thc_percentage DESC NULLS LAST`;
   else if (sort === "thc-low") order = `${reachableOrder}, p.thc_percentage ASC NULLS LAST`;
-  else if (sort === "price-low") order = `${reachableOrder}, p.default_price ASC`;
-  else if (sort === "price-high") order = `${reachableOrder}, p.default_price DESC`;
+  // NULLS LAST explicito en ambos: una cepa en reserva no tiene precio y en DESC
+  // Postgres pondria los NULL primero, dejandola encabezando "mayor precio".
+  else if (sort === "price-low") order = `${reachableOrder}, p.default_price ASC NULLS LAST`;
+  else if (sort === "price-high") order = `${reachableOrder}, p.default_price DESC NULLS LAST`;
 
   const products = await all<CatalogProduct>(
     `SELECT p.id, p.sku, p.name, p.category, p.presentation, p.default_price,
@@ -95,13 +107,13 @@ export default async function CatalogPage({
       existing.variants.push({ id: p.id, sku: p.sku, presentation: p.presentation, default_price: p.default_price, total_stock: p.total_stock });
       existing.total_stock += p.total_stock;
       // Head = variante con menor precio (default ascendente por gramaje)
-      if (p.default_price < existing.head.default_price) existing.head = p;
+      if (precioOrden(p.default_price) < precioOrden(existing.head.default_price)) existing.head = p;
     }
   }
   // Ordena variantes dentro de cada grupo por precio ascendente (gramaje creciente)
   const strains: CatalogStrain[] = Array.from(groupsMap.values()).map((g) => ({
     ...g,
-    variants: g.variants.sort((a, b) => a.default_price - b.default_price),
+    variants: g.variants.sort((a, b) => precioOrden(a.default_price) - precioOrden(b.default_price)),
   }));
   const availableCount = strains.filter((s) => s.head.is_active === 1 && s.head.shopify_status === "active").length;
   const soldOutCount = strains.length - availableCount;
