@@ -64,11 +64,13 @@ export default function ProductCard({
 
   const slug = p.slug || p.sku.toLowerCase();
 
-  // La preventa es alcanzable aunque no tenga stock: la reserva vive en la ficha,
-  // asi que la tarjeta sigue siendo <Link> y no se pinta como agotada.
-  // Un producto normal no cambia en nada (ver lib/availability.ts).
+  // enPreventa solo decide el COPY del precio ("Precio por confirmar").
+  // La alcanzabilidad la resuelve el llamador con isReachable() y llega en
+  // `unavailable`: no la re-derivamos aca. Si lo hicieramos (p.ej. con
+  // `unavailable && !enPreventa`) perderiamos el termino is_active y una cepa
+  // archivada desde el panel seguiria mostrandose clickeable hacia un 404.
   const enPreventa = isPreorder(p);
-  const noAlcanzable = unavailable && !enPreventa;
+  const noAlcanzable = unavailable;
 
   // Si hay multiples variantes (ej. 5g/10g/20g), mostramos pills + rango de precio.
   const hasVariants = variants && variants.length > 1;

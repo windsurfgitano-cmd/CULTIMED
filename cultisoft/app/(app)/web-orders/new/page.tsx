@@ -24,7 +24,8 @@ interface ProductOption {
   id: number;
   sku: string;
   name: string;
-  default_price: number;
+  /** null en cepas de reserva: todavia no tienen precio definido. */
+  default_price: number | null;
   category: string;
   total_stock: number;
 }
@@ -135,12 +136,15 @@ export default async function NewWebOrderPage({
      LIMIT 500`
   );
 
-  // Productos activos con stock
+  // Productos vendibles en un pedido manual. Excluimos las cepas en reserva
+  // (is_preorder = 1) y las que no tienen precio cargado: un pedido manual cobra,
+  // y sin monto no hay nada que cobrar.
   const products = await all<ProductOption>(
     `SELECT p.id, p.sku, p.name, p.default_price, p.category,
        COALESCE((SELECT SUM(quantity_current) FROM batches b WHERE b.product_id = p.id AND b.status='available'), 0)::int as total_stock
      FROM products p
      WHERE p.is_active = 1 AND p.shopify_status='active'
+       AND p.is_preorder = 0 AND p.default_price IS NOT NULL
      ORDER BY p.is_house_brand DESC, p.name ASC`
   );
 

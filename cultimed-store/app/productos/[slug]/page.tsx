@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { all, get, run } from "@/lib/db";
+import { all, get } from "@/lib/db";
 import { getCurrentCustomer, canPurchase } from "@/lib/auth";
 import { displayStrainName } from "@/lib/active-strains";
 import { sendNotification } from "@/lib/notify";
@@ -86,16 +86,24 @@ async function reservarProducto(formData: FormData) {
   // reserva. Al volver a la ficha, el CatalogGate le explica que le falta.
   if (!canPurchase(customer)) redirect(ficha);
 
-  // ON CONFLICT sobre el indice unico (product_id, customer_account_id): apretar
-  // dos veces no duplica ni revienta. run() le agrega RETURNING id, asi que un
-  // conflicto vuelve sin filas -> lastInsertRowid = 0 y sabemos que NO se creo.
-  const res = await run(
+  // ON CONFLICT sobre el indice unico (product_id, customer_account_id).
+  // El DO UPDATE lleva `WHERE status = 'cancelada'` a proposito, y eso cubre los
+  // dos casos de golpe:
+  //  - apretar dos veces sobre una reserva ya 'pendiente': el WHERE no se cumple,
+  //    no vuelve fila, no se duplica ni se manda un segundo correo.
+  //  - reservar de nuevo despues de que se cancelo: revive la MISMA fila y vuelve
+  //    con updated_at nuevo. Sin esto el indice unico dejaba al paciente bloqueado
+  //    de por vida para volver a reservar esa cepa.
+  const creada = await get<{ id: number; updated_at: string }>(
     `INSERT INTO product_reservations (product_id, customer_account_id, status)
      VALUES (?, ?, 'pendiente')
-     ON CONFLICT (product_id, customer_account_id) DO NOTHING`,
+     ON CONFLICT (product_id, customer_account_id) DO UPDATE
+       SET status = 'pendiente', updated_at = now()
+       WHERE product_reservations.status = 'cancelada'
+     RETURNING id, updated_at`,
     producto.id, customer.id
   );
-  const reservationId = Number(res.lastInsertRowid);
+  const reservationId = Number(creada?.id ?? 0);
 
   // Solo la reserva realmente creada avisa: el segundo click no manda otro correo.
   // sendNotification NUNCA lanza, asi que un mail caido no rompe la reserva.
@@ -105,7 +113,10 @@ async function reservarProducto(formData: FormData) {
       customerAccountId: customer.id,
       recipientEmail: customer.email,
       recipientPhone: customer.phone,
-      dedupeKey: `${producto.id}:${customer.id}`,
+      // updated_at va en la clave a proposito: si el paciente cancela y vuelve a
+      // reservar, es un evento nuevo y merece su correo. Con una clave fija
+      // (producto:paciente) el UNIQUE de notification_log lo tragaba en silencio.
+      dedupeKey: `${producto.id}:${customer.id}:${creada?.updated_at ?? ""}`,
       relatedId: reservationId,
       data: {
         firstName: customer.full_name,
@@ -180,6 +191,7 @@ export default async function ProductDetailPage({
            COALESCE((SELECT SUM(quantity_current) FROM batches b WHERE b.product_id = p.id AND b.status='available'), 0) as total_stock
          FROM products p
          WHERE p.strain_key = ? AND p.is_active = 1 AND p.shopify_status = 'active'
+           AND p.is_preorder = 0 AND p.default_price IS NOT NULL
          ORDER BY p.default_price ASC`,
         product.strain_key
       )

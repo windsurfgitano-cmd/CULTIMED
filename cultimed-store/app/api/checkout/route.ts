@@ -47,22 +47,40 @@ export async function POST(req: NextRequest) {
     productId: number; qty: number; unitPrice: number; total: number; name: string;
   }> = [];
   const outOfStock: string[] = [];
+  const noVendibles: string[] = [];
 
   for (const it of body.items) {
-    // `is_preorder = 0` NO es decorativo: una reserva no es una venta. Un producto
-    // en preventa se reserva a nombre del paciente, sin pago, y jamas puede pasar
-    // por checkout — tampoco el dia que se le carguen lotes reales (el chequeo de
-    // stock de abajo lo bloquea hoy solo por accidente, con 0 disponible).
-    // Si un item de preventa llega aca (carrito viejo en localStorage, producto
-    // marcado como preventa despues de agregarlo, o payload manipulado), la query
-    // no lo devuelve y cae en el mismo camino de "producto no disponible" que ya
-    // existia para los despublicados. SMALLINT: se compara con 0, nunca con false.
-    const product = await get<{ default_price: number; name: string; price_tiers: unknown }>(
-      `SELECT default_price, name, price_tiers FROM products WHERE id = ? AND is_active = 1 AND shopify_status = 'active' AND is_preorder = 0`,
+    // Traemos is_preorder y lo rechazamos en JS (en vez de filtrarlo en el WHERE)
+    // a proposito: si lo filtraramos, el item caeria en `!product` y se descartaria
+    // EN SILENCIO — el paciente terminaria pagando un pedido distinto al que reviso.
+    // Necesitamos poder distinguir "no existe" de "no se vende" para avisarle.
+    const product = await get<{
+      default_price: number | null; name: string; price_tiers: unknown; is_preorder: number;
+    }>(
+      `SELECT default_price, name, price_tiers, is_preorder FROM products
+       WHERE id = ? AND is_active = 1 AND shopify_status = 'active'`,
       it.productId
     );
     if (!product) continue;
     if (it.quantity <= 0) continue;
+
+    // Una reserva NO es una venta: una cepa en preventa se reserva a nombre del
+    // paciente, sin pago, y jamas puede pasar por checkout — tampoco el dia que se
+    // le carguen lotes reales. Llega aca por carrito viejo en localStorage, por un
+    // producto marcado como preventa despues de agregarlo, o por payload manipulado.
+    // SMALLINT: se compara con 1, nunca con true.
+    if (product.is_preorder === 1) {
+      noVendibles.push(`${product.name} — es una cepa en reserva, no se vende todavia`);
+      continue;
+    }
+
+    // Sin precio cargado no hay nada que cobrar. Sin este guard, `null * qty` da 0
+    // y se crearia un pedido en $0.
+    const tienePrecio = product.default_price != null || product.price_tiers != null;
+    if (!tienePrecio) {
+      noVendibles.push(`${product.name} — todavia no tiene precio definido`);
+      continue;
+    }
 
     const stockRow = await get<{ available: number }>(
       `SELECT COALESCE(SUM(quantity_current), 0)::int AS available
@@ -76,8 +94,9 @@ export async function POST(req: NextRequest) {
     }
 
     const tiers = parsePriceTiers(product.price_tiers);
-    const total = tiers ? calcularPrecioGramos(it.quantity, tiers) : product.default_price * it.quantity;
-    const unitPrice = tiers ? Math.round(total / it.quantity) : product.default_price;
+    const precioBase = product.default_price ?? 0;
+    const total = tiers ? calcularPrecioGramos(it.quantity, tiers) : precioBase * it.quantity;
+    const unitPrice = tiers ? Math.round(total / it.quantity) : precioBase;
     subtotal += total;
     validatedItems.push({
       productId: it.productId,
@@ -88,6 +107,15 @@ export async function POST(req: NextRequest) {
     });
   }
 
+  // Antes que el stock: si el carrito trae algo que no se vende, cortamos y se lo
+  // decimos. Nunca crear un pedido parcial en silencio — el paciente estaria
+  // pagando algo distinto de lo que reviso en el carrito.
+  if (noVendibles.length > 0) {
+    return NextResponse.json(
+      { error: "not_purchasable", detail: noVendibles },
+      { status: 409 }
+    );
+  }
   if (outOfStock.length > 0) {
     return NextResponse.json(
       { error: "out_of_stock", detail: outOfStock },

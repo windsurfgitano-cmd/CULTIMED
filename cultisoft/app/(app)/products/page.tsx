@@ -213,7 +213,9 @@ export default async function ProductsPage({
                       <span className="text-xs text-on-surface-variant">{CATEGORY_LABELS[p.category] || p.category}</span>
                       {p.presentation && <div className="text-[11px] text-on-surface-variant">{p.presentation}</div>}
                     </td>
-                    <td className="text-right font-mono tabular-nums whitespace-nowrap">{formatCLP(p.default_price || 0)}</td>
+                    {/* Sin `|| 0`: un producto sin precio (cepa en reserva) debe mostrar
+                        el "—" de formatCLP, no un "$0" que se lee como precio real. */}
+                    <td className="text-right font-mono tabular-nums whitespace-nowrap">{formatCLP(p.default_price)}</td>
                     <td className="text-right">
                       <span className="pill pill-neutral">{p.total_stock}</span>
                       <div className="text-[10px] text-on-surface-variant mt-1">{p.active_batches} lote{p.active_batches !== 1 ? "s" : ""}</div>

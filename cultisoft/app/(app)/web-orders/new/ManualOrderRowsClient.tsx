@@ -6,7 +6,8 @@ interface ProductOption {
   id: number;
   sku: string;
   name: string;
-  default_price: number;
+  /** null en cepas de reserva: todavia no tienen precio definido. */
+  default_price: number | null;
   category: string;
   total_stock: number;
 }
@@ -29,7 +30,7 @@ export default function ManualOrderRowsClient({ products }: { products: ProductO
   const total = rows.reduce((s, r) => {
     const p = productsById.get(r.product_id);
     if (!p) return s;
-    return s + p.default_price * r.quantity;
+    return s + (p.default_price ?? 0) * r.quantity;
   }, 0);
 
   function addRow() {
@@ -46,7 +47,7 @@ export default function ManualOrderRowsClient({ products }: { products: ProductO
     <div className="space-y-3">
       {rows.map((row) => {
         const product = productsById.get(row.product_id);
-        const lineTotal = product ? product.default_price * row.quantity : 0;
+        const lineTotal = product ? (product.default_price ?? 0) * row.quantity : 0;
         const stockWarning = product && product.total_stock < row.quantity;
         const outOfStock = product && product.total_stock === 0;
 
@@ -63,8 +64,9 @@ export default function ManualOrderRowsClient({ products }: { products: ProductO
               >
                 <option value="0">— Selecciona producto —</option>
                 {products.map((p) => (
-                  <option key={p.id} value={p.id} disabled={p.total_stock === 0}>
-                    {p.name} · {p.sku} · {p.total_stock} stock · ${p.default_price.toLocaleString("es-CL")}
+                  <option key={p.id} value={p.id} disabled={p.total_stock === 0 || p.default_price == null}>
+                    {p.name} · {p.sku} · {p.total_stock} stock ·{" "}
+                    {p.default_price == null ? "sin precio" : `$${p.default_price.toLocaleString("es-CL")}`}
                     {p.total_stock === 0 ? " · AGOTADO" : ""}
                   </option>
                 ))}

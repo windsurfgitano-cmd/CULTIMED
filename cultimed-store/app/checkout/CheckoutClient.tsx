@@ -86,6 +86,12 @@ export default function CheckoutClient({ customer }: { customer: CustomerAccount
             "\nAjusta tu carrito e intenta de nuevo."
           );
         }
+        if (json.error === "not_purchasable" && Array.isArray(json.detail)) {
+          throw new Error(
+            "Hay productos en tu carrito que todavia no estan a la venta:\n" + json.detail.join("\n") +
+            "\nSacalos del carrito para continuar. Si es una cepa en reserva, resérvala desde su ficha."
+          );
+        }
         throw new Error(json.error || "Error");
       }
       clear();
