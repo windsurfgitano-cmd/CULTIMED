@@ -20,6 +20,7 @@ export const NAV_ACCESS: Record<string, StaffRole[]> = {
   "/notifications":     ["superadmin", "admin"],
   "/dispensations":     OPS_ROLES,
   "/web-orders":        OPS_ROLES,
+  "/reservations":      OPS_ROLES,
   "/prescriptions":     PRESCRIPTIONS_ROLES,
   "/web-prescriptions": PRESCRIPTIONS_ROLES,
   "/doctors":           PRESCRIPTIONS_ROLES,

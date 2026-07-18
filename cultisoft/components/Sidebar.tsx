@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import clsx from "clsx";
-import { canAccessNav } from "@/lib/permissions";
+import { canAccessNav, OPS_ROLES } from "@/lib/permissions";
 import type { StaffRole } from "@/lib/auth";
 
 type NavItem = {
@@ -23,7 +23,16 @@ const NAV: NavItem[] = [
       { href: "/notifications", label: "Notificaciones", roles: ["admin", "superadmin"] },
     ],
   },
-  { n: "02", href: "/web-orders",        label: "Pedidos web" },
+  {
+    n: "02",
+    href: "/web-orders",
+    label: "Pedidos web",
+    subItems: [
+      // Las reservas son la misma bandeja operativa que los pedidos (demanda del
+      // paciente que hay que gestionar), solo que sin pago: van juntas.
+      { href: "/reservations", label: "Reservas", roles: OPS_ROLES },
+    ],
+  },
   {
     n: "03",
     href: "/web-prescriptions",
