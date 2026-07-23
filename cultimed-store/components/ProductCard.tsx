@@ -2,6 +2,7 @@ import Link from "next/link";
 import { formatCLP } from "@/lib/format";
 import { displayStrainName } from "@/lib/active-strains";
 import { isPreorder } from "@/lib/availability";
+import { parsePriceTiers } from "@/lib/pricing";
 import ScrollReveal from "@/components/ScrollReveal";
 
 interface ProductLite {
@@ -20,6 +21,8 @@ interface ProductLite {
   image_url?: string | null;
   strain_key?: string | null;
   is_preorder?: number;
+  /** Escalera de precios por gramo (jsonb). Presente en las cepas vendidas a granel. */
+  price_tiers?: unknown;
   slug?: string;
 }
 
@@ -79,6 +82,13 @@ export default function ProductCard({
   const stock = aggregateStock !== undefined ? aggregateStock : null;
   // Sin precio cargado (tipico de una cepa en reserva): no hay monto que mostrar.
   const sinPrecio = (hasVariants ? minPrice : p.default_price) == null;
+
+  // Para las cepas vendidas por gramo mostramos el precio MAS BARATO por volumen
+  // ("hasta $7.500/g") en vez del base ("desde $8.998/g"): es el gancho comercial.
+  const tiers = pricePerGram ? parsePriceTiers(p.price_tiers) : null;
+  const mejorPrecioGramo = tiers && tiers.length
+    ? tiers.reduce((min, t) => Math.min(min, t.precio_g), Infinity)
+    : null;
 
   const content = (
     <>
@@ -188,10 +198,10 @@ export default function ProductCard({
             </span>
           ) : (
             <span className="font-mono text-sm text-ink nums-lining">
-              {hasVariants && minPrice !== maxPrice ? (
+              {mejorPrecioGramo != null && isFinite(mejorPrecioGramo) ? (
+                <>hasta {formatCLP(mejorPrecioGramo)}/g</>
+              ) : hasVariants && minPrice !== maxPrice ? (
                 <>desde {formatCLP(minPrice)}</>
-              ) : pricePerGram ? (
-                <>desde {formatCLP(p.default_price)}/g</>
               ) : (
                 formatCLP(p.default_price)
               )}
