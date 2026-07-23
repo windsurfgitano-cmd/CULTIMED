@@ -103,6 +103,13 @@ export default function ProductCard({
             <span className="font-mono text-[12px] uppercase tracking-[0.45em] text-paper">Agotado</span>
           </div>
         )}
+        {/* Reserva: la cepa aun no se dispensa; se distingue en la grilla para que
+            el paciente sepa antes de entrar que se reserva, no se compra todavia. */}
+        {enPreventa && !noAlcanzable && (
+          <div className="absolute left-3 top-3">
+            <span className="pill-editorial bg-brass text-paper border-brass text-[10px]">Reserva</span>
+          </div>
+        )}
         {/* Hover hint */}
         {!noAlcanzable && (
           <div className="absolute bottom-4 right-4 transition-all duration-500 ease-editorial opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0">

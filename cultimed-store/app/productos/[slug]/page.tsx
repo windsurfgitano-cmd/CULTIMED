@@ -25,6 +25,8 @@ interface ProductFull {
   is_active: number; shopify_status: string | null;
   image_url: string | null; strain_key: string | null;
   price_tiers: unknown;
+  /** Fecha estimada en que la cepa en reserva estara disponible (o null). */
+  preorder_available_at: string | Date | null;
 }
 interface VariantRow {
   id: number; sku: string; presentation: string | null; default_price: number; total_stock: number;
@@ -168,6 +170,15 @@ export default async function ProductDetailPage({
 
   // Preventa: la ficha muestra el bloque de reserva en vez del selector de compra.
   const enReserva = isPreorder(product);
+  // Fecha estimada de disponibilidad. Se formatea en UTC a proposito: la columna
+  // es DATE (medianoche UTC) y sin fijar timeZone Chile (-4) la correria al dia
+  // anterior ("1 de agosto" -> "31 de julio"). Solo aplica a cepas en reserva.
+  const disponibleDesde =
+    enReserva && product.preorder_available_at
+      ? new Intl.DateTimeFormat("es-CL", {
+          day: "numeric", month: "long", year: "numeric", timeZone: "UTC",
+        }).format(new Date(product.preorder_available_at))
+      : null;
   // Una fila existente — del status que sea — significa que este paciente ya no
   // puede volver a reservar esta cepa (lo impide el indice unico), asi que en vez
   // del boton mostramos el estado.
@@ -360,18 +371,31 @@ export default async function ProductDetailPage({
 
                     <div className="flex items-center gap-3 mb-4">
                       <span className="pill-editorial bg-brass text-paper border-brass">Reserva</span>
-                      <span className="eyebrow">— Aún no disponible</span>
+                      <span className="eyebrow">
+                        {disponibleDesde ? `— Disponible desde el ${disponibleDesde}` : "— Aún no disponible"}
+                      </span>
                     </div>
 
                     <p className="font-display text-2xl leading-tight mb-4 text-balance">
-                      <span className="font-light">Todavía no la tenemos</span>{" "}
-                      <span className="italic">para dispensar</span>
-                      <span className="font-light">.</span>
+                      {disponibleDesde ? (
+                        <>
+                          <span className="font-light">Llega el</span>{" "}
+                          <span className="italic">{disponibleDesde}</span>
+                          <span className="font-light">.</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="font-light">Todavía no la tenemos</span>{" "}
+                          <span className="italic">para dispensar</span>
+                          <span className="font-light">.</span>
+                        </>
+                      )}
                     </p>
 
                     <p className="text-sm leading-relaxed text-ink-muted mb-3">
-                      Puedes reservarla ahora y queda anotada a tu nombre. Cuando llegue el
-                      lote te avisamos por correo, y recién ahí completas tu pedido.
+                      {disponibleDesde
+                        ? "Puedes reservarla ahora y queda anotada a tu nombre. Apenas la habilitemos te avisamos por correo y completas tu pedido."
+                        : "Puedes reservarla ahora y queda anotada a tu nombre. Cuando llegue el lote te avisamos por correo, y recién ahí completas tu pedido."}
                     </p>
                     <p className="text-sm leading-relaxed text-ink mb-6">
                       <strong className="font-medium">No se cobra nada ahora.</strong>{" "}
