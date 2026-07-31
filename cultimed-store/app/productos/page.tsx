@@ -143,9 +143,9 @@ export default async function CatalogPage({
           </div>
           <div className="col-span-12 lg:col-span-4 lg:pb-3">
             <p className="text-sm leading-relaxed text-ink-muted">
-              Disponibilidad real por lote para pacientes validados. Gaslight, Bourbon y Aceite
-              Sublingual Calma están habilitados para compra; las demás genéticas quedan visibles
-              como agotadas para transparentar reposiciones y trazabilidad del dispensario.
+              Disponibilidad real por lote para pacientes validados. Las genéticas sin stock
+              quedan visibles como agotadas para transparentar reposiciones y trazabilidad del
+              dispensario.
             </p>
           </div>
         </div>
