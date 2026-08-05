@@ -133,7 +133,7 @@ export async function POST(req: NextRequest) {
     : 0;
 
   const paymentDiscount = calcPaymentDiscount(subtotal, paymentMethod);
-  const shippingFee = calcShippingFee(subtotal, shippingCity, shippingRegion);
+  const shippingFee = calcShippingFee(shippingCity, shippingRegion);
   const total = Math.max(0, subtotal - referralDiscount - paymentDiscount + shippingFee);
 
   const folio = `CM-${new Date().getFullYear()}-${Date.now().toString(36).toUpperCase()}`;
@@ -172,7 +172,8 @@ export async function POST(req: NextRequest) {
     if (referralDiscount > 0) discounts.push(`embajador 5% (-$${referralDiscount.toLocaleString("es-CL")})`);
     if (paymentDiscount > 0) discounts.push(`transferencia 10% (-$${paymentDiscount.toLocaleString("es-CL")})`);
     const discountNote = discounts.length ? ` con descuento ${discounts.join(" + ")}` : "";
-    const shippingNote = shippingFee > 0 ? ` y despacho $${shippingFee.toLocaleString("es-CL")}` : " y despacho gratis";
+    // shippingFee ya no puede ser 0: siempre se cobra la tarifa de zona.
+    const shippingNote = ` y despacho $${shippingFee.toLocaleString("es-CL")}`;
 
     await tx.run(
       `INSERT INTO customer_order_events (order_id, event_type, message)

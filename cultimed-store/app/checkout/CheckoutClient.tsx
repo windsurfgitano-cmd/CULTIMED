@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useCart, lineTotal } from "@/lib/cart";
 import { formatCLP } from "@/lib/format";
-import { calcShippingFee, FREE_SHIPPING_THRESHOLD, OUTLYING_SHIPPING_FEE, URBAN_SHIPPING_FEE } from "@/lib/shipping";
+import { calcShippingFee, OUTLYING_SHIPPING_FEE, URBAN_SHIPPING_FEE } from "@/lib/shipping";
 import { isNativeApp } from "@/lib/capacitor";
 import type { CustomerAccount } from "@/lib/auth";
 import ScrollReveal from "@/components/ScrollReveal";
@@ -32,9 +32,8 @@ export default function CheckoutClient({ customer }: { customer: CustomerAccount
   }, []);
 
   const transferDiscount = Math.round((subtotal * TRANSFER_DISCOUNT_PCT) / 100);
-  const shippingFee = calcShippingFee(subtotal, shippingCity, "RM");
+  const shippingFee = calcShippingFee(shippingCity, "RM");
   const finalTotal = Math.max(0, subtotal - transferDiscount + shippingFee);
-  const shippingIsFree = shippingFee === 0;
 
   async function handleContinueInBrowser() {
     const { Browser } = await import("@capacitor/browser");
@@ -262,9 +261,7 @@ export default function CheckoutClient({ customer }: { customer: CustomerAccount
                 )}
                 <div className="flex justify-between items-baseline text-sm">
                   <span className="text-ink-muted">Despacho</span>
-                  <span className="font-mono nums-lining tabular-nums">
-                    {shippingIsFree ? "Gratis" : formatCLP(shippingFee)}
-                  </span>
+                  <span className="font-mono nums-lining tabular-nums">{formatCLP(shippingFee)}</span>
                 </div>
                 <div className="flex justify-between items-baseline pt-3 border-t border-rule-soft">
                   <span className="font-display text-lg">Total a pagar</span>
@@ -280,7 +277,7 @@ export default function CheckoutClient({ customer }: { customer: CustomerAccount
                 {submitting ? "Creando orden…" : "Generar orden de pago →"}
               </button>
               <p className="text-[11px] font-mono leading-relaxed text-ink-muted mt-5">
-                Al continuar generamos tu folio y te mostramos los datos para transferir. Despacho urbano {formatCLP(URBAN_SHIPPING_FEE)}; zonas fuera de Santiago urbano {formatCLP(OUTLYING_SHIPPING_FEE)}; gratis sobre {formatCLP(FREE_SHIPPING_THRESHOLD)}.
+                Al continuar generamos tu folio y te mostramos los datos para transferir. Despacho urbano {formatCLP(URBAN_SHIPPING_FEE)}; zonas fuera de Santiago urbano {formatCLP(OUTLYING_SHIPPING_FEE)}.
               </p>
             </div>
           </ScrollReveal>

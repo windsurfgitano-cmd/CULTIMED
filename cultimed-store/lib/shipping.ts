@@ -1,6 +1,5 @@
 import { OUTLYING_COMUNA_KEYS, normalizeComuna } from "./comunas-rm";
 
-export const FREE_SHIPPING_THRESHOLD = 100000;
 export const URBAN_SHIPPING_FEE = 4990;
 export const OUTLYING_SHIPPING_FEE = 9990;
 
@@ -19,7 +18,8 @@ export function isOutlyingShippingZone(city: string | null | undefined, region?:
   return OUTLYING_COMUNA_KEYS.has(normalizeComuna(city));
 }
 
-export function calcShippingFee(subtotal: number, city: string | null | undefined, region?: string | null): number {
-  if (subtotal > FREE_SHIPPING_THRESHOLD) return 0;
+// Sin envio gratis ni descuento por volumen: siempre se cobra la tarifa de la
+// zona, sea cual sea el subtotal del pedido.
+export function calcShippingFee(city: string | null | undefined, region?: string | null): number {
   return isOutlyingShippingZone(city, region) ? OUTLYING_SHIPPING_FEE : URBAN_SHIPPING_FEE;
 }
