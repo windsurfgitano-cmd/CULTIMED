@@ -40,19 +40,24 @@ function unsubToken(accountId) {
   return `${payload}.${sig}`;
 }
 
-// --- plantilla: MISMO layout() que notify-templates.ts (dark editorial) ---
+// --- plantilla: MISMO layout() que notify-templates.ts (dark editorial),
+// + imagen de cabecera y una franja de color propias de esta campana (las
+// notificaciones transaccionales no llevan imagen; esta si, a pedido de Oscar).
 const LOGO = "https://ibkhvopshhlbvjwrmuzm.supabase.co/storage/v1/object/public/email-assets/cultimed-logo-gold.png";
+const HERO_IMAGE = "https://ibkhvopshhlbvjwrmuzm.supabase.co/storage/v1/object/public/email-assets/products/campana-nuevas-cepas-agosto-2026-hero.png";
 function esc(s) { return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
-function layout({ eyebrow, eyebrowColor = "#8b7d5c", titleHtml, greeting, bodyHtml, ctaLabel, ctaUrl, footerExtraHtml = "" }) {
+function layout({ eyebrow, eyebrowColor = "#8b7d5c", titleHtml, greeting, bodyHtml, ctaLabel, ctaUrl, footerExtraHtml = "", heroImage = null }) {
   return `<!DOCTYPE html>
 <html lang="es"><head><meta charset="utf-8"></head>
 <body style="margin:0;padding:0;background:#0F1A22;font-family:Georgia,serif;color:#1a1a1a;">
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#0F1A22;">
   <tr><td align="center" style="padding:48px 16px;">
     <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="max-width:600px;width:100%;background:#F7F1E5;border:1px solid #C9B891;">
-      <tr><td align="center" style="padding:36px 48px 24px;">
-        <img src="${LOGO}" alt="Cultimed" width="160" style="display:block;width:160px;max-width:60%;height:auto;border:0;" />
+      <tr><td style="height:6px;background:linear-gradient(90deg,#8b7d5c,#b0672e,#6b3a5c,#3d5c3a,#a68a3c);font-size:0;line-height:0;">&nbsp;</td></tr>
+      <tr><td align="center" style="padding:32px 48px 20px;">
+        <img src="${LOGO}" alt="Cultimed" width="150" style="display:block;width:150px;max-width:55%;height:auto;border:0;" />
       </td></tr>
+      ${heroImage ? `<tr><td style="padding:0 0 8px;"><img src="${heroImage}" alt="" width="600" style="display:block;width:100%;height:auto;border:0;" /></td></tr>` : ""}
       <tr><td style="padding:24px 48px 16px;">
         <p style="margin:0 0 12px;font-family:'Helvetica Neue',Arial,sans-serif;font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:${eyebrowColor};">${eyebrow}</p>
         <h1 style="margin:0;font-family:Georgia,serif;font-size:32px;font-weight:300;line-height:1.1;color:#1a1a1a;">${titleHtml}</h1>
@@ -77,34 +82,41 @@ function layout({ eyebrow, eyebrowColor = "#8b7d5c", titleHtml, greeting, bodyHt
 </body></html>`;
 }
 
-// Cepas de la campana (las 5 ya confirmadas comprables, no se inventa nada mas).
+// Cepas de la campana (las 5 ya confirmadas dispensables, no se inventa nada
+// mas). Cada una con un color propio para las pills — tonos de la paleta de
+// la marca, sin salirse del registro editorial serio del dispensario.
 const CEPAS = [
-  "Gaslight — Purple Ghost (Sativa dominante)",
-  "Banana Purple Punch Auto",
-  "Zkittlez",
-  "Wedding Cheesecake",
-  "Lemon Pie",
+  { nombre: "Gaslight — Purple Ghost (Sativa dominante)", color: "#8b7d5c" },
+  { nombre: "Banana Purple Punch Auto", color: "#b0672e" },
+  { nombre: "Zkittlez", color: "#6b3a5c" },
+  { nombre: "Wedding Cheesecake", color: "#3d5c3a" },
+  { nombre: "Lemon Pie", color: "#a68a3c" },
 ];
 
 function render(firstName, accountId) {
   const greeting = firstName ? `Hola ${esc(firstName)}` : "Hola";
   const unsubUrl = `${STORE_BASE}/baja?t=${unsubToken(accountId)}`;
-  const lista = CEPAS.map((c) => `<li style="margin:0 0 6px;">${esc(c)}</li>`).join("");
+  const pills = CEPAS.map((c) => `
+        <tr><td style="padding:0 0 8px;">
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${c.color};margin-right:8px;"></span>
+          <span style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:14px;color:#1a1a1a;">${esc(c.nombre)}</span>
+        </td></tr>`).join("");
   return {
-    subject: "Nuevas cepas disponibles para dispensar · Cultimed",
+    subject: "Nuevas cepas listas para dispensar · Cultimed",
     html: layout({
       eyebrow: "Catálogo actualizado",
       eyebrowColor: "#3d5c3a",
-      titleHtml: `Nuevas cepas <em style="font-style:italic;font-weight:400;">disponibles</em>.`,
+      heroImage: HERO_IMAGE,
+      titleHtml: `Nuevas cepas <em style="font-style:italic;font-weight:400;">ya se dispensan</em>.`,
       greeting,
-      bodyHtml: `<p style="margin:0 0 16px;">Ya está disponible para dispensar en Cultimed:</p>
-        <ul style="margin:0 0 16px;padding-left:20px;">${lista}</ul>
-        <p style="margin:0 0 16px;">Puedes revisar la ficha técnica de cada una (genética, THC/CBD, perfil aromático) y comprar directo desde el catálogo.</p>`,
-      ctaLabel: "Ver catálogo",
+      bodyHtml: `<p style="margin:0 0 16px;">Ya están disponibles para dispensar en Cultimed:</p>
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 16px;">${pills}</table>
+        <p style="margin:0 0 16px;">Puedes revisar la ficha técnica de cada una (genética, THC/CBD, perfil aromático) y coordinar tu dispensación directo desde el catálogo.</p>`,
+      ctaLabel: "Ir a dispensación",
       ctaUrl: `${STORE_BASE}/productos`,
       footerExtraHtml: `<p style="margin:0;font-size:10px;">¿No quieres recibir avisos de catálogo? <a href="${unsubUrl}" style="color:#5d544a;text-decoration:underline;">Darte de baja</a>. Los avisos de tus pedidos y recetas seguirán llegando igual.</p>`,
     }),
-    text: `${greeting},\n\nYa está disponible para dispensar en Cultimed:\n${CEPAS.map(c => `- ${c}`).join("\n")}\n\nVer catálogo: ${STORE_BASE}/productos\n\nCultimed · dispensariocultimed.cl\nDarte de baja de avisos de catálogo: ${unsubUrl}`,
+    text: `${greeting},\n\nYa están disponibles para dispensar en Cultimed:\n${CEPAS.map(c => `- ${c.nombre}`).join("\n")}\n\nIr a dispensación: ${STORE_BASE}/productos\n\nCultimed · dispensariocultimed.cl\nDarte de baja de avisos de catálogo: ${unsubUrl}`,
   };
 }
 
