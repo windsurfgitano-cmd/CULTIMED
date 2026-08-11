@@ -85,12 +85,14 @@ function layout({ eyebrow, eyebrowColor = "#8b7d5c", titleHtml, greeting, bodyHt
 // Cepas de la campana (las 5 ya confirmadas dispensables, no se inventa nada
 // mas). Cada una con un color propio para las pills — tonos de la paleta de
 // la marca, sin salirse del registro editorial serio del dispensario.
+// Lemon Pie salio de la lista: se desactivo (agotada). Se agrega Mimosa EVO,
+// activa y con stock real.
 const CEPAS = [
   { nombre: "Gaslight — Purple Ghost (Sativa dominante)", color: "#8b7d5c" },
   { nombre: "Banana Purple Punch Auto", color: "#b0672e" },
   { nombre: "Zkittlez", color: "#6b3a5c" },
   { nombre: "Wedding Cheesecake", color: "#3d5c3a" },
-  { nombre: "Lemon Pie", color: "#a68a3c" },
+  { nombre: "Mimosa EVO", color: "#c1541f" },
 ];
 
 function render(firstName, accountId) {
