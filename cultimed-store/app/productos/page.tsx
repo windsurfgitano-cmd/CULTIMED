@@ -62,7 +62,11 @@ export default async function CatalogPage({
   const brand = searchParams.brand || "";
   const sort = searchParams.sort || "newest";
 
-  const where: string[] = [`p.strain_key IS NOT NULL`];
+  // is_active = 1 es un filtro duro: los productos archivados no deben verse
+  // en el catalogo ni siquiera como "Agotado" -- deben desaparecer del todo.
+  // isReachable() ya exige is_active=1 primero, asi que esto nunca oculta algo
+  // que de verdad fuera alcanzable.
+  const where: string[] = [`p.strain_key IS NOT NULL`, `p.is_active = 1`];
   const params: any[] = [];
   if (cat) { where.push(`p.category = ?`); params.push(cat); }
   if (brand === "cultimed") where.push(`p.is_house_brand = 1`);
